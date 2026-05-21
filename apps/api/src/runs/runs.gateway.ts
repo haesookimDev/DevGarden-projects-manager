@@ -20,6 +20,7 @@ import { RunsService } from './runs.service';
 interface AuthedSocketData {
   clientId?: string;
   ownerId?: string;
+  isInternal?: boolean;
 }
 
 /**
@@ -45,6 +46,8 @@ export class RunsGateway {
 
   emitRunStart(clientId: string, payload: RunStartPayload): void {
     this.server.to(`client:${clientId}`).emit(RUN_EVENTS.Start, payload);
+    // Also fan-out to subscribers (web BFF / future direct browser subscribers)
+    this.fanOutToRunRoom(payload.runId, RUN_EVENTS.Start, payload);
   }
 
   @SubscribeMessage(RUN_EVENTS.Log)
@@ -60,6 +63,7 @@ export class RunsGateway {
       source: body.source ?? 'client',
       message: body.message ?? '',
     });
+    this.fanOutToRunRoom(body.runId, RUN_EVENTS.Log, body);
     return { ok: true };
   }
 
@@ -83,6 +87,7 @@ export class RunsGateway {
       durationMs: body.durationMs,
       error: body.error,
     });
+    this.fanOutToRunRoom(body.runId, RUN_EVENTS.Step, body);
     return { ok: true };
   }
 
@@ -94,7 +99,47 @@ export class RunsGateway {
     if (!this.assertAuthed(socket)) return { ok: false };
     if (!body?.runId) return { ok: false };
     await this.runs.setStatus(body.runId, mapRunStatus(body.status));
+    this.fanOutToRunRoom(body.runId, RUN_EVENTS.Status, body);
     return { ok: true };
+  }
+
+  /**
+   * Subscribe an internal (BFF) socket to a run's broadcast room. ClientsGateway
+   * marks `socket.data.isInternal` when the connection token matches
+   * INTERNAL_API_SECRET. Only those sockets may subscribe — desktop clients
+   * have no business reading other clients' runs.
+   */
+  @SubscribeMessage('subscribe:run')
+  async onSubscribeRun(
+    @ConnectedSocket() socket: Socket,
+    @MessageBody() body: { runId?: string },
+  ): Promise<{ ok: boolean }> {
+    const data = socket.data as AuthedSocketData;
+    if (!data.isInternal) return { ok: false };
+    if (!body?.runId) return { ok: false };
+    await socket.join(`run:${body.runId}`);
+    return { ok: true };
+  }
+
+  @SubscribeMessage('unsubscribe:run')
+  async onUnsubscribeRun(
+    @ConnectedSocket() socket: Socket,
+    @MessageBody() body: { runId?: string },
+  ): Promise<{ ok: boolean }> {
+    const data = socket.data as AuthedSocketData;
+    if (!data.isInternal) return { ok: false };
+    if (!body?.runId) return { ok: false };
+    await socket.leave(`run:${body.runId}`);
+    return { ok: true };
+  }
+
+  /**
+   * Broadcast a run event to every socket that joined `run:<runId>` on this
+   * namespace. Rooms are namespace-scoped in socket.io, so the subscriber
+   * connection must also live on `/clients` (it does — see ClientsGateway).
+   */
+  private fanOutToRunRoom(runId: string, event: string, payload: unknown): void {
+    this.server.to(`run:${runId}`).emit(event, payload);
   }
 
   private assertAuthed(socket: Socket): boolean {

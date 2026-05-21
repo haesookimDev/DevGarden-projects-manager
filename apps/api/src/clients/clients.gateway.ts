@@ -1,4 +1,5 @@
 import { Logger } from '@nestjs/common';
+import { timingSafeEqual } from 'node:crypto';
 import {
   ConnectedSocket,
   OnGatewayConnection,
@@ -14,6 +15,8 @@ import { ClientJwtService } from './client-jwt.service';
 interface AuthedSocketData {
   clientId?: string;
   ownerId?: string;
+  /** True when authenticated via INTERNAL_API_SECRET (server-side BFF). */
+  isInternal?: boolean;
 }
 
 /**
@@ -49,6 +52,13 @@ export class ClientsGateway implements OnGatewayConnection, OnGatewayDisconnect 
       return;
     }
 
+    if (matchesInternalSecret(token)) {
+      const data = socket.data as AuthedSocketData;
+      data.isInternal = true;
+      this.logger.log(`socket ${socket.id} connected as internal subscriber`);
+      return;
+    }
+
     try {
       const { clientId, ownerId } = await this.clientJwt.verify(token);
       const data = socket.data as AuthedSocketData;
@@ -68,6 +78,7 @@ export class ClientsGateway implements OnGatewayConnection, OnGatewayDisconnect 
 
   async handleDisconnect(@ConnectedSocket() socket: Socket): Promise<void> {
     const data = socket.data as AuthedSocketData;
+    if (data.isInternal) return;
     if (!data.clientId) return;
     try {
       await this.prisma.client.update({
@@ -105,4 +116,13 @@ function extractToken(socket: Socket): string | undefined {
     return header.slice(7);
   }
   return undefined;
+}
+
+function matchesInternalSecret(provided: string): boolean {
+  const expected = process.env.INTERNAL_API_SECRET;
+  if (!expected) return false;
+  const a = Buffer.from(provided);
+  const b = Buffer.from(expected);
+  if (a.length !== b.length) return false;
+  return timingSafeEqual(a, b);
 }
