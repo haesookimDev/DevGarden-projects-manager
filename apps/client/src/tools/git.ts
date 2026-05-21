@@ -88,9 +88,7 @@ export function makeGitTools(opts: GitToolOptions): ToolHandler[] {
       async run(input) {
         const cwd = stringOrUndef(input.cwd);
         const args =
-          typeof input.branch === 'string'
-            ? ['push', '-u', 'origin', input.branch]
-            : ['push'];
+          typeof input.branch === 'string' ? ['push', '-u', 'origin', input.branch] : ['push'];
         const res = await runGit(
           ['-c', `user.name=${GIT_USER_NAME}`, '-c', `user.email=${GIT_USER_EMAIL}`, ...args],
           cwd,

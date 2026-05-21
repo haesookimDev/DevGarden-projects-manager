@@ -21,7 +21,9 @@ let root: string;
 async function runGit(args: string[], cwd: string): Promise<void> {
   await new Promise<void>((resolve, reject) => {
     const child = spawn('git', args, { cwd, stdio: 'ignore' });
-    child.on('close', (code) => (code === 0 ? resolve() : reject(new Error(`git ${args.join(' ')} -> ${code}`))));
+    child.on('close', (code) =>
+      code === 0 ? resolve() : reject(new Error(`git ${args.join(' ')} -> ${code}`)),
+    );
     child.on('error', reject);
   });
 }
@@ -31,10 +33,7 @@ beforeEach(async () => {
   if (gitAvailable) {
     await runGit(['init', '--initial-branch=main'], root);
     await writeFile(join(root, 'README.md'), 'initial\n');
-    await runGit(
-      ['-c', 'user.name=seed', '-c', 'user.email=seed@example.com', 'add', '-A'],
-      root,
-    );
+    await runGit(['-c', 'user.name=seed', '-c', 'user.email=seed@example.com', 'add', '-A'], root);
     await runGit(
       ['-c', 'user.name=seed', '-c', 'user.email=seed@example.com', 'commit', '-m', 'seed'],
       root,
@@ -61,7 +60,9 @@ maybe('git tools — branch + commit', () => {
       const child = spawn('git', ['log', '-1', '--pretty=%an <%ae>'], { cwd: root });
       let out = '';
       child.stdout.on('data', (c) => (out += c));
-      child.on('close', (code) => (code === 0 ? resolve(out.trim()) : reject(new Error('log failed'))));
+      child.on('close', (code) =>
+        code === 0 ? resolve(out.trim()) : reject(new Error('log failed')),
+      );
     });
     expect(author).toBe('haesookimDev <ww232330@gmail.com>');
 
@@ -70,7 +71,9 @@ maybe('git tools — branch + commit', () => {
       const child = spawn('git', ['rev-parse', '--abbrev-ref', 'HEAD'], { cwd: root });
       let out = '';
       child.stdout.on('data', (c) => (out += c));
-      child.on('close', (code) => (code === 0 ? resolve(out.trim()) : reject(new Error('rev-parse failed'))));
+      child.on('close', (code) =>
+        code === 0 ? resolve(out.trim()) : reject(new Error('rev-parse failed')),
+      );
     });
     expect(branch).toBe('feat/test-branch');
 
