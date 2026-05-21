@@ -128,6 +128,31 @@ Browser ──▶ web (BFF)            ──▶ POST /internal/projects        
 - web UI: `/dashboard/clients/new` 폼이 React 19 `useActionState` 로 발급 결과를 페이지 내에서 표시 (URL 에 토큰 노출 X). 토큰은 1회 표시되며 사용자가 복사해 Tauri client 에 입력.
 - Tauri client UI (`apps/client/src/App.tsx`): API base URL + 토큰 입력 → `POST /clients/pair` → `tauri-plugin-store` 가 `pairing.json` 에 JWT 영속화. 다음 실행 시 자동 load. unpair 버튼으로 삭제 가능. 현재는 plain JSON store; 향후 OS keychain (`tauri-plugin-stronghold` 또는 `keyring` crate) 으로 전환 예정.
 
+### 2.4 클라이언트 실시간 연결 (Socket.io)
+
+페어링이 끝난 클라이언트는 socket.io 로 api 에 상시 연결되어 상태/명령/로그를 주고받는다.
+
+```
+Desktop client ──▶ wss://api/clients  (namespace)
+                   auth.token = <pairing JWT>
+                   - ClientsGateway.handleConnection
+                     - ClientJwtService.verify (Bearer or auth.token)
+                     - socket.join('client:<id>')
+                     - Client.status = ONLINE, lastSeenAt = now
+                   ◀── 연결 유지
+   주기적으로 emit 'heartbeat'
+                   - ClientsGateway.onHeartbeat
+                     - lastSeenAt 갱신, status 유지
+                   ◀── ack { ok: true, ts }
+   연결 종료
+                   - ClientsGateway.handleDisconnect
+                     - Client.status = OFFLINE
+```
+
+- 네임스페이스 `/clients` 는 데스크탑 클라이언트 전용. 향후 `project:<id>` room 으로 broadcast 추가 예정 (`run:*` 이벤트).
+- 클라이언트 측 socket.io adapter + heartbeat 송신은 다음 PR.
+- web 대시보드의 실시간 클라이언트 상태 표시는 또 다음 PR.
+
 ---
 
 ## 3. 데이터 흐름

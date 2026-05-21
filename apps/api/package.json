@@ -22,27 +22,34 @@
     "@nestjs/common": "^10.4.15",
     "@nestjs/core": "^10.4.15",
     "@nestjs/platform-express": "^10.4.15",
+    "@nestjs/platform-socket.io": "^10.4.15",
+    "@nestjs/websockets": "^10.4.15",
     "@octokit/auth-app": "^7.1.4",
     "@octokit/rest": "^21.0.2",
     "@prisma/client": "^6.1.0",
     "bcrypt": "^5.1.1",
     "jose": "^5.9.6",
     "reflect-metadata": "^0.2.2",
-    "rxjs": "^7.8.1"
+    "rxjs": "^7.8.1",
+    "socket.io": "^4.8.1"
   },
   "devDependencies": {
     "@nestjs/cli": "^10.4.9",
     "@nestjs/schematics": "^10.2.3",
+    "@nestjs/testing": "^10.4.15",
+    "@swc/core": "^1.10.4",
     "@testcontainers/postgresql": "^10.16.0",
     "@types/bcrypt": "^5.0.2",
     "@types/express": "^5.0.0",
     "@types/node": "^22.10.2",
     "prisma": "^6.1.0",
+    "socket.io-client": "^4.8.1",
     "supertest": "^7.0.0",
     "testcontainers": "^10.16.0",
     "ts-node": "^10.9.2",
     "tsconfig-paths": "^4.2.0",
     "typescript": "^5.7.2",
+    "unplugin-swc": "^1.5.1",
     "vitest": "^2.1.8"
   }
 }
