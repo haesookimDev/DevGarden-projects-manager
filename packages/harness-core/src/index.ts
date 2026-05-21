@@ -1,0 +1,1 @@
+export const HARNESS_SCHEMA_VERSION = 1;
