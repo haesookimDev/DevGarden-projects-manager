@@ -1,6 +1,13 @@
-export type LlmProviderKind = 'codex-cli' | 'openai-compatible';
+export type {
+  ChatMessage,
+  ChatRequest,
+  ChatResponse,
+  ChatRole,
+  LlmProvider,
+  LlmProviderKind,
+  TokenUsage,
+} from './types';
+export { LlmProviderError } from './types';
 
-export interface LlmProvider {
-  readonly kind: LlmProviderKind;
-  readonly id: string;
-}
+export { OpenAICompatibleProvider, type OpenAICompatibleOptions } from './openai-compatible';
+export { CodexCliProvider, type CodexCliOptions, type SpawnFn } from './codex-cli';
