@@ -1,16 +1,108 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import type { RunDetail } from '@/lib/api/runs';
+import { useEffect, useRef, useState } from 'react';
+import type { RunDetail, RunLogRow, RunStepRow } from '@/lib/api/runs';
 
-const POLL_INTERVAL_MS = 2_000;
+const POLL_INTERVAL_MS = 5_000;
 
 const TERMINAL: Array<RunDetail['status']> = ['SUCCESS', 'FAILED', 'CANCELLED'];
+
+type RunLogEventPayload = {
+  runId: string;
+  level: string;
+  source: string;
+  message: string;
+};
+type RunStepEventPayload = {
+  runId: string;
+  stepIndex: number;
+  stepId: string;
+  kind: string;
+  status: string;
+  durationMs?: number;
+  error?: string;
+};
+type RunStatusEventPayload = {
+  runId: string;
+  status: RunDetail['status'];
+};
 
 export function RunView({ initial }: { initial: RunDetail }) {
   const [run, setRun] = useState<RunDetail>(initial);
   const [error, setError] = useState<string | null>(null);
+  const [liveConnected, setLiveConnected] = useState(false);
+  // Monotonic counter so SSE-appended rows have stable React keys without
+  // colliding with persisted DB ids.
+  const liveSeqRef = useRef(0);
 
+  // ---- SSE (preferred) -----------------------------------------------------
+  useEffect(() => {
+    if (TERMINAL.includes(run.status)) return;
+    const es = new EventSource(`/api/runs/${run.id}/stream`);
+
+    es.addEventListener('open', () => {
+      setLiveConnected(true);
+      setError(null);
+    });
+    es.addEventListener('error', () => {
+      setLiveConnected(false);
+    });
+    es.addEventListener('disconnect', () => {
+      setLiveConnected(false);
+    });
+
+    es.addEventListener('run:log', (evt) => {
+      const payload = parse<RunLogEventPayload>((evt as MessageEvent).data);
+      if (!payload || payload.runId !== run.id) return;
+      const row: RunLogRow = {
+        id: `live-log-${liveSeqRef.current++}`,
+        ts: new Date().toISOString(),
+        level: payload.level.toUpperCase(),
+        source: payload.source,
+        message: payload.message,
+      };
+      setRun((prev) => ({ ...prev, logs: [...prev.logs, row] }));
+    });
+
+    es.addEventListener('run:step', (evt) => {
+      const payload = parse<RunStepEventPayload>((evt as MessageEvent).data);
+      if (!payload || payload.runId !== run.id) return;
+      const row: RunStepRow = {
+        id: `live-step-${liveSeqRef.current++}`,
+        stepIndex: payload.stepIndex,
+        stepId: payload.stepId,
+        kind: payload.kind,
+        status: payload.status,
+        durationMs: payload.durationMs ?? null,
+        error: payload.error ?? null,
+        createdAt: new Date().toISOString(),
+      };
+      setRun((prev) => {
+        const existing = prev.steps.findIndex((s) => s.stepIndex === payload.stepIndex);
+        const steps = existing >= 0 ? prev.steps.slice() : [...prev.steps, row];
+        if (existing >= 0) steps[existing] = row;
+        return { ...prev, steps };
+      });
+    });
+
+    es.addEventListener('run:status', (evt) => {
+      const payload = parse<RunStatusEventPayload>((evt as MessageEvent).data);
+      if (!payload || payload.runId !== run.id) return;
+      setRun((prev) => ({
+        ...prev,
+        status: payload.status,
+        finishedAt: TERMINAL.includes(payload.status) ? new Date().toISOString() : prev.finishedAt,
+      }));
+      if (TERMINAL.includes(payload.status)) es.close();
+    });
+
+    return () => es.close();
+  }, [run.id, run.status]);
+
+  // ---- Polling fallback ----------------------------------------------------
+  // Cadence intentionally slower than the SSE-less era (5s vs 2s) so we don't
+  // hammer the server when SSE is doing the heavy lifting. Still useful for
+  // reconciling state if SSE drops mid-run.
   useEffect(() => {
     if (TERMINAL.includes(run.status)) return;
     let cancelled = false;
@@ -40,7 +132,10 @@ export function RunView({ initial }: { initial: RunDetail }) {
     <main className="p-8">
       <header className="flex items-center justify-between border-b border-neutral-800 pb-4">
         <h1 className="text-2xl font-semibold">Run {run.id.slice(0, 8)}</h1>
-        <StatusPill status={run.status} />
+        <div className="flex items-center gap-2">
+          <LivePill connected={liveConnected} terminal={TERMINAL.includes(run.status)} />
+          <StatusPill status={run.status} />
+        </div>
       </header>
 
       <section className="mt-4 text-sm text-neutral-400">
@@ -105,6 +200,27 @@ export function RunView({ initial }: { initial: RunDetail }) {
       </section>
     </main>
   );
+}
+
+function LivePill({ connected, terminal }: { connected: boolean; terminal: boolean }) {
+  if (terminal) return null;
+  return (
+    <span
+      data-testid={connected ? 'run-live-connected' : 'run-live-disconnected'}
+      className={`rounded-full px-2 py-0.5 text-xs ${connected ? 'bg-emerald-950 text-emerald-300' : 'bg-neutral-800 text-neutral-400'}`}
+    >
+      ● {connected ? 'live' : 'reconnecting…'}
+    </span>
+  );
+}
+
+function parse<T>(raw: unknown): T | undefined {
+  if (typeof raw !== 'string') return undefined;
+  try {
+    return JSON.parse(raw) as T;
+  } catch {
+    return undefined;
+  }
 }
 
 function StatusPill({ status }: { status: string }) {
