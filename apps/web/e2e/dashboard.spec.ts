@@ -17,3 +17,13 @@ test('authenticated user can open the new project form', async ({ page }) => {
   await expect(page.getByRole('heading', { name: /add project/i })).toBeVisible();
   await expect(page.getByPlaceholder(/octocat\/Hello-World/i)).toBeVisible();
 });
+
+test('dashboard renders client list from api with ONLINE/OFFLINE pills', async ({ page }) => {
+  await page.goto('/dashboard');
+  const list = page.getByTestId('client-list');
+  await expect(list).toBeVisible();
+  await expect(list.getByText('Mock Laptop')).toBeVisible();
+  await expect(list.getByText('Mock Server')).toBeVisible();
+  await expect(page.getByTestId('status-online')).toBeVisible();
+  await expect(page.getByTestId('status-offline')).toBeVisible();
+});
