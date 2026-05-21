@@ -37,15 +37,32 @@ Playwright config가 `pnpm dev` 를 직접 spawn (테스트용 fake env 주입).
 
 현재 구현:
 
-- `auth-guard.spec.ts` — middleware 인증 가드 동작 확인
-  - 미인증 사용자 `/` → `/signin` 리다이렉트
-  - 미인증 사용자 `/dashboard` → `/signin?callbackUrl=/dashboard`
-  - `/signin` 페이지에 "Continue with GitHub" 버튼 노출
+- `auth-guard.spec.ts` — middleware 인증 가드 (4 cases)
+- `dashboard.spec.ts` — 인증된 사용자 dashboard 접근 (2 cases). `auth-fixture.ts` 가 NextAuth JWT 세션 쿠키를 미리 발급
+- `mock-server.ts` — `/internal/users/upsert`, `/internal/projects` 응답 (테스트 중 web SSR 이 호출)
+
+### auth fixture vs 진짜 OAuth flow
+
+현재 e2e 는 GitHub OAuth dance 자체를 검증하지 **않는다**. 이유: NextAuth(`oauth4webapi`)가 token / userinfo endpoint 에 HTTPS 만 허용해서, HTTP mock 서버로는 callback 단계에서 `OperationProcessingError: only requests to HTTPS are allowed` 가 발생.
+
+대신 `auth-fixture` 가 `@auth/core/jwt` 의 `encode` 로 직접 세션 쿠키를 발급. 이게 검증하는 것:
+
+- middleware 가 유효 세션을 통과시키는지
+- dashboard server component 가 `session.user.id/login/githubId` 를 정확히 읽는지
+- 보호된 페이지가 인증된 사용자에게 열리는지
+
+검증하지 **못하는 것** (별도 PR 필요):
+
+- `signIn` callback 의 allow-list 거부 흐름
+- `jwt` callback 의 `upsertUserViaApi` 호출
+- NextAuth provider URL override 가 실제 OAuth dance 에서 동작하는지
+
+이 범위는 HTTPS mock 서버 (self-signed cert + `NODE_TLS_REJECT_UNAUTHORIZED=0`) 도입 PR 에서 충족 예정.
 
 차후 PR:
 
-- `oauth-login.spec.ts` — GitHub OAuth mock 으로 실제 로그인 → 대시보드 진입
-- `project-add.spec.ts` — 레포 선택 → 프로젝트 생성 → 목록에 표시
+- `oauth-flow.spec.ts` — HTTPS mock 으로 진짜 OAuth round-trip
+- `project-add.spec.ts` — 폼 submit → 프로젝트 목록 갱신
 - `client-pair.spec.ts` — 페어링 토큰 발급 → 모의 클라이언트 연결 → 상태 online
 - `harness-run.spec.ts` — 하네스 트리거 → 로그 스트림 수신 → 상태 success
 - `pr-observe.spec.ts` — 웹훅 mock → PR 카드 갱신
