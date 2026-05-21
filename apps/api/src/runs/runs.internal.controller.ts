@@ -3,18 +3,25 @@ import {
   Body,
   Controller,
   Get,
+  Logger,
   Param,
   Post,
   Query,
   UseGuards,
 } from '@nestjs/common';
 import { InternalAuthGuard } from '../auth/internal-auth.guard';
+import { RunsGateway } from './runs.gateway';
 import { RunsService } from './runs.service';
 
 @Controller('internal/runs')
 @UseGuards(InternalAuthGuard)
 export class RunsInternalController {
-  constructor(private readonly runs: RunsService) {}
+  private readonly logger = new Logger(RunsInternalController.name);
+
+  constructor(
+    private readonly runs: RunsService,
+    private readonly gateway: RunsGateway,
+  ) {}
 
   @Post()
   async create(@Body() body: unknown) {
@@ -28,6 +35,10 @@ export class RunsInternalController {
     const triggeredByUserId = requireString(b, 'triggeredByUserId');
     const branchName = typeof b.branchName === 'string' ? b.branchName : undefined;
     const workingDir = typeof b.workingDir === 'string' ? b.workingDir : undefined;
+    const inputs =
+      b.inputs && typeof b.inputs === 'object' && !Array.isArray(b.inputs)
+        ? (b.inputs as Record<string, unknown>)
+        : {};
 
     const run = await this.runs.createRun({
       harnessId,
@@ -37,6 +48,22 @@ export class RunsInternalController {
       branchName,
       workingDir,
     });
+
+    try {
+      const harness = await this.runs.getHarnessDefinition(harnessId);
+      this.gateway.emitRunStart(clientId, {
+        runId: run.id,
+        harness,
+        inputs,
+        workingDir,
+      });
+    } catch (err) {
+      // Dispatch failure shouldn't roll back the queued run — surface it in
+      // logs so an operator can investigate and the client can be retried.
+      const msg = err instanceof Error ? err.message : String(err);
+      this.logger.error(`run ${run.id} dispatch failed: ${msg}`);
+    }
+
     return projectRun(run);
   }
 
