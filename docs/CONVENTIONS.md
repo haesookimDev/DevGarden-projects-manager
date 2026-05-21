@@ -40,7 +40,38 @@ fix: Prevent duplicate worktree dir on retry
 docs: Update HARNESS-FORMAT with loop semantics
 ```
 
-## 4. PR 본문 (반드시 작성)
+## 4. 커밋 단위 (분리 원칙)
+
+한 PR도 **여러 커밋으로 쪼갠다.** 한 PR에서 변경된 모든 파일을 단일 커밋으로 묶지 않는다.
+
+분리 단위:
+
+- **스캐폴딩**: 신규 파일/디렉토리 생성
+- **기능 추가**: 논리적으로 1가지 변경
+- **버그 픽스**: 별건이면 별 커밋
+- **설정 / 포맷팅**: 자동 도구의 부수 효과(예: Next.js의 tsconfig 재포맷, prettier 일괄 적용)는 별 커밋
+
+각 커밋의 조건:
+
+- 단독으로 빌드/typecheck/lint 통과
+- 메시지가 그 커밋의 의도만 정확히 설명
+- 작업 도중의 임시 상태는 커밋하지 않음 (rebase로 정리)
+
+**이유**: 머지 후에도 부분 revert · cherry-pick · bisect 가 쉬워야 한다. 한 커밋에 여러 의도가 섞이면 한 가지만 되돌리기 위해 수동 패치를 짜야 한다.
+
+**머지 전략**: GitHub PR 머지 설정은 **Merge commit** 또는 **Rebase and merge** 사용 — `Squash and merge`는 커밋 분리의 이점을 없애므로 피한다.
+
+작은 예 (PR 하나 안에서):
+
+```
+chore: Add prisma schema
+chore: Add prisma migrate npm scripts
+test: Add Testcontainers postgres fixture
+feat(api): Wire prisma module into AppModule
+docs: Update db-schema.md to match prisma file
+```
+
+## 5. PR 본문 (반드시 작성)
 
 ```markdown
 ## Summary
@@ -75,7 +106,7 @@ docs: Update HARNESS-FORMAT with loop semantics
 - 마이그레이션 / 데이터 영향 / 롤백 방법
 ```
 
-## 5. 코드 스타일
+## 6. 코드 스타일
 
 - TypeScript strict 모드
 - 포매터: Prettier (저장 시 자동), 린터: ESLint (`@typescript-eslint`)
@@ -83,7 +114,7 @@ docs: Update HARNESS-FORMAT with loop semantics
 - 함수는 작게: 50줄을 넘으면 분리 검토
 - React: 서버/클라이언트 컴포넌트 명시, 클라이언트는 `'use client'` 1줄로 시작
 
-## 6. 테스트 규칙
+## 7. 테스트 규칙
 
 - **백엔드 기능 추가 시 Vitest 테스트 필수**
 - **프론트엔드 기능 추가/변경 시 Playwright E2E 필수**
@@ -91,13 +122,13 @@ docs: Update HARNESS-FORMAT with loop semantics
 - DB 의존 테스트는 Testcontainers PostgreSQL 사용 (CI/로컬 일관)
 - 자세한 규칙은 [`./TESTING.md`](./TESTING.md)
 
-## 7. 문서 동기화
+## 8. 문서 동기화
 
 - 새 기능/수정 시 **반드시 docs/ 해당 파일 동기화**
 - PR에서 docs 변경이 없으면 리뷰어가 이유를 묻는다
 - CLAUDE.md/AGENTS.md에는 직접 정보 적지 말고, 항상 `docs/...` 링크로 연결
 
-## 8. 보안
+## 9. 보안
 
 - 비밀(API key, GitHub App private key, OAuth secret)은 `.env`에만, 절대 커밋 금지
 - `.env*`, `*.pem`, `secrets/**`는 gitignore에 포함
