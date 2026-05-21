@@ -25,10 +25,7 @@ function findTool(name: string) {
 
 describe('fs.write + fs.read', () => {
   it('writes a file and reads it back', async () => {
-    await findTool('fs.write').run(
-      { path: 'src/x.txt', content: 'hello' },
-      { runId: 'r' },
-    );
+    await findTool('fs.write').run({ path: 'src/x.txt', content: 'hello' }, { runId: 'r' });
     const back = await findTool('fs.read').run({ path: 'src/x.txt' }, { runId: 'r' });
     expect(back).toEqual({ path: 'src/x.txt', content: 'hello' });
 
