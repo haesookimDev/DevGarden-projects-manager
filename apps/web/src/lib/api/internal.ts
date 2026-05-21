@@ -11,7 +11,7 @@ export function getInternalApiConfig(): { baseUrl: string; secret: string } {
 
 export async function internalFetch(
   path: string,
-  init: { method: 'GET' | 'POST'; body?: unknown },
+  init: { method: 'GET' | 'POST' | 'PATCH' | 'DELETE'; body?: unknown },
 ): Promise<Response> {
   const { baseUrl, secret } = getInternalApiConfig();
 

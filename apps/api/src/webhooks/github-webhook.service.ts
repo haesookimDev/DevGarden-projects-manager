@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import type { GithubEvent, Prisma } from '@prisma/client';
+import { type GithubEvent, type Prisma, TodoSource, TodoStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 
 export interface RecordGithubEventInput {
@@ -23,8 +23,9 @@ export class GithubWebhookService {
     const action = extractAction(input.payload);
     const projectId = repoFullName ? await this.lookupProjectId(repoFullName) : null;
 
+    let row: GithubEvent;
     try {
-      return await this.prisma.githubEvent.create({
+      row = await this.prisma.githubEvent.create({
         data: {
           deliveryId: input.deliveryId,
           eventType: input.eventType,
@@ -41,6 +42,51 @@ export class GithubWebhookService {
       }
       throw err;
     }
+
+    // Side-effect: keep TodoItem in sync for issues events. Other event types
+    // (push / pull_request / etc.) only land in the audit table for now.
+    if (input.eventType === 'issues' && projectId) {
+      await this.upsertIssueTodo(projectId, input.payload, action);
+    }
+
+    return row;
+  }
+
+  private async upsertIssueTodo(
+    projectId: string,
+    payload: Record<string, unknown>,
+    action: string | null,
+  ): Promise<void> {
+    const issue = (payload as { issue?: Record<string, unknown> }).issue;
+    if (!issue) return;
+    const number = typeof issue.number === 'number' ? issue.number : null;
+    const title = typeof issue.title === 'string' ? issue.title : null;
+    if (number === null || title === null) return;
+    const body = typeof issue.body === 'string' ? issue.body : null;
+    const status = mapIssueStateToTodoStatus(issue.state, action);
+
+    try {
+      await this.prisma.todoItem.upsert({
+        where: {
+          projectId_sourceType_sourceRef: {
+            projectId,
+            sourceType: TodoSource.GITHUB_ISSUE,
+            sourceRef: number,
+          },
+        },
+        create: {
+          projectId,
+          title,
+          body,
+          status,
+          sourceType: TodoSource.GITHUB_ISSUE,
+          sourceRef: number,
+        },
+        update: { title, body, status },
+      });
+    } catch (err) {
+      this.logger.warn(`upsertIssueTodo failed for issue #${number}: ${(err as Error).message}`);
+    }
   }
 
   private async lookupProjectId(repoFullName: string): Promise<string | null> {
@@ -50,6 +96,11 @@ export class GithubWebhookService {
     });
     return row?.id ?? null;
   }
+}
+
+function mapIssueStateToTodoStatus(state: unknown, action: string | null): TodoStatus {
+  if (state === 'closed' || action === 'closed') return TodoStatus.DONE;
+  return TodoStatus.OPEN;
 }
 
 function extractRepoFullName(payload: Record<string, unknown>): string | null {

@@ -6,6 +6,7 @@ import { HealthController } from './health.controller';
 import { PrismaModule } from './prisma/prisma.module';
 import { ProjectsModule } from './projects/projects.module';
 import { RunsModule } from './runs/runs.module';
+import { TodosModule } from './todos/todos.module';
 import { UsersModule } from './users/users.module';
 import { WebhooksModule } from './webhooks/webhooks.module';
 
@@ -18,6 +19,7 @@ import { WebhooksModule } from './webhooks/webhooks.module';
     ClientsModule,
     HarnessesModule,
     RunsModule,
+    TodosModule,
     WebhooksModule,
   ],
   controllers: [HealthController],

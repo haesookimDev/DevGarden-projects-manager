@@ -31,6 +31,7 @@ afterAll(async () => {
 });
 
 beforeEach(async () => {
+  await prisma.todoItem.deleteMany();
   await prisma.githubEvent.deleteMany();
   await prisma.project.deleteMany();
   await prisma.user.deleteMany();
@@ -110,6 +111,62 @@ describe('POST /webhooks/github', () => {
     expect(row?.projectId).toBe(project.id);
     expect(row?.repoFullName).toBe('wh/repo');
     expect(row?.action).toBe('opened');
+  });
+
+  it('upserts a TodoItem when an issues event arrives for a known project', async () => {
+    const user = await prisma.user.create({
+      data: { githubId: 8101, login: 'iss-owner', role: UserRole.OWNER },
+    });
+    const project = await prisma.project.create({
+      data: {
+        ownerId: user.id,
+        githubInstallationId: 1,
+        githubRepoId: 81,
+        repoFullName: 'iss/repo',
+        localRoot: '/tmp/iss',
+      },
+    });
+
+    const open = JSON.stringify({
+      action: 'opened',
+      repository: { full_name: 'iss/repo' },
+      issue: { number: 11, title: 'first', body: 'hi', state: 'open' },
+    });
+    const r1 = await request(app.getHttpServer())
+      .post('/webhooks/github')
+      .set('x-github-event', 'issues')
+      .set('x-github-delivery', 'd-iss-open-1')
+      .set('x-hub-signature-256', sign(open))
+      .set('content-type', 'application/json')
+      .send(open);
+    expect(r1.status).toBe(204);
+
+    const created = await prisma.todoItem.findFirst({
+      where: { projectId: project.id, sourceRef: 11 },
+    });
+    expect(created?.title).toBe('first');
+    expect(created?.status).toBe('OPEN');
+
+    const closed = JSON.stringify({
+      action: 'closed',
+      repository: { full_name: 'iss/repo' },
+      issue: { number: 11, title: 'first (closed)', body: 'hi', state: 'closed' },
+    });
+    const r2 = await request(app.getHttpServer())
+      .post('/webhooks/github')
+      .set('x-github-event', 'issues')
+      .set('x-github-delivery', 'd-iss-close-1')
+      .set('x-hub-signature-256', sign(closed))
+      .set('content-type', 'application/json')
+      .send(closed);
+    expect(r2.status).toBe(204);
+
+    const rows = await prisma.todoItem.findMany({
+      where: { projectId: project.id, sourceRef: 11 },
+    });
+    expect(rows).toHaveLength(1);
+    expect(rows[0]!.status).toBe('DONE');
+    expect(rows[0]!.title).toBe('first (closed)');
   });
 
   it('is idempotent on delivery id', async () => {

@@ -294,6 +294,9 @@ model TodoItem {
   createdAt  DateTime   @default(now())
   updatedAt  DateTime   @updatedAt
 
+  // Postgres treats NULL as distinct on uniques, so internal todos (sourceRef=null)
+  // can coexist freely. GitHub issues with the same number → one row, upserted.
+  @@unique([projectId, sourceType, sourceRef])
   @@index([projectId, status])
 }
 
