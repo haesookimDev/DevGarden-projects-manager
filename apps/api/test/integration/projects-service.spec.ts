@@ -37,6 +37,12 @@ afterAll(async () => {
 });
 
 beforeEach(async () => {
+  await prisma.runLog.deleteMany();
+  await prisma.runStep.deleteMany();
+  await prisma.harnessRun.deleteMany();
+  await prisma.githubEvent.deleteMany();
+  await prisma.client.deleteMany();
+  await prisma.harness.deleteMany();
   await prisma.project.deleteMany();
   await prisma.user.deleteMany();
 });
@@ -147,5 +153,64 @@ describe('ProjectsService.listByOwner', () => {
 
     const bList = await svc.listByOwner(b.id);
     expect(bList.map((p) => p.repoFullName)).toEqual(['b/r3']);
+  });
+});
+
+describe('ProjectsService.getDetail', () => {
+  it('returns runCount + lastRun + lastEvent + default associations', async () => {
+    const user = await prisma.user.create({
+      data: { githubId: 300, login: 'd-owner', role: UserRole.OWNER },
+    });
+    const project = await prisma.project.create({
+      data: {
+        ownerId: user.id,
+        githubInstallationId: 1,
+        githubRepoId: 10,
+        repoFullName: 'd/repo',
+        localRoot: '/tmp/d',
+      },
+    });
+    const harness = await prisma.harness.create({
+      data: { ownerId: user.id, name: 'h', definition: { name: 'h', version: 1, steps: [] } },
+    });
+    const client = await prisma.client.create({
+      data: { ownerId: user.id, name: 'c', jwtTokenHash: 'h' },
+    });
+    await prisma.project.update({
+      where: { id: project.id },
+      data: { defaultClientId: client.id, defaultHarnessId: harness.id },
+    });
+    await prisma.harnessRun.create({
+      data: {
+        harnessId: harness.id,
+        projectId: project.id,
+        clientId: client.id,
+        triggeredByUserId: user.id,
+      },
+    });
+    await prisma.githubEvent.create({
+      data: {
+        deliveryId: 'd-detail-1',
+        eventType: 'issues',
+        action: 'opened',
+        projectId: project.id,
+        payload: { x: 1 },
+      },
+    });
+
+    const fakeApp = new FakeGithubApp();
+    const svc = new ProjectsService(prisma as unknown as PrismaService, fakeApp);
+    const detail = await svc.getDetail(project.id);
+    expect(detail.runCount).toBe(1);
+    expect(detail.lastRun?.id).toBeTruthy();
+    expect(detail.lastEvent?.eventType).toBe('issues');
+    expect(detail.project.defaultClient?.name).toBe('c');
+    expect(detail.project.defaultHarness?.name).toBe('h');
+  });
+
+  it('throws NotFoundException when project does not exist', async () => {
+    const fakeApp = new FakeGithubApp();
+    const svc = new ProjectsService(prisma as unknown as PrismaService, fakeApp);
+    await expect(svc.getDetail('does-not-exist')).rejects.toThrow(/not found/);
   });
 });
