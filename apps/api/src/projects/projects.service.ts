@@ -63,6 +63,43 @@ export class ProjectsService {
       orderBy: { createdAt: 'desc' },
     });
   }
+
+  async getDetail(id: string): Promise<ProjectDetail> {
+    const project = await this.prisma.project.findUnique({
+      where: { id },
+      include: {
+        defaultClient: { select: { id: true, name: true, status: true } },
+        defaultHarness: { select: { id: true, name: true, version: true } },
+      },
+    });
+    if (!project) throw new NotFoundException(`project ${id} not found`);
+
+    const [runCount, lastRun, lastEvent] = await Promise.all([
+      this.prisma.harnessRun.count({ where: { projectId: id } }),
+      this.prisma.harnessRun.findFirst({
+        where: { projectId: id },
+        orderBy: { startedAt: 'desc' },
+        select: { id: true, status: true, startedAt: true, finishedAt: true },
+      }),
+      this.prisma.githubEvent.findFirst({
+        where: { projectId: id },
+        orderBy: { receivedAt: 'desc' },
+        select: { id: true, eventType: true, action: true, receivedAt: true },
+      }),
+    ]);
+
+    return { project, runCount, lastRun, lastEvent };
+  }
+}
+
+export interface ProjectDetail {
+  project: Project & {
+    defaultClient: { id: string; name: string; status: string } | null;
+    defaultHarness: { id: string; name: string; version: number } | null;
+  };
+  runCount: number;
+  lastRun: { id: string; status: string; startedAt: Date; finishedAt: Date | null } | null;
+  lastEvent: { id: string; eventType: string; action: string | null; receivedAt: Date } | null;
 }
 
 function splitRepoFullName(full: string): [string, string] {
