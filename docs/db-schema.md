@@ -1,6 +1,8 @@
 # Database Schema (Prisma)
 
-> 실제 `schema.prisma`는 `apps/api/prisma/schema.prisma`에 둔다. 여기서는 의도/제약을 문서화한다.
+> 실제 `schema.prisma`는 [`apps/api/prisma/schema.prisma`](../apps/api/prisma/schema.prisma)에 있다.
+> 이 문서는 **의도와 제약**을 설명하고, 컬럼 shape는 schema 파일이 authoritative.
+> Prisma 변경 시 이 문서도 같은 PR에서 갱신할 것.
 
 ## 1. 엔터티 다이어그램 (요약)
 

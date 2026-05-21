@@ -1,0 +1,297 @@
+// DevGarden Prisma schema.
+// Source of truth for the database. Docs in docs/db-schema.md describe intent;
+// this file is authoritative for column shapes and relations.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// =============================================================================
+// Users
+// =============================================================================
+
+enum UserRole {
+  OWNER
+  MEMBER
+}
+
+model User {
+  id        String   @id @default(cuid())
+  githubId  Int      @unique
+  login     String
+  email     String?
+  role      UserRole @default(MEMBER)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  projects     Project[]
+  clients      Client[]
+  harnesses    Harness[]
+  llmProviders LlmProvider[]
+  pairings     ClientPairing[]
+  triggeredRuns HarnessRun[] @relation("RunTriggeredBy")
+}
+
+// =============================================================================
+// Clients (desktop pairing)
+// =============================================================================
+
+enum ClientStatus {
+  ONLINE
+  OFFLINE
+}
+
+model Client {
+  id            String       @id @default(cuid())
+  ownerId       String
+  owner         User         @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  name          String
+  hostname      String?
+  os            String?
+  version       String?
+  jwtTokenHash  String
+  lastSeenAt    DateTime?
+  status        ClientStatus @default(OFFLINE)
+  createdAt     DateTime     @default(now())
+
+  defaultForProjects Project[]    @relation("ProjectDefaultClient")
+  runs               HarnessRun[]
+
+  @@index([ownerId])
+}
+
+model ClientPairing {
+  id          String    @id @default(cuid())
+  ownerId     String
+  owner       User      @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  clientName  String
+  tokenHash   String
+  expiresAt   DateTime
+  consumedAt  DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@index([ownerId])
+  @@index([expiresAt])
+}
+
+// =============================================================================
+// Projects
+// =============================================================================
+
+enum WorktreePolicy {
+  KEEP
+  AUTO_REMOVE_SUCCESS
+  AUTO_REMOVE_ALWAYS
+}
+
+model Project {
+  id                   String         @id @default(cuid())
+  ownerId              String
+  owner                User           @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  githubInstallationId Int
+  githubRepoId         Int
+  repoFullName         String
+  defaultClientId      String?
+  defaultClient        Client?        @relation("ProjectDefaultClient", fields: [defaultClientId], references: [id])
+  defaultHarnessId     String?
+  defaultHarness       Harness?       @relation("ProjectDefaultHarness", fields: [defaultHarnessId], references: [id])
+  localRoot            String
+  worktreePolicy       WorktreePolicy @default(AUTO_REMOVE_SUCCESS)
+  createdAt            DateTime       @default(now())
+  updatedAt            DateTime       @updatedAt
+
+  todos HarnessRun[]
+  items TodoItem[]
+
+  @@unique([ownerId, githubRepoId])
+  @@index([repoFullName])
+}
+
+// =============================================================================
+// Harness definition + runs
+// =============================================================================
+
+model Harness {
+  id         String   @id @default(cuid())
+  ownerId    String
+  owner      User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  name       String
+  version    Int      @default(1)
+  definition Json
+  source     String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  runs               HarnessRun[]
+  defaultForProjects Project[]    @relation("ProjectDefaultHarness")
+
+  @@unique([ownerId, name])
+}
+
+enum RunStatus {
+  QUEUED
+  RUNNING
+  SUCCESS
+  FAILED
+  CANCELLED
+}
+
+model HarnessRun {
+  id                String    @id @default(cuid())
+  harnessId         String
+  harness           Harness   @relation(fields: [harnessId], references: [id], onDelete: Restrict)
+  projectId         String
+  project           Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  clientId          String
+  client            Client    @relation(fields: [clientId], references: [id], onDelete: Restrict)
+  triggeredByUserId String
+  triggeredBy       User      @relation("RunTriggeredBy", fields: [triggeredByUserId], references: [id])
+  status            RunStatus @default(QUEUED)
+  branchName        String?
+  workingDir        String?
+  startedAt         DateTime  @default(now())
+  finishedAt        DateTime?
+  costUsd           Decimal?  @db.Decimal(10, 6)
+  tokenUsage        Json?
+
+  steps     RunStep[]
+  logs      RunLog[]
+  artifacts RunArtifact[]
+
+  @@index([projectId, startedAt(sort: Desc)])
+  @@index([harnessId])
+  @@index([clientId])
+}
+
+enum StepKind {
+  TOOL
+  LLM
+  SUBAGENT
+  CONDITION
+  LOOP
+}
+
+enum StepStatus {
+  PENDING
+  RUNNING
+  SUCCESS
+  FAILED
+  SKIPPED
+}
+
+model RunStep {
+  id         String     @id @default(cuid())
+  runId      String
+  run        HarnessRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+  stepIndex  Int
+  stepId     String
+  kind       StepKind
+  input      Json?
+  output     Json?
+  status     StepStatus @default(PENDING)
+  durationMs Int?
+  error      String?
+  createdAt  DateTime   @default(now())
+
+  @@unique([runId, stepIndex])
+  @@index([runId])
+}
+
+enum LogLevel {
+  DEBUG
+  INFO
+  WARN
+  ERROR
+}
+
+model RunLog {
+  id      String     @id @default(cuid())
+  runId   String
+  run     HarnessRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+  ts      DateTime   @default(now())
+  level   LogLevel
+  source  String
+  message String
+
+  @@index([runId, ts])
+}
+
+enum ArtifactKind {
+  DIFF
+  LOG
+  JSON
+  BINARY
+}
+
+model RunArtifact {
+  id        String       @id @default(cuid())
+  runId     String
+  run       HarnessRun   @relation(fields: [runId], references: [id], onDelete: Cascade)
+  stepId    String?
+  kind      ArtifactKind
+  mimeType  String
+  bytes     Bytes?
+  filePath  String?
+  createdAt DateTime     @default(now())
+
+  @@index([runId])
+}
+
+// =============================================================================
+// LLM Providers
+// =============================================================================
+
+enum LlmProviderKind {
+  CODEX_CLI
+  OPENAI_COMPATIBLE
+}
+
+model LlmProvider {
+  id                  String          @id @default(cuid())
+  ownerId             String
+  owner               User            @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  kind                LlmProviderKind
+  name                String
+  baseUrl             String?
+  defaultModel        String
+  credentialEncrypted Bytes?
+  enabled             Boolean         @default(true)
+  createdAt           DateTime        @default(now())
+
+  @@unique([ownerId, name])
+}
+
+// =============================================================================
+// Todos (internal + mirror of GitHub issues)
+// =============================================================================
+
+enum TodoStatus {
+  OPEN
+  IN_PROGRESS
+  DONE
+}
+
+enum TodoSource {
+  INTERNAL
+  GITHUB_ISSUE
+}
+
+model TodoItem {
+  id         String     @id @default(cuid())
+  projectId  String
+  project    Project    @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  title      String
+  body       String?
+  status     TodoStatus @default(OPEN)
+  sourceType TodoSource @default(INTERNAL)
+  sourceRef  Int?
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+
+  @@index([projectId, status])
+}

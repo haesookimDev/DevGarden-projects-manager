@@ -4,12 +4,11 @@
     "module": "CommonJS",
     "moduleResolution": "Node",
     "target": "ES2022",
-    "outDir": "./dist",
-    "rootDir": "./src",
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
     "strictPropertyInitialization": false,
     "noUncheckedIndexedAccess": false
   },
-  "include": ["src/**/*"]
+  "include": ["src/**/*", "test/**/*", "vitest.int.config.ts"],
+  "exclude": ["dist", "node_modules"]
 }
