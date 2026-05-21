@@ -1,7 +1,8 @@
 'use client';
 
 import { useActionState } from 'react';
-import { createPairingAction, INITIAL_PAIRING_STATE } from './actions';
+import { createPairingAction } from './actions';
+import { INITIAL_PAIRING_STATE } from './state';
 
 export function PairingForm() {
   const [state, action, pending] = useActionState(createPairingAction, INITIAL_PAIRING_STATE);
