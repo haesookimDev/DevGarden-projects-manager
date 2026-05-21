@@ -181,6 +181,7 @@ Desktop client ──▶ wss://api/clients  (namespace)
 ## 5. 확장 포인트
 
 - **LLM 어댑터**: `packages/llm-adapters/src/<name>.ts` 추가 (현재 `openai-compatible`, `codex-cli`). 모두 `LlmProvider` 인터페이스 구현, sideeffect (`fetch`, `spawn`) 주입 가능 → 단위 테스트 가능
+- **Harness 도구**: `apps/client/src/tools/<name>.ts` 에 `ToolHandler` 추가 후 `buildToolRegistry` 에 포함. fs/process/git 의 경로는 모두 `PathPolicy` 로 project root 안에 강제됨. `process.run` 은 별도 allow-list. git 커밋·푸시는 `haesookimDev <ww232330@gmail.com>` 명의로 자동 attribution.
 - **Step 타입**: `harness-core`의 `StepKind` enum + 핸들러 등록
 - **CLI 에이전트**: `process` 어댑터에 새 명령 등록 + 매니페스트
 - **Webhook 이벤트**: `apps/api/src/webhooks/github/handlers/` 핸들러 추가
