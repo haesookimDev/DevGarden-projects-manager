@@ -1,6 +1,7 @@
 import NextAuth, { type DefaultSession } from 'next-auth';
 import GitHub from 'next-auth/providers/github';
 import { isAllowed, parseAllowList } from './lib/auth/allow-list';
+import { upsertUserViaApi } from './lib/auth/upsert-user';
 
 declare module 'next-auth' {
   interface Session {
@@ -30,8 +31,19 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   ],
   callbacks: {
     async signIn({ profile }) {
-      const login = profile?.login;
-      return isAllowed(typeof login === 'string' ? login : undefined, allowList);
+      const login = typeof profile?.login === 'string' ? profile.login : undefined;
+      const githubId = typeof profile?.id === 'number' ? profile.id : undefined;
+
+      if (!isAllowed(login, allowList)) return false;
+      if (!login || githubId === undefined) return false;
+
+      await upsertUserViaApi({
+        githubId,
+        login,
+        email: typeof profile?.email === 'string' ? profile.email : null,
+      });
+
+      return true;
     },
     async jwt({ token, profile }) {
       if (profile) {
