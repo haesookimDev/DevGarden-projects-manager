@@ -21,16 +21,16 @@ const MOCK_DB_USER_ID = 'cuid_test_user';
 const MOCK_ACCESS_TOKEN = 'mock-access-token';
 const MOCK_CODE = 'mock-auth-code';
 
-export async function startMockServer(): Promise<MockServerHandle> {
+export async function startMockServer(port = 0): Promise<MockServerHandle> {
   const server = createServer((req, res) => handle(req, res));
-  await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+  await new Promise<void>((resolve) => server.listen(port, '127.0.0.1', resolve));
   const address = server.address();
   if (!address || typeof address !== 'object') throw new Error('mock server has no address');
-  const port = address.port;
+  const actualPort = address.port;
 
   return {
     server,
-    port,
+    port: actualPort,
     close: () =>
       new Promise<void>((resolve, reject) => {
         server.close((err) => (err ? reject(err) : resolve()));
@@ -59,15 +59,13 @@ function handle(req: IncomingMessage, res: ServerResponse): void {
 
   if (url.pathname === '/login/oauth/access_token' && req.method === 'POST') {
     readBody(req).then(() => {
-      res
-        .writeHead(200, { 'content-type': 'application/json' })
-        .end(
-          JSON.stringify({
-            access_token: MOCK_ACCESS_TOKEN,
-            token_type: 'bearer',
-            scope: 'read:user user:email',
-          }),
-        );
+      res.writeHead(200, { 'content-type': 'application/json' }).end(
+        JSON.stringify({
+          access_token: MOCK_ACCESS_TOKEN,
+          token_type: 'bearer',
+          scope: 'read:user user:email',
+        }),
+      );
     });
     return;
   }
