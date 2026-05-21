@@ -16,7 +16,8 @@ export interface RunTriggerFormProps {
 export function RunTriggerForm({ projects, harnesses, clients }: RunTriggerFormProps) {
   const [state, action, pending] = useActionState(createRunAction, INITIAL_CREATE_RUN_STATE);
 
-  const disabled = pending || projects.length === 0 || harnesses.length === 0 || clients.length === 0;
+  const disabled =
+    pending || projects.length === 0 || harnesses.length === 0 || clients.length === 0;
 
   return (
     <form action={action} className="mt-6 max-w-xl space-y-4" data-testid="run-trigger-form">
@@ -54,7 +55,9 @@ export function RunTriggerForm({ projects, harnesses, clients }: RunTriggerFormP
         disabled={pending}
       />
       <label className="block">
-        <span className="block text-sm font-medium text-neutral-300">Inputs (optional JSON object)</span>
+        <span className="block text-sm font-medium text-neutral-300">
+          Inputs (optional JSON object)
+        </span>
         <textarea
           name="inputs"
           rows={4}

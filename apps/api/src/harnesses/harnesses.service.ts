@@ -47,9 +47,5 @@ export class HarnessesService {
 }
 
 function isUniqueViolation(err: unknown): boolean {
-  return (
-    typeof err === 'object' &&
-    err !== null &&
-    (err as { code?: string }).code === 'P2002'
-  );
+  return typeof err === 'object' && err !== null && (err as { code?: string }).code === 'P2002';
 }

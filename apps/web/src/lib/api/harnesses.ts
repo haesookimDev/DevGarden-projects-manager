@@ -10,10 +10,9 @@ export interface HarnessSummary {
 }
 
 export async function listHarnessesByOwner(ownerId: string): Promise<HarnessSummary[]> {
-  const res = await internalFetch(
-    `/internal/harnesses?ownerId=${encodeURIComponent(ownerId)}`,
-    { method: 'GET' },
-  );
+  const res = await internalFetch(`/internal/harnesses?ownerId=${encodeURIComponent(ownerId)}`, {
+    method: 'GET',
+  });
   if (!res.ok) {
     const text = await res.text().catch(() => '');
     throw new Error(`listHarnessesByOwner failed: ${res.status} ${text}`);
