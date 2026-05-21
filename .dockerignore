@@ -1,0 +1,39 @@
+**/node_modules
+**/dist
+**/build
+**/.next
+**/.turbo
+**/coverage
+**/playwright-report
+**/test-results
+**/.cache
+
+# secrets / agent files
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+CLAUDE.md
+AGENTS.md
+.claude/
+.codex/
+.cursor/
+
+# git / IDE
+.git
+.gitignore
+.github
+.vscode
+.idea
+.DS_Store
+
+# tauri (not built in docker)
+apps/client/src-tauri/target
+apps/client/src-tauri/gen
+apps/client
+
+# docs (not needed in image)
+docs
+README.md
+*.md

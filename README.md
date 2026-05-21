@@ -34,17 +34,24 @@
 
 ## Quick start (개발)
 
-> 아직 부트스트랩 전. 다음 PR들이 머지되면 동작:
-> [PR #1 (monorepo)](docs/ROADMAP.md#m0-모노레포-부트스트랩) → [PR #2 (apps scaffold)](docs/ROADMAP.md#m0-모노레포-부트스트랩) → [PR #3 (docker-compose)](docs/ROADMAP.md#m0-모노레포-부트스트랩)
-
-예상 동작:
+요구사항: Node 22+, pnpm 9+, Docker Desktop, Rust 1.77+ (client).
 
 ```bash
 pnpm install
-cp .env.example .env       # 값 채우기
+cp .env.example .env                                   # 최소값(POSTGRES_*)만 채워도 dev 가능
 docker compose -f infra/docker-compose.dev.yml up -d   # postgres
-pnpm dev                   # web + api + client 동시 기동
+pnpm dev                                               # web(3000) + api(3001) + client(1420)
 ```
+
+## Production (self-hosted)
+
+`.env`의 모든 값을 채운 뒤:
+
+```bash
+docker compose -f infra/docker-compose.yml up -d --build
+```
+
+> 현재 prod 이미지는 unoptimized scaffold. [PR #18](docs/ROADMAP.md#m6-폴리시--출시-준비)에서 multi-stage 최적화·헬스체크 강화·백업 스크립트가 추가된다.
 
 ## License
 

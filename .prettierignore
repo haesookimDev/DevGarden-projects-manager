@@ -10,3 +10,8 @@ test-results/
 pnpm-lock.yaml
 *.tsbuildinfo
 apps/client/src-tauri/target/
+
+# Next.js auto-manages these and reformats them on every build
+apps/web/tsconfig.json
+apps/web/next-env.d.ts
+.next/
