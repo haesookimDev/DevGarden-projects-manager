@@ -49,10 +49,9 @@ export async function getRun(id: string): Promise<RunDetail> {
 }
 
 export async function listRunsByProject(projectId: string): Promise<RunSummary[]> {
-  const res = await internalFetch(
-    `/internal/runs?projectId=${encodeURIComponent(projectId)}`,
-    { method: 'GET' },
-  );
+  const res = await internalFetch(`/internal/runs?projectId=${encodeURIComponent(projectId)}`, {
+    method: 'GET',
+  });
   if (!res.ok) {
     const text = await res.text().catch(() => '');
     throw new Error(`listRunsByProject failed: ${res.status} ${text}`);
