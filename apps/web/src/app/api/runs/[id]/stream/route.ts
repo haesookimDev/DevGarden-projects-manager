@@ -60,8 +60,7 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
         send('error', { message: err.message });
       });
 
-      const forward = (event: string) =>
-        socket?.on(event, (payload) => send(event, payload));
+      const forward = (event: string) => socket?.on(event, (payload) => send(event, payload));
       forward('run:start');
       forward('run:log');
       forward('run:step');

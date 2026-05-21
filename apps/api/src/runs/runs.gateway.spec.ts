@@ -27,7 +27,10 @@ function authedSocket(clientId = 'client-abc'): Socket {
   return { id: 'sock-1', data: { clientId } } as unknown as Socket;
 }
 
-function internalSocket(): Socket & { join: ReturnType<typeof vi.fn>; leave: ReturnType<typeof vi.fn> } {
+function internalSocket(): Socket & {
+  join: ReturnType<typeof vi.fn>;
+  leave: ReturnType<typeof vi.fn>;
+} {
   return {
     id: 'sock-bff',
     data: { isInternal: true },
@@ -115,7 +118,10 @@ describe('RunsGateway', () => {
         message: 'wrote a file',
       });
       expect(to).toHaveBeenCalledWith('run:run-1');
-      expect(emit).toHaveBeenCalledWith(RUN_EVENTS.Log, expect.objectContaining({ runId: 'run-1' }));
+      expect(emit).toHaveBeenCalledWith(
+        RUN_EVENTS.Log,
+        expect.objectContaining({ runId: 'run-1' }),
+      );
     });
   });
 
