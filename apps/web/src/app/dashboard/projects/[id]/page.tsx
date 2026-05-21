@@ -2,11 +2,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { getProject } from '@/lib/api/projects';
 
-export default async function ProjectDetailPage({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}) {
+export default async function ProjectDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   let project;
   try {
@@ -53,7 +49,10 @@ export default async function ProjectDetailPage({
 
       <section className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2">
         <Card title="Configuration">
-          <Row label="Local root" value={<code className="font-mono text-xs">{project.localRoot}</code>} />
+          <Row
+            label="Local root"
+            value={<code className="font-mono text-xs">{project.localRoot}</code>}
+          />
           <Row label="Worktree policy" value={project.worktreePolicy.toLowerCase()} />
           <Row label="Created" value={new Date(project.createdAt).toLocaleString()} />
           <Row label="Updated" value={new Date(project.updatedAt).toLocaleString()} />
@@ -63,17 +62,21 @@ export default async function ProjectDetailPage({
           <Row
             label="Default client"
             value={
-              project.defaultClient
-                ? `${project.defaultClient.name} (${project.defaultClient.status.toLowerCase()})`
-                : <span className="text-neutral-500">not set</span>
+              project.defaultClient ? (
+                `${project.defaultClient.name} (${project.defaultClient.status.toLowerCase()})`
+              ) : (
+                <span className="text-neutral-500">not set</span>
+              )
             }
           />
           <Row
             label="Default harness"
             value={
-              project.defaultHarness
-                ? `${project.defaultHarness.name} (v${project.defaultHarness.version})`
-                : <span className="text-neutral-500">not set</span>
+              project.defaultHarness ? (
+                `${project.defaultHarness.name} (v${project.defaultHarness.version})`
+              ) : (
+                <span className="text-neutral-500">not set</span>
+              )
             }
           />
         </Card>
