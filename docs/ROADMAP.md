@@ -8,21 +8,21 @@
 
 ## Progress snapshot (2026-05-21)
 
-- **머지된 GitHub PR**: 25 개 (PR #1 ~ #25)
-- **테스트**: api unit 21 + web unit 14 + client unit 24 + harness-core 30 + llm-adapters 10 + api integration 25 + web e2e 10 = **134 cases**
+- **머지된 GitHub PR**: 26 개 (PR #1 ~ #26)
+- **테스트**: api unit 21 + web unit 14 + client unit 24 + harness-core 30 + llm-adapters 10 + api integration 29 + web e2e 12 = **140 cases**
 - **CI**: 5 jobs (Lint · Typecheck · Unit · Integration · E2E) 모두 green
 - **운영 정책 도입**: 한 PR 안의 commit 분리(§4), CI 통과 시 자동 머지(§6)
-- **다음 우선순위**: M3 PR #12 (web run trigger UI + 실시간 log broadcast) → 그 후 M4 ~ M6
+- **다음 우선순위**: M3 PR #12 두 번째 절반 — 실시간 socket broadcast (`run:log` push → web detail page) → 그 후 M4 ~ M6
 
-| Milestone                          | 상태                             |
-| ---------------------------------- | -------------------------------- |
-| M0 모노레포 부트스트랩             | ✅ 완료                          |
-| M1 인증 & 기본 도메인              | ✅ 완료                          |
-| M2 데스크탑 클라이언트 페어링      | ✅ 완료                          |
-| M3 하네스 코어 & 첫 실행           | 🟡 PR #11 완료, PR #12 진행 예정 |
-| M4 GitHub 연동 마감 + PR 자동 생성 | ⬜ 미시작                        |
-| M5 옵저버빌리티 & 메타데이터       | ⬜ 미시작                        |
-| M6 폴리시 & 출시 준비              | ⬜ 미시작                        |
+| Milestone                          | 상태                                   |
+| ---------------------------------- | -------------------------------------- |
+| M0 모노레포 부트스트랩             | ✅ 완료                                |
+| M1 인증 & 기본 도메인              | ✅ 완료                                |
+| M2 데스크탑 클라이언트 페어링      | ✅ 완료                                |
+| M3 하네스 코어 & 첫 실행           | 🟡 PR #11 완료, PR #12 trigger UI 완료 |
+| M4 GitHub 연동 마감 + PR 자동 생성 | ⬜ 미시작                              |
+| M5 옵저버빌리티 & 메타데이터       | ⬜ 미시작                              |
+| M6 폴리시 & 출시 준비              | ⬜ 미시작                              |
 
 ---
 
@@ -77,10 +77,10 @@
   - GH #23: web `/dashboard/runs/[id]` SSR + 2s 폴링 + 1 e2e
   - GH #25: end-to-end wiring — `RunsGateway` 가 `run:start` emit, client `run-executor` 가 받아서 `runHarness` 호출하고 `run:log/step/status` 로 보고 (api 8 unit + 2 integration, client 6 unit)
 
-- ⬜ **ROADMAP PR #12** `feat(web,api): run UI + live log stream`
-  - 진짜 socket.io `run:log` broadcast (현재는 폴링)
-  - run trigger UI (현재는 trigger 없음, detail 만 표시)
-  - Playwright E2E: 트리거 → 로그 수신 → 완료 표시
+- 🟡 **ROADMAP PR #12** `feat(web,api): run UI + live log stream`
+  - GH #26: trigger UI — `/dashboard/runs/new` (project · harness · client picker + optional inputs JSON) + dashboard CTA, api `/internal/harnesses` 신규 (4 integration), web e2e 2 cases
+  - ⬜ **남음**: 실시간 socket.io `run:log` broadcast (현재 2s 폴링 유지)
+  - ⬜ **남음**: 전체 e2e (실 client + 실 api 로 트리거 → 로그 수신 → 완료 표시)
 
 ## M4. GitHub 연동 마감 + PR 자동 생성
 

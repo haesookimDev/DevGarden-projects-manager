@@ -32,10 +32,11 @@
 | Client tools (fs/process/git)        | ✅         |
 | Runs CRUD + 대시보드 페이지          | ✅         |
 | End-to-end harness 실행 wiring       | ✅         |
-| **Web run trigger + 실시간 log**     | 🟡 진행 중 |
+| Web run trigger 페이지               | ✅         |
+| **Run 실시간 socket broadcast**      | 🟡 진행 중 |
 | GitHub webhook + 자동 PR 생성        | ⬜         |
 
-테스트 누적: **134 cases** (api unit 21 · web unit 14 · client unit 24 · harness-core 30 · llm-adapters 10 · api integration 25 · web e2e 10).
+테스트 누적: **140 cases** (api unit 21 · web unit 14 · client unit 24 · harness-core 30 · llm-adapters 10 · api integration 29 · web e2e 12).
 
 ## Docs
 
