@@ -77,3 +77,48 @@ export async function createRun(input: CreateRunInput): Promise<RunSummary> {
   }
   return (await res.json()) as RunSummary;
 }
+
+export interface RunHistoryRow extends RunSummary {
+  repoFullName: string;
+}
+
+export async function listRunsByOwner(
+  ownerId: string,
+  opts: { limit?: number; status?: RunStatus } = {},
+): Promise<RunHistoryRow[]> {
+  const params = new URLSearchParams({ ownerId });
+  if (opts.limit) params.set('limit', String(opts.limit));
+  if (opts.status) params.set('status', opts.status);
+  const res = await internalFetch(`/internal/runs?${params.toString()}`, { method: 'GET' });
+  if (!res.ok) {
+    const text = await res.text().catch(() => '');
+    throw new Error(`listRunsByOwner failed: ${res.status} ${text}`);
+  }
+  return (await res.json()) as RunHistoryRow[];
+}
+
+export interface RunsStats {
+  sinceHours: number;
+  total: number;
+  counts: Record<string, number>;
+  successRate: number | null;
+  totalCostUsd: number;
+  avgCostUsd: number | null;
+  terminalCount: number;
+}
+
+export async function getRunsStats(
+  ownerId: string,
+  opts: { sinceHours?: number } = {},
+): Promise<RunsStats> {
+  const params = new URLSearchParams({ ownerId });
+  if (opts.sinceHours) params.set('sinceHours', String(opts.sinceHours));
+  const res = await internalFetch(`/internal/runs/stats?${params.toString()}`, {
+    method: 'GET',
+  });
+  if (!res.ok) {
+    const text = await res.text().catch(() => '');
+    throw new Error(`getRunsStats failed: ${res.status} ${text}`);
+  }
+  return (await res.json()) as RunsStats;
+}

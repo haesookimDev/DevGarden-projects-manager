@@ -59,13 +59,22 @@ export default async function DashboardPage() {
             project · harness · client 을 선택해 즉시 큐에 넣습니다.
           </p>
         </div>
-        <Link
-          href="/dashboard/runs/new"
-          data-testid="dashboard-new-run-cta"
-          className="rounded-md bg-white px-3 py-1.5 text-sm font-medium text-neutral-900 hover:bg-neutral-200"
-        >
-          New run
-        </Link>
+        <div className="flex gap-2">
+          <Link
+            href="/dashboard/runs"
+            data-testid="dashboard-runs-history-cta"
+            className="rounded-md border border-neutral-700 px-3 py-1.5 text-sm hover:bg-neutral-800"
+          >
+            History
+          </Link>
+          <Link
+            href="/dashboard/runs/new"
+            data-testid="dashboard-new-run-cta"
+            className="rounded-md bg-white px-3 py-1.5 text-sm font-medium text-neutral-900 hover:bg-neutral-200"
+          >
+            New run
+          </Link>
+        </div>
       </section>
 
       <section className="mt-8">
