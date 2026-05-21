@@ -1,4 +1,4 @@
-import { BadRequestException, Body, Controller, Post, UseGuards } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Get, Post, Query, UseGuards } from '@nestjs/common';
 import { InternalAuthGuard } from '../auth/internal-auth.guard';
 import { ClientsService } from './clients.service';
 
@@ -6,6 +6,22 @@ import { ClientsService } from './clients.service';
 @UseGuards(InternalAuthGuard)
 export class ClientsInternalController {
   constructor(private readonly clients: ClientsService) {}
+
+  @Get()
+  async list(@Query('ownerId') ownerId: string) {
+    if (!ownerId) throw new BadRequestException('ownerId query param is required');
+    const items = await this.clients.listByOwner(ownerId);
+    return items.map((c) => ({
+      id: c.id,
+      name: c.name,
+      hostname: c.hostname,
+      os: c.os,
+      version: c.version,
+      status: c.status,
+      lastSeenAt: c.lastSeenAt ? c.lastSeenAt.toISOString() : null,
+      createdAt: c.createdAt.toISOString(),
+    }));
+  }
 
   @Post('pairings')
   async issuePairing(@Body() body: unknown) {
