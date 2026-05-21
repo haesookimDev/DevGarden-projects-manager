@@ -18,6 +18,23 @@
 - Mono: Turborepo + pnpm
 
 자세한 결정 근거는 [docs/SPEC.md](docs/SPEC.md).
+현재 진행 상황은 [docs/ROADMAP.md](docs/ROADMAP.md) (Progress snapshot 섹션).
+
+## Status (2026-05-21)
+
+| 영역                                 | 상태       |
+| ------------------------------------ | ---------- |
+| 모노레포 부트스트랩                  | ✅         |
+| 인증 (OAuth + GitHub App + Projects) | ✅         |
+| 클라이언트 페어링 + Socket.io        | ✅         |
+| Harness YAML/IR + 실행 엔진          | ✅         |
+| LLM 어댑터 (openai-compatible/codex) | ✅         |
+| Client tools (fs/process/git)        | ✅         |
+| Runs CRUD + 대시보드 페이지          | ✅         |
+| **End-to-end harness 실행 wiring**   | 🟡 진행 중 |
+| GitHub webhook + 자동 PR 생성        | ⬜         |
+
+테스트 누적: **120 cases** (api unit 15 · web unit 14 · client unit 18 · harness-core 30 · llm-adapters 10 · api integration 23 · web e2e 10).
 
 ## Docs
 
