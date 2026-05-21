@@ -141,10 +141,7 @@ export class RunsService {
    * back. Cost is summed from the `costUsd` column (Decimal → string at the
    * Prisma layer, converted to number here for transport).
    */
-  async statsByOwner(
-    ownerId: string,
-    opts: { sinceHours?: number } = {},
-  ): Promise<OwnerRunStats> {
+  async statsByOwner(ownerId: string, opts: { sinceHours?: number } = {}): Promise<OwnerRunStats> {
     const sinceHours = clamp(opts.sinceHours ?? 24 * 7, 1, 24 * 90);
     const since = new Date(Date.now() - sinceHours * 3_600_000);
 

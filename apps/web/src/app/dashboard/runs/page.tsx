@@ -1,11 +1,6 @@
 import Link from 'next/link';
 import { auth } from '@/auth';
-import {
-  getRunsStats,
-  listRunsByOwner,
-  type RunHistoryRow,
-  type RunsStats,
-} from '@/lib/api/runs';
+import { getRunsStats, listRunsByOwner, type RunHistoryRow, type RunsStats } from '@/lib/api/runs';
 
 export default async function RunsHistoryPage() {
   const session = await auth();
@@ -72,8 +67,7 @@ export default async function RunsHistoryPage() {
                         <>
                           {' · '}
                           {formatDuration(
-                            new Date(r.finishedAt).getTime() -
-                              new Date(r.startedAt).getTime(),
+                            new Date(r.finishedAt).getTime() - new Date(r.startedAt).getTime(),
                           )}
                         </>
                       )}

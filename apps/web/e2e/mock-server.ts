@@ -184,7 +184,11 @@ function handle(req: IncomingMessage, res: ServerResponse): void {
     return;
   }
 
-  if (url.pathname === '/internal/runs' && req.method === 'GET' && url.searchParams.has('ownerId')) {
+  if (
+    url.pathname === '/internal/runs' &&
+    req.method === 'GET' &&
+    url.searchParams.has('ownerId')
+  ) {
     const now = Date.now();
     res.writeHead(200, { 'content-type': 'application/json' }).end(
       JSON.stringify([
