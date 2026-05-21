@@ -23,3 +23,27 @@ export async function issuePairingToken(
   }
   return (await res.json()) as IssuedPairingToken;
 }
+
+export type ClientStatus = 'ONLINE' | 'OFFLINE';
+
+export interface ClientSummary {
+  id: string;
+  name: string;
+  hostname: string | null;
+  os: string | null;
+  version: string | null;
+  status: ClientStatus;
+  lastSeenAt: string | null;
+  createdAt: string;
+}
+
+export async function listClientsByOwner(ownerId: string): Promise<ClientSummary[]> {
+  const res = await internalFetch(`/internal/clients?ownerId=${encodeURIComponent(ownerId)}`, {
+    method: 'GET',
+  });
+  if (!res.ok) {
+    const text = await res.text().catch(() => '');
+    throw new Error(`listClientsByOwner failed: ${res.status} ${text}`);
+  }
+  return (await res.json()) as ClientSummary[];
+}
