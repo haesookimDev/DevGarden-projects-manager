@@ -1,9 +1,12 @@
 import { useEffect, useState } from 'react';
 import { startClientSocket, type ClientSocketDeps, type ConnectionStatus } from './client-socket';
+import { executeRun, type RunExecutorDeps } from './run-executor';
 
 export interface UseClientSocketInput {
   apiBaseUrl: string | undefined;
   jwt: string | undefined;
+  /** Optional override for harness execution (tests). */
+  executorDeps?: RunExecutorDeps;
 }
 
 export function useClientSocket(
@@ -22,12 +25,15 @@ export function useClientSocket(
         apiBaseUrl: input.apiBaseUrl,
         jwt: input.jwt,
         onStatus: setStatus,
+        onRunStart: (payload, socket) => {
+          void executeRun(socket, payload, input.executorDeps);
+        },
       },
       deps,
     );
     return () => handle.disconnect();
-    // Only re-connect when apiBaseUrl/jwt change. `deps` is a static config
-    // injection point used by tests; not a reactive dependency.
+    // Only re-connect when apiBaseUrl/jwt change. `deps` and `executorDeps`
+    // are static injection points for tests; not reactive dependencies.
   }, [input.apiBaseUrl, input.jwt]);
 
   return status;

@@ -57,6 +57,15 @@ export class RunsService {
     });
   }
 
+  async getHarnessDefinition(harnessId: string): Promise<unknown> {
+    const row = await this.prisma.harness.findUnique({
+      where: { id: harnessId },
+      select: { definition: true },
+    });
+    if (!row) throw new NotFoundException(`harness ${harnessId} not found`);
+    return row.definition;
+  }
+
   async setStatus(runId: string, status: RunStatus, finishedAt?: Date): Promise<HarnessRun> {
     return this.prisma.harnessRun.update({
       where: { id: runId },

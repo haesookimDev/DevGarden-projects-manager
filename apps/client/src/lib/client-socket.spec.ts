@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
+import { RUN_EVENTS } from '@devgarden/shared';
 import { startClientSocket, type ClientSocketDeps, type ConnectionStatus } from './client-socket';
 
 interface FakeSocket {
@@ -109,6 +110,32 @@ describe('startClientSocket', () => {
     fake.socket.listeners.connect_error?.(new Error('boom'));
     const last = onStatus.mock.calls.at(-1)?.[0] as ConnectionStatus;
     expect(last).toEqual({ kind: 'error', message: 'boom' });
+  });
+
+  it('forwards run:start payloads to onRunStart with the socket', () => {
+    const fake = makeFakeIo();
+    const onRunStart = vi.fn();
+
+    startClientSocket(
+      { apiBaseUrl: 'http://x', jwt: 'j', onRunStart },
+      { io: fake.io, setInterval: () => 0, clearInterval: () => undefined },
+    );
+
+    const payload = { runId: 'run-1', harness: {}, inputs: {}, workingDir: '/tmp/x' };
+    fake.socket.listeners[RUN_EVENTS.Start]?.(payload);
+
+    expect(onRunStart).toHaveBeenCalledTimes(1);
+    expect(onRunStart.mock.calls[0]![0]).toEqual(payload);
+    expect(onRunStart.mock.calls[0]![1]).toBe(fake.socket);
+  });
+
+  it('does not subscribe to run:start when onRunStart is omitted', () => {
+    const fake = makeFakeIo();
+    startClientSocket(
+      { apiBaseUrl: 'http://x', jwt: 'j' },
+      { io: fake.io, setInterval: () => 0, clearInterval: () => undefined },
+    );
+    expect(fake.socket.listeners[RUN_EVENTS.Start]).toBeUndefined();
   });
 
   it('disconnect() clears the heartbeat and calls socket.disconnect', () => {
