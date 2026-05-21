@@ -5,6 +5,7 @@
 // All side-effects (real socket.io, setInterval) are injected so unit tests
 // can drive the lifecycle deterministically with stubs / fake timers.
 
+import { RUN_EVENTS, type RunStartPayload } from '@devgarden/shared';
 import { io as defaultIo, type Socket } from 'socket.io-client';
 
 export const HEARTBEAT_INTERVAL_MS = 30_000;
@@ -26,6 +27,8 @@ export interface ClientSocketOptions {
   apiBaseUrl: string;
   jwt: string;
   onStatus?: (status: ConnectionStatus) => void;
+  /** Invoked when api dispatches a run to this client. */
+  onRunStart?: (payload: RunStartPayload, socket: Socket) => void;
   heartbeatMs?: number;
 }
 
@@ -75,6 +78,12 @@ export function startClientSocket(
   socket.on('connect_error', (err: Error) => {
     emit({ kind: 'error', message: err.message });
   });
+
+  if (opts.onRunStart) {
+    socket.on(RUN_EVENTS.Start, (payload: RunStartPayload) => {
+      opts.onRunStart?.(payload, socket);
+    });
+  }
 
   return {
     socket,
