@@ -9,6 +9,7 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
+import { RunStatus } from '@prisma/client';
 import { InternalAuthGuard } from '../auth/internal-auth.guard';
 import { RunsGateway } from './runs.gateway';
 import { RunsService } from './runs.service';
@@ -68,10 +69,41 @@ export class RunsInternalController {
   }
 
   @Get()
-  async list(@Query('projectId') projectId: string) {
-    if (!projectId) throw new BadRequestException('projectId query is required');
-    const items = await this.runs.listByProject(projectId);
-    return items.map(projectRun);
+  async list(
+    @Query('projectId') projectId: string | undefined,
+    @Query('ownerId') ownerId: string | undefined,
+    @Query('limit') limit: string | undefined,
+    @Query('status') status: string | undefined,
+  ) {
+    if (projectId) {
+      const items = await this.runs.listByProject(projectId);
+      return items.map(projectRun);
+    }
+    if (ownerId) {
+      const parsedLimit = limit ? Number(limit) : undefined;
+      const parsedStatus = parseRunStatus(status);
+      const items = await this.runs.listByOwner(ownerId, {
+        limit: Number.isFinite(parsedLimit) ? parsedLimit : undefined,
+        status: parsedStatus,
+      });
+      return items.map((r) => ({
+        ...projectRun(r),
+        repoFullName: r.project.repoFullName,
+      }));
+    }
+    throw new BadRequestException('projectId or ownerId query is required');
+  }
+
+  @Get('stats')
+  async stats(
+    @Query('ownerId') ownerId: string | undefined,
+    @Query('sinceHours') sinceHours: string | undefined,
+  ) {
+    if (!ownerId) throw new BadRequestException('ownerId query is required');
+    const parsed = sinceHours ? Number(sinceHours) : undefined;
+    return this.runs.statsByOwner(ownerId, {
+      sinceHours: Number.isFinite(parsed) ? parsed : undefined,
+    });
   }
 
   @Get(':id')
@@ -106,6 +138,12 @@ function requireString(b: Record<string, unknown>, key: string): string {
     throw new BadRequestException(`${key} must be a non-empty string`);
   }
   return v;
+}
+
+function parseRunStatus(s: string | undefined): RunStatus | undefined {
+  if (!s) return undefined;
+  if (s in RunStatus) return RunStatus[s as keyof typeof RunStatus];
+  throw new BadRequestException(`invalid status "${s}"`);
 }
 
 interface RunRow {
