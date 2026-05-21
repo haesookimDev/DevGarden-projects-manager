@@ -26,9 +26,8 @@ export function useClientSocket(
       deps,
     );
     return () => handle.disconnect();
-    // deps reference identity is stable per render in App.tsx (not memoized);
-    // we intentionally only re-connect when apiBaseUrl/jwt change.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // Only re-connect when apiBaseUrl/jwt change. `deps` is a static config
+    // injection point used by tests; not a reactive dependency.
   }, [input.apiBaseUrl, input.jwt]);
 
   return status;

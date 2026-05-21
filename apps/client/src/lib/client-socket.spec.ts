@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { startClientSocket, type ConnectionStatus } from './client-socket';
+import { startClientSocket, type ClientSocketDeps, type ConnectionStatus } from './client-socket';
 
 interface FakeSocket {
   listeners: Record<string, (...args: unknown[]) => void>;
@@ -13,7 +13,10 @@ function makeFakeIo() {
   let lastOpts: Record<string, unknown> | undefined;
   let lastSocket: FakeSocket | undefined;
 
-  const ioFn = ((url: string, opts: Record<string, unknown>) => {
+  const ioFn: NonNullable<ClientSocketDeps['io']> = ((
+    url: string,
+    opts: Record<string, unknown>,
+  ) => {
     lastUrl = url;
     lastOpts = opts;
     const listeners: Record<string, (...args: unknown[]) => void> = {};
@@ -27,7 +30,7 @@ function makeFakeIo() {
     };
     lastSocket = socket;
     return socket as never;
-  }) as unknown as Parameters<typeof startClientSocket>[1]['io'];
+  }) as unknown as NonNullable<ClientSocketDeps['io']>;
 
   return {
     io: ioFn,
