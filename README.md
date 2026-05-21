@@ -21,16 +21,16 @@
 
 ## Docs
 
-| | |
-|---|---|
-| [docs/SPEC.md](docs/SPEC.md) | 프로젝트 스펙 (Why · What · How) |
-| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | 컴포넌트·통신·시퀀스 |
-| [docs/ROADMAP.md](docs/ROADMAP.md) | MVP PR 단위 작업 목록 |
-| [docs/CONVENTIONS.md](docs/CONVENTIONS.md) | 코드/PR/테스트 규칙 |
-| [docs/HARNESS-FORMAT.md](docs/HARNESS-FORMAT.md) | 하네스 YAML 스키마 |
-| [docs/TESTING.md](docs/TESTING.md) | 테스트 정책 |
-| [docs/SECURITY.md](docs/SECURITY.md) | 보안/시크릿 관리 |
-| [docs/db-schema.md](docs/db-schema.md) | DB 모델 |
+|                                                  |                                  |
+| ------------------------------------------------ | -------------------------------- |
+| [docs/SPEC.md](docs/SPEC.md)                     | 프로젝트 스펙 (Why · What · How) |
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)     | 컴포넌트·통신·시퀀스             |
+| [docs/ROADMAP.md](docs/ROADMAP.md)               | MVP PR 단위 작업 목록            |
+| [docs/CONVENTIONS.md](docs/CONVENTIONS.md)       | 코드/PR/테스트 규칙              |
+| [docs/HARNESS-FORMAT.md](docs/HARNESS-FORMAT.md) | 하네스 YAML 스키마               |
+| [docs/TESTING.md](docs/TESTING.md)               | 테스트 정책                      |
+| [docs/SECURITY.md](docs/SECURITY.md)             | 보안/시크릿 관리                 |
+| [docs/db-schema.md](docs/db-schema.md)           | DB 모델                          |
 
 ## Quick start (개발)
 
@@ -38,6 +38,7 @@
 > [PR #1 (monorepo)](docs/ROADMAP.md#m0-모노레포-부트스트랩) → [PR #2 (apps scaffold)](docs/ROADMAP.md#m0-모노레포-부트스트랩) → [PR #3 (docker-compose)](docs/ROADMAP.md#m0-모노레포-부트스트랩)
 
 예상 동작:
+
 ```bash
 pnpm install
 cp .env.example .env       # 값 채우기

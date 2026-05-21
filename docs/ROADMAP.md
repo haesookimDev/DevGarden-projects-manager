@@ -6,6 +6,7 @@
 ---
 
 ## M0. 모노레포 부트스트랩
+
 - [ ] **PR #1** `chore: bootstrap monorepo`
   - pnpm workspace + Turborepo 셋업
   - 루트 `package.json`, `pnpm-workspace.yaml`, `turbo.json`
@@ -25,6 +26,7 @@
   - Verify: `docker compose up postgres` → API에서 연결 성공
 
 ## M1. 인증 & 기본 도메인
+
 - [ ] **PR #4** `feat(api): prisma schema and migrations`
   - `apps/api/prisma/schema.prisma` 작성 (docs/db-schema.md 기반)
   - 초기 마이그레이션 생성
@@ -46,6 +48,7 @@
   - Verify: web에서 레포 추가 → 목록에 표시
 
 ## M2. 데스크탑 클라이언트 페어링
+
 - [ ] **PR #7** `feat(api,client): pairing flow`
   - api: `/clients/pair` 엔드포인트, 1회용 토큰 발급
   - client: 페어링 UI (토큰 입력 폼)
@@ -60,6 +63,7 @@
   - Verify: 클라이언트 띄우면 web 대시보드에 online 표시
 
 ## M3. 하네스 코어 & 첫 실행
+
 - [ ] **PR #9** `feat(harness-core): YAML parser + IR + zod schema`
   - YAML → IR 변환, 컨텍스트 평가기(jexl 서브셋)
   - 단위 테스트: 모든 step kind, 표현식, 실패 케이스
@@ -85,6 +89,7 @@
   - Verify: end-to-end 실행 1회 성공
 
 ## M4. GitHub 연동 마감 + PR 자동 생성
+
 - [ ] **PR #13** `feat(api): GitHub webhook receiver`
   - `/webhooks/github` HMAC 검증
   - 이슈/PR/푸시 이벤트 → DB + socket broadcast
@@ -97,6 +102,7 @@
   - Verify: 실 GitHub 레포에서 1회 성공
 
 ## M5. 옵저버빌리티 & 메타데이터
+
 - [ ] **PR #15** `feat(web): project metadata dashboard`
   - 언어/스택/열린 PR/이슈 수 카드
   - 캐시 정책 (5분)
@@ -110,6 +116,7 @@
   - 내부 TODO CRUD + 하네스 트리거 버튼
 
 ## M6. 폴리시 & 출시 준비
+
 - [ ] **PR #18** `chore: production docker-compose + healthcheck + backup script`
 - [ ] **PR #19** `docs: setup guide for self-hosting`
 - [ ] **PR #20** `chore: client signed installers (Mac/Win/Linux)` (선택)
@@ -117,6 +124,7 @@
 ---
 
 ## v0.2+ 백로그
+
 - 하네스 노드 UI (드래그-드롭)
 - 다중 클라이언트 라우팅 / 큐잉
 - 서브에이전트 마켓플레이스

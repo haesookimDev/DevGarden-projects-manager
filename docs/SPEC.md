@@ -14,10 +14,12 @@
 ## 2. 사용자 시나리오 (Who · What)
 
 ### 2.1 페르소나
+
 - **개인 개발자(주 사용자)**: 본인 + 동료 1~3명. self-hosted 환경에서 사용
 - 모든 사용자는 GitHub 계정 보유
 
 ### 2.2 핵심 사용자 플로우
+
 1. **온보딩**: 관리자가 인스턴스 구동 → GitHub OAuth App + GitHub App 설치 → 사용자 allow-list 등록
 2. **프로젝트 등록**: 웹에서 "프로젝트 추가" → GitHub 레포 선택 → 어떤 클라이언트 PC에 매핑할지 지정
 3. **클라이언트 페어링**: 데스크탑 클라이언트(Tauri)를 본인 PC에 설치 → 페어링 토큰 입력 → WebSocket 연결 유지
@@ -99,6 +101,7 @@ TodoItem          (id, projectId, title, status, sourceType: 'github'|'internal'
 ## 5. 핵심 기능 명세
 
 ### 5.1 GitHub 연동
+
 - **로그인**: OAuth App. 스코프 `read:user user:email`
 - **레포 접근**: 별도의 GitHub App을 사용자/조직 단위로 설치 → installation token 사용
 - **읽기**: 레포 메타, 브랜치 목록, 이슈, PR, 워크플로우 상태
@@ -107,6 +110,7 @@ TodoItem          (id, projectId, title, status, sourceType: 'github'|'internal'
 - **Rate limit 대응**: GitHub App installation token 사용 (15,000 req/h/installation)
 
 ### 5.2 데스크탑 클라이언트
+
 - **페어링**: 웹에서 발급한 1회용 토큰(만료 10분) 입력 → JWT(장기) 교환
 - **상태**: heartbeat 30초 간격
 - **노출하는 능력(capabilities)**:
@@ -117,32 +121,34 @@ TodoItem          (id, projectId, title, status, sourceType: 'github'|'internal'
 - **보안**: 모든 fs/process 접근은 사용자가 등록한 "프로젝트 루트 디렉토리" 하위로 강제. 그 외 경로 차단
 
 ### 5.3 하네스 (Harness)
+
 하네스 = **에이전트 실행 파이프라인(템플릿) + 행동 규칙** 의 결합.
 
 #### 5.3.1 정의 형식 (MVP: YAML, v2: 노드 UI)
+
 ```yaml
-name: "fix-issue-from-github"
+name: 'fix-issue-from-github'
 version: 1
 inputs:
   - { name: issueNumber, type: number, required: true }
 defaults:
-  llm: { provider: "ollama-local", model: "qwen2.5-coder:14b" }
+  llm: { provider: 'ollama-local', model: 'qwen2.5-coder:14b' }
 rules:
   permissions:
-    fs:   { allow: ["**"], deny: [".env*", "**/secrets/**"] }
-    process: { allow: ["git", "pnpm", "npm", "node", "python", "pytest", "vitest"] }
+    fs: { allow: ['**'], deny: ['.env*', '**/secrets/**'] }
+    process: { allow: ['git', 'pnpm', 'npm', 'node', 'python', 'pytest', 'vitest'] }
   policies:
-    - "한 번에 하나의 파일만 수정"
-    - "테스트가 빨간색이면 더 이상 진행하지 않고 중단"
-    - "커밋은 50자 이내 제목"
+    - '한 번에 하나의 파일만 수정'
+    - '테스트가 빨간색이면 더 이상 진행하지 않고 중단'
+    - '커밋은 50자 이내 제목'
   hooks:
-    preCommit:  "pnpm test --run"
-    prePush:    "pnpm lint"
+    preCommit: 'pnpm test --run'
+    prePush: 'pnpm lint'
 steps:
   - id: read-issue
     type: tool
     use: github.getIssue
-    with: { number: "${inputs.issueNumber}" }
+    with: { number: '${inputs.issueNumber}' }
 
   - id: plan
     type: llm
@@ -152,27 +158,29 @@ steps:
 
   - id: implement
     type: subagent
-    agent: "code-writer"
-    input: "${steps.plan.output}"
-    loopUntil: "tests.pass == true"
+    agent: 'code-writer'
+    input: '${steps.plan.output}'
+    loopUntil: 'tests.pass == true'
     maxIterations: 5
 
   - id: open-pr
     type: tool
     use: github.openPullRequest
     with:
-      branch: "${run.branchName}"
-      title:  "fix: ${steps.read-issue.title}"
-      body:   "${steps.plan.output}"
+      branch: '${run.branchName}'
+      title: 'fix: ${steps.read-issue.title}'
+      body: '${steps.plan.output}'
 ```
 
 #### 5.3.2 실행 모델
+
 - 각 step은 `tool` / `llm` / `subagent` / `condition` / `loop` 5종
 - 컨텍스트: `${inputs.*}`, `${steps.<id>.*}`, `${run.*}`, `${project.*}`
 - 실패 정책: step 단위 `onFail: stop | continue | retry(n)`
 - 모든 step의 입력·출력은 DB(`RunStep`)에 저장 → 재현·디버깅·비용 추적
 
 ### 5.4 서브에이전트 (Subagents)
+
 - 큰 작업을 작은 책임으로 쪼개 호출 (코드 작성 / 테스트 작성 / 리뷰 / 커밋 메시지 생성 등)
 - 로컬 LLM은 컨텍스트·추론력이 약하므로, "작은 입출력으로 좁힌 호출"이 품질 확보의 핵심
 - 빌트인 서브에이전트 (MVP):
@@ -183,11 +191,13 @@ steps:
 - 사용자 정의 서브에이전트도 하네스와 같은 YAML 포맷으로 등록 가능
 
 ### 5.5 워크트리 관리
+
 - 기본은 조회 (브랜치/상태/파일 트리)
 - 하네스 실행 시: `git worktree add ../<repo>-<runId> -b <branchName>` 자동
 - 실행 종료 후 정책: `keep` / `auto-remove(success)` / `auto-remove(always)` 중 선택
 
 ### 5.6 LLM 프로바이더
+
 - 추상 인터페이스: `chat({ model, messages, tools, stream }) → stream`
 - 빌트인 어댑터:
   - `codex-cli`: 코덱스 CLI subprocess 호출
@@ -195,15 +205,18 @@ steps:
 - 사용자별 멀티 프로바이더 등록 가능, 하네스/스텝 단위로 선택
 
 ### 5.7 실행 관찰 (Observability)
+
 - 라이브 로그 (Socket.io stream): timestamp · level · source(step/tool/llm) · message
 - 메트릭: 토큰 사용량, 소요 시간, 성공/실패, 비용(LLM provider 단가 설정 가능)
 - 후행 분석: 프로젝트별/하네스별/모델별 성공률 대시보드
 
 ### 5.8 태스크/티켓 통합 뷰
+
 - GitHub Issues + 내부 TODO(`TodoItem`)를 한 칼럼에서 칸반/리스트로 보기
 - 내부 TODO도 하네스 트리거 대상이 될 수 있음 (예: "리팩토링 메모 → 위임")
 
 ### 5.9 프로젝트 메타데이터 대시보드
+
 - 한눈에: 언어/주요 스택(GitHub languages API), 마지막 커밋, 열린 PR 수, 열린 이슈 수, 진행중 하네스 수
 - 필터·검색·태그
 
@@ -212,6 +225,7 @@ steps:
 ## 6. 비기능 요구사항
 
 ### 6.1 보안
+
 - 모든 API: JWT (Auth.js 세션) + CSRF 토큰
 - 클라이언트 토큰: per-client JWT, 만료 30일, 회전 가능
 - GitHub App private key: 서버 환경변수 (or 마운트된 시크릿)
@@ -219,11 +233,13 @@ steps:
 - 클라이언트 fs/process: allow-list 강제, 절대경로 정규화 후 prefix 검사
 
 ### 6.2 성능
+
 - API 응답 p95 < 300ms (GitHub 프록시 제외)
 - 로그 스트림 latency < 500ms (LAN)
 - 동시 실행 하네스 ≥ 10 / 사용자
 
 ### 6.3 가용성·운영
+
 - self-hosted Docker Compose (web + api + postgres) 단일 명령 기동
 - 백업: `pg_dump` 스크립트 + 가이드 문서
 - 마이그레이션: Prisma migrate, 시작 시 자동 적용 옵션
@@ -233,17 +249,17 @@ steps:
 
 ## 7. 기술 스택 (확정)
 
-| 영역 | 선택 | 근거 |
-|---|---|---|
-| 프론트 | Next.js 15 (App Router) + React + TS + Tailwind + shadcn/ui | 보편성·생태계·UI 키트 |
-| 백엔드 | NestJS + TypeScript | 모듈러 구조·DI·WebSocket 통합 |
-| DB | PostgreSQL 16 + Prisma | 관계형·트랜잭션·JSON 컬럼 |
-| 실시간 | Socket.io | NAT 통과·재연결·방 기능 |
-| 데스크탑 | Tauri 2 + React | 경량·보안 모델·크로스플랫폼 |
-| 인증 | Auth.js (NextAuth v5) + GitHub OAuth + GitHub App | 사용자/레포 권한 분리 |
-| 테스트 | Vitest (단위·통합) + Playwright (E2E) | 속도·DX |
-| 모노레포 | Turborepo + pnpm workspace | 캐시·태스크 파이프 |
-| 배포 | Docker Compose (서버) + Tauri 설치파일 (클라) | self-hosted 표준 |
+| 영역     | 선택                                                        | 근거                          |
+| -------- | ----------------------------------------------------------- | ----------------------------- |
+| 프론트   | Next.js 15 (App Router) + React + TS + Tailwind + shadcn/ui | 보편성·생태계·UI 키트         |
+| 백엔드   | NestJS + TypeScript                                         | 모듈러 구조·DI·WebSocket 통합 |
+| DB       | PostgreSQL 16 + Prisma                                      | 관계형·트랜잭션·JSON 컬럼     |
+| 실시간   | Socket.io                                                   | NAT 통과·재연결·방 기능       |
+| 데스크탑 | Tauri 2 + React                                             | 경량·보안 모델·크로스플랫폼   |
+| 인증     | Auth.js (NextAuth v5) + GitHub OAuth + GitHub App           | 사용자/레포 권한 분리         |
+| 테스트   | Vitest (단위·통합) + Playwright (E2E)                       | 속도·DX                       |
+| 모노레포 | Turborepo + pnpm workspace                                  | 캐시·태스크 파이프            |
+| 배포     | Docker Compose (서버) + Tauri 설치파일 (클라)               | self-hosted 표준              |
 
 ---
 
@@ -286,6 +302,7 @@ DevGarden-projects-manager/
 ## 9. MVP 범위 (v0.1 = "돌아가는 최소")
 
 **포함**
+
 - GitHub OAuth 로그인 + GitHub App 1회 설치
 - 프로젝트 등록 (레포 선택, 클라이언트 매핑)
 - 데스크탑 클라이언트 페어링 (1대)
@@ -297,6 +314,7 @@ DevGarden-projects-manager/
 - 실행 이력·토큰·성공률 기본 지표
 
 **v0.2 이후로 미룸**
+
 - 하네스 노드 UI (드래그-드롭)
 - 다중 클라이언트 라우팅 / 큐잉
 - 외부 일정 도구(Linear/Jira/Notion) 연동

@@ -5,26 +5,31 @@
 ## 1. 컴포넌트 책임
 
 ### `apps/web` (Next.js)
+
 - 사용자 UI만 담당. 비즈니스 로직 최소화
 - API 서버 호출은 `apps/api`의 REST + Socket.io 사용
 - Next.js Route Handler는 OAuth 콜백·웹훅 프록시 등 최소 용도로만 사용
 
 ### `apps/api` (NestJS)
+
 - 인증, 권한, 데이터 영속화, 외부 시스템(GitHub) 호출
 - Socket.io 게이트웨이로 web 클라이언트와 desktop 클라이언트를 모두 연결
 - 메시지 라우팅: `web → api → client` / `client → api → web`
 
 ### `apps/client` (Tauri)
+
 - Rust 코어: 파일/프로세스/네트워크 접근의 최종 게이트 (보안 경계)
 - React UI: 페어링·상태·로그 미니뷰
 - 노출하는 능력은 capability 토큰으로 게이팅
 
 ### `packages/harness-core`
+
 - 하네스 정의 파싱(zod 스키마) → IR(intermediate representation)
 - 실행기: step 트래버스, 컨텍스트 바인딩, 정책 적용
 - LLM·도구 호출은 인터페이스로 추상화 → 클라이언트가 주입
 
 ### `packages/llm-adapters`
+
 - 인터페이스: `LLMProvider.chat()`, `LLMProvider.complete()`, `LLMProvider.embed()`
 - 구현: `codex-cli`, `openai-compatible`
 
@@ -54,6 +59,7 @@ Browser            API                  Client                   GitHub
 ```
 
 ### 2.2 GitHub Webhook
+
 ```
 GitHub → POST /webhooks/github (HMAC 검증)
        → DB 업데이트 (이슈/PR/푸시 캐시)
@@ -61,6 +67,7 @@ GitHub → POST /webhooks/github (HMAC 검증)
 ```
 
 ### 2.3 클라이언트 페어링
+
 ```
 1. 웹: "클라이언트 추가" → API가 1회용 토큰(10분) 발급
 2. 데스크탑 클라이언트: 토큰 입력 → /clients/pair (HTTPS)
@@ -81,13 +88,13 @@ GitHub → POST /webhooks/github (HMAC 검증)
 
 ## 4. 보안 경계
 
-| 경계 | 검증 |
-|---|---|
-| Browser → API | Auth.js 세션, CSRF, rate limit |
-| Client → API | per-client JWT, IP 기록, capability 토큰 |
-| API → GitHub | App installation token, HMAC 웹훅 |
-| Client 내부 | fs/process allow-list, 경로 정규화 후 prefix 검사 |
-| LLM key 저장 | AES-GCM envelope encryption |
+| 경계          | 검증                                              |
+| ------------- | ------------------------------------------------- |
+| Browser → API | Auth.js 세션, CSRF, rate limit                    |
+| Client → API  | per-client JWT, IP 기록, capability 토큰          |
+| API → GitHub  | App installation token, HMAC 웹훅                 |
+| Client 내부   | fs/process allow-list, 경로 정규화 후 prefix 검사 |
+| LLM key 저장  | AES-GCM envelope encryption                       |
 
 자세한 위협 모델은 [`./SECURITY.md`](./SECURITY.md).
 
