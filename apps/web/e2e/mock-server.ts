@@ -169,6 +169,108 @@ function handle(req: IncomingMessage, res: ServerResponse): void {
     return;
   }
 
+  if (url.pathname === '/internal/todos' && req.method === 'GET') {
+    const source = url.searchParams.get('source');
+    const now = Date.now();
+    const all = [
+      {
+        id: 'mock-todo-1',
+        projectId: 'mock-project-1',
+        repoFullName: 'mock/repo',
+        title: 'issue from github',
+        body: 'imported from webhook',
+        status: 'OPEN',
+        sourceType: 'GITHUB_ISSUE',
+        sourceRef: 42,
+        createdAt: new Date(now - 600_000).toISOString(),
+        updatedAt: new Date(now - 60_000).toISOString(),
+      },
+      {
+        id: 'mock-todo-2',
+        projectId: 'mock-project-1',
+        repoFullName: 'mock/repo',
+        title: 'internal note',
+        body: null,
+        status: 'IN_PROGRESS',
+        sourceType: 'INTERNAL',
+        sourceRef: null,
+        createdAt: new Date(now - 300_000).toISOString(),
+        updatedAt: new Date(now - 30_000).toISOString(),
+      },
+      {
+        id: 'mock-todo-3',
+        projectId: 'mock-project-1',
+        repoFullName: 'mock/repo',
+        title: 'done task',
+        body: null,
+        status: 'DONE',
+        sourceType: 'INTERNAL',
+        sourceRef: null,
+        createdAt: new Date(now - 900_000).toISOString(),
+        updatedAt: new Date(now - 120_000).toISOString(),
+      },
+    ];
+    const filtered = source ? all.filter((t) => t.sourceType === source) : all;
+    res.writeHead(200, { 'content-type': 'application/json' }).end(JSON.stringify(filtered));
+    return;
+  }
+
+  if (url.pathname === '/internal/todos' && req.method === 'POST') {
+    readBody(req).then((body) => {
+      let parsed: { projectId?: string; title?: string; body?: string } = {};
+      try {
+        parsed = JSON.parse(body) as typeof parsed;
+      } catch {
+        // ignore
+      }
+      const now = new Date().toISOString();
+      res.writeHead(201, { 'content-type': 'application/json' }).end(
+        JSON.stringify({
+          id: 'mock-todo-new',
+          projectId: parsed.projectId ?? 'mock-project-1',
+          repoFullName: 'mock/repo',
+          title: parsed.title ?? 'new',
+          body: parsed.body ?? null,
+          status: 'OPEN',
+          sourceType: 'INTERNAL',
+          sourceRef: null,
+          createdAt: now,
+          updatedAt: now,
+        }),
+      );
+    });
+    return;
+  }
+
+  const todoStatusMatch = url.pathname.match(/^\/internal\/todos\/([^/]+)\/status$/);
+  if (todoStatusMatch && req.method === 'PATCH') {
+    readBody(req).then((body) => {
+      const id = todoStatusMatch[1]!;
+      let parsed: { status?: string } = {};
+      try {
+        parsed = JSON.parse(body) as typeof parsed;
+      } catch {
+        // ignore
+      }
+      const now = new Date().toISOString();
+      res.writeHead(200, { 'content-type': 'application/json' }).end(
+        JSON.stringify({
+          id,
+          projectId: 'mock-project-1',
+          repoFullName: 'mock/repo',
+          title: 'updated',
+          body: null,
+          status: parsed.status ?? 'OPEN',
+          sourceType: 'INTERNAL',
+          sourceRef: null,
+          createdAt: now,
+          updatedAt: now,
+        }),
+      );
+    });
+    return;
+  }
+
   if (url.pathname === '/internal/runs/stats' && req.method === 'GET') {
     res.writeHead(200, { 'content-type': 'application/json' }).end(
       JSON.stringify({
