@@ -112,7 +112,7 @@ export async function executeRun(
 
   const host: HostBridge | undefined = socket.emitWithAck
     ? {
-        request: async <T,>(name: string, payload: unknown) => {
+        request: async <T>(name: string, payload: unknown) => {
           const ack = (await socket.emitWithAck!(name, payload)) as T;
           return ack;
         },

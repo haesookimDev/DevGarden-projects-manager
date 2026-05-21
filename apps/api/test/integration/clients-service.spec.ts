@@ -17,6 +17,10 @@ afterAll(async () => {
 });
 
 beforeEach(async () => {
+  // HarnessRun → Client FK is `onDelete: Restrict`. Drop children first.
+  await prisma.runLog.deleteMany();
+  await prisma.runStep.deleteMany();
+  await prisma.harnessRun.deleteMany();
   await prisma.client.deleteMany();
   await prisma.clientPairing.deleteMany();
   await prisma.user.deleteMany();

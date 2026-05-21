@@ -27,5 +27,8 @@ export default defineConfig({
     poolOptions: {
       forks: { singleFork: true },
     },
+    // Tests share a single Testcontainers Postgres. Run files serially so one
+    // file's `beforeEach` cleanup never races with another's `afterEach`.
+    fileParallelism: false,
   },
 });
