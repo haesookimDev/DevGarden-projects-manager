@@ -114,6 +114,9 @@ importers:
       '@tauri-apps/api':
         specifier: ^2.1.1
         version: 2.11.0
+      '@tauri-apps/plugin-store':
+        specifier: ^2.2.0
+        version: 2.4.3
       react:
         specifier: ^19.0.0
         version: 19.2.6
@@ -139,6 +142,9 @@ importers:
       vite:
         specifier: ^6.0.5
         version: 6.4.2(@types/node@22.19.19)(jiti@2.7.0)(terser@5.47.1)(yaml@2.9.0)
+      vitest:
+        specifier: ^2.1.8
+        version: 2.1.9(@types/node@22.19.19)(terser@5.47.1)
 
   apps/web:
     dependencies:
@@ -1464,6 +1470,9 @@ packages:
     resolution: {integrity: sha512-bk3HemqvGRoy+5D/dVMUQHKMYLglD0jVnMm/0iGMH6ufZ+p8r14m6BpIixwij3PBvZdvORUp1YifTD8QxVZ1Nw==}
     engines: {node: '>= 10'}
     hasBin: true
+
+  '@tauri-apps/plugin-store@2.4.3':
+    resolution: {integrity: sha512-9LWPj9yMphRi9czEtUv87XHbl1b6xgd9EXpPrUnq6nG7+nbtoF84d4Kwz9xhAv/Hf30sr58pq7EOlyI936y8qw==}
 
   '@testcontainers/postgresql@10.28.0':
     resolution: {integrity: sha512-NN25rruG5D4Q7pCNIJuHwB+G85OSeJ3xHZ2fWx0O6sPoPEfCYwvpj8mq99cyn68nxFkFYZeyrZJtSFO+FnydiA==}
@@ -5939,6 +5948,10 @@ snapshots:
       '@tauri-apps/cli-win32-arm64-msvc': 2.11.2
       '@tauri-apps/cli-win32-ia32-msvc': 2.11.2
       '@tauri-apps/cli-win32-x64-msvc': 2.11.2
+
+  '@tauri-apps/plugin-store@2.4.3':
+    dependencies:
+      '@tauri-apps/api': 2.11.0
 
   '@testcontainers/postgresql@10.28.0':
     dependencies:
