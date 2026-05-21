@@ -145,4 +145,80 @@ describe('RunsService', () => {
     expect(list).toHaveLength(2);
     expect(list[0]!.startedAt.getTime()).toBeGreaterThan(list[1]!.startedAt.getTime());
   });
+
+  it('listByOwner cross-project, includes repoFullName, respects limit + status', async () => {
+    const { user, project, harness, client } = await seed();
+    const otherProject = await prisma.project.create({
+      data: {
+        ownerId: user.id,
+        githubInstallationId: 1,
+        githubRepoId: 2,
+        repoFullName: 'x/other',
+        localRoot: '/tmp/other',
+      },
+    });
+    const svc = new RunsService(prisma as unknown as PrismaService);
+    const a = await svc.createRun({
+      harnessId: harness.id,
+      projectId: project.id,
+      clientId: client.id,
+      triggeredByUserId: user.id,
+    });
+    await new Promise((r) => setTimeout(r, 5));
+    await svc.createRun({
+      harnessId: harness.id,
+      projectId: otherProject.id,
+      clientId: client.id,
+      triggeredByUserId: user.id,
+    });
+    await svc.setStatus(a.id, RunStatus.SUCCESS);
+
+    const all = await svc.listByOwner(user.id);
+    expect(all).toHaveLength(2);
+    expect(all[0]!.project.repoFullName).toBeTruthy();
+
+    const onlySuccess = await svc.listByOwner(user.id, { status: RunStatus.SUCCESS });
+    expect(onlySuccess).toHaveLength(1);
+    expect(onlySuccess[0]!.id).toBe(a.id);
+
+    const limited = await svc.listByOwner(user.id, { limit: 1 });
+    expect(limited).toHaveLength(1);
+  });
+
+  it('statsByOwner counts by status + computes successRate', async () => {
+    const { user, project, harness, client } = await seed();
+    const svc = new RunsService(prisma as unknown as PrismaService);
+    const make = () =>
+      svc.createRun({
+        harnessId: harness.id,
+        projectId: project.id,
+        clientId: client.id,
+        triggeredByUserId: user.id,
+      });
+    const a = await make();
+    const b = await make();
+    const c = await make();
+    const d = await make();
+    await svc.setStatus(a.id, RunStatus.SUCCESS);
+    await svc.setStatus(b.id, RunStatus.SUCCESS);
+    await svc.setStatus(c.id, RunStatus.FAILED);
+    // d stays QUEUED
+
+    const stats = await svc.statsByOwner(user.id);
+    expect(stats.total).toBe(4);
+    expect(stats.counts.SUCCESS).toBe(2);
+    expect(stats.counts.FAILED).toBe(1);
+    expect(stats.counts.QUEUED).toBe(1);
+    expect(stats.successRate).toBeCloseTo(2 / 3, 4);
+    expect(stats.terminalCount).toBe(3);
+  });
+
+  it('statsByOwner returns zeros when no runs in window', async () => {
+    const { user } = await seed();
+    const svc = new RunsService(prisma as unknown as PrismaService);
+    const stats = await svc.statsByOwner(user.id, { sinceHours: 1 });
+    expect(stats.total).toBe(0);
+    expect(stats.successRate).toBeNull();
+    expect(stats.totalCostUsd).toBe(0);
+  });
 });

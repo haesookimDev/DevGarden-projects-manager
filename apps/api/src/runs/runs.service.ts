@@ -119,6 +119,85 @@ export class RunsService {
       take: 50,
     });
   }
+
+  listByOwner(
+    ownerId: string,
+    opts: { limit?: number; status?: RunStatus } = {},
+  ): Promise<Array<HarnessRun & { project: { id: string; repoFullName: string } }>> {
+    const limit = clamp(opts.limit ?? 50, 1, 200);
+    return this.prisma.harnessRun.findMany({
+      where: {
+        project: { ownerId },
+        ...(opts.status ? { status: opts.status } : {}),
+      },
+      orderBy: { startedAt: 'desc' },
+      take: limit,
+      include: { project: { select: { id: true, repoFullName: true } } },
+    });
+  }
+
+  /**
+   * Aggregate stats for an owner's runs, optionally bounded to `sinceHours`
+   * back. Cost is summed from the `costUsd` column (Decimal → string at the
+   * Prisma layer, converted to number here for transport).
+   */
+  async statsByOwner(ownerId: string, opts: { sinceHours?: number } = {}): Promise<OwnerRunStats> {
+    const sinceHours = clamp(opts.sinceHours ?? 24 * 7, 1, 24 * 90);
+    const since = new Date(Date.now() - sinceHours * 3_600_000);
+
+    const where = { project: { ownerId }, startedAt: { gte: since } };
+
+    const [byStatus, totals] = await Promise.all([
+      this.prisma.harnessRun.groupBy({
+        by: ['status'],
+        where,
+        _count: { _all: true },
+      }),
+      this.prisma.harnessRun.aggregate({
+        where: { ...where, status: { in: [RunStatus.SUCCESS, RunStatus.FAILED] } },
+        _avg: { costUsd: true },
+        _sum: { costUsd: true },
+        _count: { _all: true },
+      }),
+    ]);
+
+    const counts: Record<string, number> = {};
+    let total = 0;
+    for (const row of byStatus) {
+      counts[row.status] = row._count._all;
+      total += row._count._all;
+    }
+
+    return {
+      sinceHours,
+      total,
+      counts,
+      successRate:
+        (counts[RunStatus.SUCCESS] ?? 0) + (counts[RunStatus.FAILED] ?? 0) === 0
+          ? null
+          : (counts[RunStatus.SUCCESS] ?? 0) /
+            ((counts[RunStatus.SUCCESS] ?? 0) + (counts[RunStatus.FAILED] ?? 0)),
+      totalCostUsd: totals._sum.costUsd ? Number(totals._sum.costUsd) : 0,
+      avgCostUsd: totals._avg.costUsd ? Number(totals._avg.costUsd) : null,
+      terminalCount: totals._count._all,
+    };
+  }
+}
+
+export interface OwnerRunStats {
+  sinceHours: number;
+  total: number;
+  counts: Record<string, number>;
+  successRate: number | null;
+  totalCostUsd: number;
+  avgCostUsd: number | null;
+  terminalCount: number;
+}
+
+function clamp(n: number, min: number, max: number): number {
+  if (n < min) return min;
+  if (n > max) return max;
+  return n;
 }
 
 function isTerminal(status: RunStatus): boolean {
