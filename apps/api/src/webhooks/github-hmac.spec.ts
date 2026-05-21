@@ -20,9 +20,9 @@ describe('verifyGithubSignature', () => {
     const body = Buffer.from(JSON.stringify({ a: 1 }));
     const sig = sign(body);
     const tampered = Buffer.from(JSON.stringify({ a: 2 }));
-    expect(
-      verifyGithubSignature({ rawBody: tampered, signatureHeader: sig, secret: SECRET }),
-    ).toBe(false);
+    expect(verifyGithubSignature({ rawBody: tampered, signatureHeader: sig, secret: SECRET })).toBe(
+      false,
+    );
   });
 
   it('rejects when secret mismatches', () => {
@@ -34,12 +34,12 @@ describe('verifyGithubSignature', () => {
 
   it('rejects when header is missing or malformed', () => {
     const body = Buffer.from('x');
-    expect(verifyGithubSignature({ rawBody: body, signatureHeader: undefined, secret: SECRET })).toBe(
-      false,
-    );
-    expect(verifyGithubSignature({ rawBody: body, signatureHeader: 'sha1=abc', secret: SECRET })).toBe(
-      false,
-    );
+    expect(
+      verifyGithubSignature({ rawBody: body, signatureHeader: undefined, secret: SECRET }),
+    ).toBe(false);
+    expect(
+      verifyGithubSignature({ rawBody: body, signatureHeader: 'sha1=abc', secret: SECRET }),
+    ).toBe(false);
   });
 
   it('rejects when secret is empty', () => {
