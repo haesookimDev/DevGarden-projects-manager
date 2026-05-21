@@ -32,11 +32,23 @@
 
 ## 5. E2E 시나리오 (MVP)
 
-1. `web-auth.spec.ts` — GitHub OAuth 로그인 → 대시보드 진입
-2. `web-project-add.spec.ts` — 레포 선택 → 프로젝트 생성 → 목록에 표시
-3. `web-client-pair.spec.ts` — 페어링 토큰 발급 → 모의 클라이언트 연결 → 상태 online
-4. `web-harness-run.spec.ts` — 하네스 트리거 → 로그 스트림 수신 → 상태 success
-5. `web-pr-observe.spec.ts` — 웹훅 mock → PR 카드 갱신
+위치: `apps/web/e2e/*.spec.ts`. 실행: `pnpm --filter @devgarden/web test:e2e`.
+Playwright config가 `pnpm dev` 를 직접 spawn (테스트용 fake env 주입). 별도 docker-compose 필요 없음 (DB 없이 동작하는 path만 검증하는 한).
+
+현재 구현:
+
+- `auth-guard.spec.ts` — middleware 인증 가드 동작 확인
+  - 미인증 사용자 `/` → `/signin` 리다이렉트
+  - 미인증 사용자 `/dashboard` → `/signin?callbackUrl=/dashboard`
+  - `/signin` 페이지에 "Continue with GitHub" 버튼 노출
+
+차후 PR:
+
+- `oauth-login.spec.ts` — GitHub OAuth mock 으로 실제 로그인 → 대시보드 진입
+- `project-add.spec.ts` — 레포 선택 → 프로젝트 생성 → 목록에 표시
+- `client-pair.spec.ts` — 페어링 토큰 발급 → 모의 클라이언트 연결 → 상태 online
+- `harness-run.spec.ts` — 하네스 트리거 → 로그 스트림 수신 → 상태 success
+- `pr-observe.spec.ts` — 웹훅 mock → PR 카드 갱신
 
 ## 6. CI
 
