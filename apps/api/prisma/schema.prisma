@@ -107,6 +107,7 @@ model Project {
 
   todos HarnessRun[]
   items TodoItem[]
+  githubEvents GithubEvent[]
 
   @@unique([ownerId, githubRepoId])
   @@index([repoFullName])
@@ -294,4 +295,23 @@ model TodoItem {
   updatedAt  DateTime   @updatedAt
 
   @@index([projectId, status])
+}
+
+// =============================================================================
+// GitHub webhook event audit
+// =============================================================================
+
+model GithubEvent {
+  id           String   @id @default(cuid())
+  deliveryId   String   @unique
+  eventType    String
+  action       String?
+  repoFullName String?
+  projectId    String?
+  project      Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  payload      Json
+  receivedAt   DateTime @default(now())
+
+  @@index([projectId, receivedAt])
+  @@index([eventType, receivedAt])
 }

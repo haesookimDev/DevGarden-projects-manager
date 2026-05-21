@@ -8,21 +8,21 @@
 
 ## Progress snapshot (2026-05-21)
 
-- **머지된 GitHub PR**: 27 개 (PR #1 ~ #27)
-- **테스트**: api unit 24 + web unit 14 + client unit 24 + harness-core 30 + llm-adapters 10 + api integration 31 + web e2e 12 = **145 cases**
+- **머지된 GitHub PR**: 28 개 (PR #1 ~ #28)
+- **테스트**: api unit 29 + web unit 14 + client unit 24 + harness-core 30 + llm-adapters 10 + api integration 36 + web e2e 12 = **155 cases**
 - **CI**: 5 jobs (Lint · Typecheck · Unit · Integration · E2E) 모두 green
 - **운영 정책 도입**: 한 PR 안의 commit 분리(§4), CI 통과 시 자동 머지(§6)
-- **다음 우선순위**: M4 — GitHub webhook receiver → auto PR 생성
+- **다음 우선순위**: M4 PR #14 (auto PR creation) → 그 후 M5
 
-| Milestone                          | 상태      |
-| ---------------------------------- | --------- |
-| M0 모노레포 부트스트랩             | ✅ 완료   |
-| M1 인증 & 기본 도메인              | ✅ 완료   |
-| M2 데스크탑 클라이언트 페어링      | ✅ 완료   |
-| M3 하네스 코어 & 첫 실행           | ✅ 완료   |
-| M4 GitHub 연동 마감 + PR 자동 생성 | ⬜ 미시작 |
-| M5 옵저버빌리티 & 메타데이터       | ⬜ 미시작 |
-| M6 폴리시 & 출시 준비              | ⬜ 미시작 |
+| Milestone                          | 상태                               |
+| ---------------------------------- | ---------------------------------- |
+| M0 모노레포 부트스트랩             | ✅ 완료                            |
+| M1 인증 & 기본 도메인              | ✅ 완료                            |
+| M2 데스크탑 클라이언트 페어링      | ✅ 완료                            |
+| M3 하네스 코어 & 첫 실행           | ✅ 완료                            |
+| M4 GitHub 연동 마감 + PR 자동 생성 | 🟡 webhook 완료, auto PR 진행 예정 |
+| M5 옵저버빌리티 & 메타데이터       | ⬜ 미시작                          |
+| M6 폴리시 & 출시 준비              | ⬜ 미시작                          |
 
 ---
 
@@ -84,10 +84,12 @@
 
 ## M4. GitHub 연동 마감 + PR 자동 생성
 
-- ⬜ **ROADMAP PR #13** `feat(api): GitHub webhook receiver`
-  - `/webhooks/github` HMAC 검증
-  - 이슈/PR/푸시 이벤트 → DB + socket broadcast
-  - Verify: 실제 push → 대시보드 갱신
+- [x] **ROADMAP PR #13** `feat(api): GitHub webhook receiver` → GH #28
+  - `POST /webhooks/github` — HMAC SHA-256 (`X-Hub-Signature-256`) 검증, 미서명/잘못된 서명 → 401
+  - `GithubEvent` audit 테이블 신규 (deliveryId unique → 자동 idempotent)
+  - `repository.full_name` 으로 Project lookup → projectId 연결
+  - 5 integration + 5 HMAC unit
+  - 후속: 이벤트별 broadcast / TodoItem upsert 는 PR #14 + PR #17 에서
 
 - ⬜ **ROADMAP PR #14** `feat(client): auto branch → commit → push → PR`
   - 하네스의 git/github 도구 마무리 (이미 git tools 는 GH #21 에 있음 — webhook + PR 생성만 남음)
