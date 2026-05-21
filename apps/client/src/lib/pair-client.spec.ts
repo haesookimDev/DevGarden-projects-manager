@@ -35,14 +35,12 @@ describe('pairClient', () => {
 
   it('POSTs the token then persists the returned jwt', async () => {
     const storage = makeMemoryStorage();
-    const fetchFn = vi
-      .fn()
-      .mockResolvedValue(
-        new Response(JSON.stringify({ clientId: 'cid-1', jwt: 'jwt-1', name: 'Laptop' }), {
-          status: 200,
-          headers: { 'content-type': 'application/json' },
-        }),
-      );
+    const fetchFn = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ clientId: 'cid-1', jwt: 'jwt-1', name: 'Laptop' }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      }),
+    );
 
     const record = await pairClient(
       { apiBaseUrl: 'http://api.local', token: 'pair-token', hostname: 'host-x', os: 'darwin' },
