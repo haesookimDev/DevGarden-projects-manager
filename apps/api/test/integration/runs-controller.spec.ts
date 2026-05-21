@@ -24,10 +24,7 @@ beforeAll(async () => {
   const moduleRef = await Test.createTestingModule({
     imports: [PrismaModule],
     controllers: [RunsInternalController],
-    providers: [
-      RunsService,
-      { provide: RunsGateway, useValue: { emitRunStart } },
-    ],
+    providers: [RunsService, { provide: RunsGateway, useValue: { emitRunStart } }],
   }).compile();
 
   app = moduleRef.createNestApplication();

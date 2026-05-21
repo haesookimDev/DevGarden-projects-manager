@@ -11,9 +11,7 @@ function fakeSocket() {
 const sampleHarness = {
   name: 'echo',
   version: 1,
-  steps: [
-    { id: 'plan', type: 'tool', use: 'fs.write', with: { path: 'a.txt', content: 'hi' } },
-  ],
+  steps: [{ id: 'plan', type: 'tool', use: 'fs.write', with: { path: 'a.txt', content: 'hi' } }],
 };
 
 describe('executeRun', () => {
@@ -127,10 +125,7 @@ describe('executeRun', () => {
       { run, buildTools: () => new Map(), parse: () => sampleHarness as never },
     );
     expect(result).toBeNull();
-    expect(emit.mock.calls[0]).toEqual([
-      RUN_EVENTS.Status,
-      { runId: 'run-3', status: 'FAILED' },
-    ]);
+    expect(emit.mock.calls[0]).toEqual([RUN_EVENTS.Status, { runId: 'run-3', status: 'FAILED' }]);
   });
 
   it('forwards run.error as a final error log when harness returns failed', async () => {
@@ -146,13 +141,9 @@ describe('executeRun', () => {
       { runId: 'run-4', harness: sampleHarness, inputs: {}, workingDir: '/tmp/x' },
       { run, buildTools: () => new Map() },
     );
-    const lastStatus = emit.mock.calls
-      .filter((c) => c[0] === RUN_EVENTS.Status)
-      .at(-1);
+    const lastStatus = emit.mock.calls.filter((c) => c[0] === RUN_EVENTS.Status).at(-1);
     expect(lastStatus?.[1]).toEqual({ runId: 'run-4', status: 'FAILED' });
-    const errorLog = emit.mock.calls
-      .filter((c) => c[0] === RUN_EVENTS.Log)
-      .at(-1);
+    const errorLog = emit.mock.calls.filter((c) => c[0] === RUN_EVENTS.Log).at(-1);
     expect((errorLog?.[1] as { message: string }).message).toBe('tool blew up');
   });
 });

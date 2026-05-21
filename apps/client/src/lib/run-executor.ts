@@ -95,8 +95,7 @@ export async function executeRun(
 
   let stepIndex = 0;
   const hooks: RunHooks = {
-    onLog: (e) =>
-      emitLog(socket, event.runId, e.level, e.source, e.message),
+    onLog: (e) => emitLog(socket, event.runId, e.level, e.source, e.message),
     onStepStart: () => {
       // No-op: a Step row is created on finish so we have the final status +
       // duration in a single write. Start is observable via the log line that
