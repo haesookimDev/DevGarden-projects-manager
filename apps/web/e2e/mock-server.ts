@@ -112,6 +112,47 @@ function handle(req: IncomingMessage, res: ServerResponse): void {
     return;
   }
 
+  const projectMatch = url.pathname.match(/^\/internal\/projects\/([^/]+)$/);
+  if (projectMatch && req.method === 'GET') {
+    const id = projectMatch[1]!;
+    res.writeHead(200, { 'content-type': 'application/json' }).end(
+      JSON.stringify({
+        id,
+        repoFullName: 'mock/repo',
+        githubInstallationId: 1,
+        githubRepoId: 42,
+        localRoot: '/tmp/mock',
+        worktreePolicy: 'AUTO_REMOVE_SUCCESS',
+        createdAt: new Date(Date.now() - 600_000).toISOString(),
+        updatedAt: new Date(Date.now() - 60_000).toISOString(),
+        defaultClient: {
+          id: 'mock-client-1',
+          name: 'Mock Laptop',
+          status: 'ONLINE',
+        },
+        defaultHarness: {
+          id: 'mock-harness-1',
+          name: 'echo',
+          version: 1,
+        },
+        runCount: 3,
+        lastRun: {
+          id: 'mock-run-7',
+          status: 'SUCCESS',
+          startedAt: new Date(Date.now() - 120_000).toISOString(),
+          finishedAt: new Date(Date.now() - 60_000).toISOString(),
+        },
+        lastEvent: {
+          id: 'mock-event-1',
+          eventType: 'push',
+          action: null,
+          receivedAt: new Date(Date.now() - 30_000).toISOString(),
+        },
+      }),
+    );
+    return;
+  }
+
   if (url.pathname === '/internal/harnesses' && req.method === 'GET') {
     res.writeHead(200, { 'content-type': 'application/json' }).end(
       JSON.stringify([
