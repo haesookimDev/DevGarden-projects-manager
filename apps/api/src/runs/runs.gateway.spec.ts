@@ -27,9 +27,24 @@ function authedSocket(clientId = 'client-abc'): Socket {
   return { id: 'sock-1', data: { clientId } } as unknown as Socket;
 }
 
+function internalSocket(): Socket & {
+  join: ReturnType<typeof vi.fn>;
+  leave: ReturnType<typeof vi.fn>;
+} {
+  return {
+    id: 'sock-bff',
+    data: { isInternal: true },
+    join: vi.fn().mockResolvedValue(undefined),
+    leave: vi.fn().mockResolvedValue(undefined),
+  } as unknown as Socket & {
+    join: ReturnType<typeof vi.fn>;
+    leave: ReturnType<typeof vi.fn>;
+  };
+}
+
 describe('RunsGateway', () => {
   describe('emitRunStart', () => {
-    it("routes the payload to the client's room with run:start", () => {
+    it("routes the payload to the client's room AND fans out to the run room", () => {
       const { gw, to, emit } = makeGateway();
       gw.emitRunStart('client-abc', {
         runId: 'run-1',
@@ -37,10 +52,39 @@ describe('RunsGateway', () => {
         inputs: {},
       });
       expect(to).toHaveBeenCalledWith('client:client-abc');
-      expect(emit).toHaveBeenCalledWith(
-        RUN_EVENTS.Start,
-        expect.objectContaining({ runId: 'run-1' }),
-      );
+      expect(to).toHaveBeenCalledWith('run:run-1');
+      const emittedEvents = emit.mock.calls.map((c) => c[0]);
+      expect(emittedEvents.filter((e) => e === RUN_EVENTS.Start)).toHaveLength(2);
+    });
+  });
+
+  describe('subscribe:run', () => {
+    it('lets internal sockets join run rooms', async () => {
+      const { gw } = makeGateway();
+      const socket = internalSocket();
+      const ack = await gw.onSubscribeRun(socket, { runId: 'run-1' });
+      expect(ack).toEqual({ ok: true });
+      expect(socket.join).toHaveBeenCalledWith('run:run-1');
+    });
+
+    it('rejects subscribe attempts from desktop client sockets', async () => {
+      const { gw } = makeGateway();
+      const socket = {
+        id: 's',
+        data: { clientId: 'c-1' },
+        join: vi.fn(),
+      } as unknown as Socket & { join: ReturnType<typeof vi.fn> };
+      const ack = await gw.onSubscribeRun(socket, { runId: 'run-1' });
+      expect(ack).toEqual({ ok: false });
+      expect(socket.join).not.toHaveBeenCalled();
+    });
+
+    it('unsubscribe leaves the run room', async () => {
+      const { gw } = makeGateway();
+      const socket = internalSocket();
+      const ack = await gw.onUnsubscribeRun(socket, { runId: 'run-1' });
+      expect(ack).toEqual({ ok: true });
+      expect(socket.leave).toHaveBeenCalledWith('run:run-1');
     });
   });
 
@@ -58,8 +102,8 @@ describe('RunsGateway', () => {
       expect(runs.appendLog).not.toHaveBeenCalled();
     });
 
-    it('persists a log line via RunsService', async () => {
-      const { gw, runs } = makeGateway();
+    it('persists a log line via RunsService and fans out to the run room', async () => {
+      const { gw, runs, to, emit } = makeGateway();
       const ack = await gw.onLog(authedSocket(), {
         runId: 'run-1',
         level: 'warn',
@@ -73,6 +117,11 @@ describe('RunsGateway', () => {
         source: 'tool/fs.write',
         message: 'wrote a file',
       });
+      expect(to).toHaveBeenCalledWith('run:run-1');
+      expect(emit).toHaveBeenCalledWith(
+        RUN_EVENTS.Log,
+        expect.objectContaining({ runId: 'run-1' }),
+      );
     });
   });
 
