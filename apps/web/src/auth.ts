@@ -6,12 +6,14 @@ import { upsertUserViaApi } from './lib/auth/upsert-user';
 declare module 'next-auth' {
   interface Session {
     user: {
+      id: string;
       githubId: number;
       login: string;
     } & DefaultSession['user'];
   }
 
   interface JWT {
+    dbUserId?: string;
     githubId?: number;
     login?: string;
   }
@@ -32,30 +34,36 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   callbacks: {
     async signIn({ profile }) {
       const login = typeof profile?.login === 'string' ? profile.login : undefined;
-      const githubId = typeof profile?.id === 'number' ? profile.id : undefined;
-
-      if (!isAllowed(login, allowList)) return false;
-      if (!login || githubId === undefined) return false;
-
-      await upsertUserViaApi({
-        githubId,
-        login,
-        email: typeof profile?.email === 'string' ? profile.email : null,
-      });
-
-      return true;
+      return isAllowed(login, allowList);
     },
     async jwt({ token, profile }) {
       if (profile) {
-        if (typeof profile.id === 'number') token.githubId = profile.id;
-        if (typeof profile.login === 'string') token.login = profile.login;
+        const login = typeof profile.login === 'string' ? profile.login : undefined;
+        const githubId = typeof profile.id === 'number' ? profile.id : undefined;
+        if (!login || githubId === undefined) return token;
+
+        const user = await upsertUserViaApi({
+          githubId,
+          login,
+          email: typeof profile.email === 'string' ? profile.email : null,
+        });
+
+        token.dbUserId = user.id;
+        token.githubId = githubId;
+        token.login = login;
       }
       return token;
     },
     async session({ session, token }) {
+      const dbUserId = token.dbUserId;
       const githubId = token.githubId;
       const login = token.login;
-      if (typeof githubId === 'number' && typeof login === 'string') {
+      if (
+        typeof dbUserId === 'string' &&
+        typeof githubId === 'number' &&
+        typeof login === 'string'
+      ) {
+        session.user.id = dbUserId;
         session.user.githubId = githubId;
         session.user.login = login;
       }
