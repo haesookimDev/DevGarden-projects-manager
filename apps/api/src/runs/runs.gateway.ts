@@ -15,6 +15,7 @@ import {
 } from '@devgarden/shared';
 import { LogLevel, RunStatus, StepKind, StepStatus } from '@prisma/client';
 import type { Server, Socket } from 'socket.io';
+import { GithubPrService } from '../github/github-pr.service';
 import { RunsService } from './runs.service';
 
 interface AuthedSocketData {
@@ -42,7 +43,10 @@ export class RunsGateway {
 
   private readonly logger = new Logger(RunsGateway.name);
 
-  constructor(private readonly runs: RunsService) {}
+  constructor(
+    private readonly runs: RunsService,
+    private readonly githubPr: GithubPrService,
+  ) {}
 
   emitRunStart(clientId: string, payload: RunStartPayload): void {
     this.server.to(`client:${clientId}`).emit(RUN_EVENTS.Start, payload);
@@ -131,6 +135,45 @@ export class RunsGateway {
     if (!body?.runId) return { ok: false };
     await socket.leave(`run:${body.runId}`);
     return { ok: true };
+  }
+
+  /**
+   * Host-bridge: a desktop client asks api to open a GitHub PR on its behalf.
+   * Client auth is sufficient (we already verified the JWT on connection); the
+   * project is identified by `projectId` carried in the request.
+   */
+  @SubscribeMessage('github:openPR')
+  async onOpenPullRequest(
+    @ConnectedSocket() socket: Socket,
+    @MessageBody()
+    body: {
+      projectId?: string;
+      head?: string;
+      base?: string;
+      title?: string;
+      body?: string;
+      draft?: boolean;
+    },
+  ): Promise<{ ok: true; url: string; number: number } | { ok: false; error: string }> {
+    if (!this.assertAuthed(socket)) return { ok: false, error: 'unauthorized' };
+    if (!body?.projectId || !body.head || !body.title) {
+      return { ok: false, error: 'projectId, head, and title are required' };
+    }
+    try {
+      const pr = await this.githubPr.open({
+        projectId: body.projectId,
+        head: body.head,
+        base: body.base,
+        title: body.title,
+        body: body.body,
+        draft: body.draft,
+      });
+      return { ok: true, url: pr.url, number: pr.number };
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      this.logger.warn(`github:openPR failed: ${msg}`);
+      return { ok: false, error: msg };
+    }
   }
 
   /**

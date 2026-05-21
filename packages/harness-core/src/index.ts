@@ -18,6 +18,7 @@ export { runHarness, RunnerError } from './runner';
 export type {
   ToolHandler,
   ToolRunContext,
+  HostBridge,
   LlmDispatch,
   SubagentDispatch,
   RunLogEvent,

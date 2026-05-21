@@ -38,12 +38,30 @@ steps: [ Step, ... ]            # required
   onFail: stop # stop | continue | retry(n)
 ```
 
-빌트인 도구 (MVP):
+빌트인 도구 (MVP, 구현된 것):
 
-- `github.getIssue`, `github.listPRs`, `github.openPullRequest`, `github.comment`
-- `git.createBranch`, `git.commit`, `git.push`, `git.diff`
-- `fs.read`, `fs.write`, `fs.list`
-- `process.run` (allow-list 통과 시)
+- `git.createBranch`, `git.commit`, `git.push`, `git.diff` (PR #21)
+- `fs.read`, `fs.write`, `fs.list` (PR #21)
+- `process.run` (allow-list 통과 시) (PR #21)
+- `github.openPR` (PR #28) — api 가 GithubAppService 로 호출, 클라이언트는 socket ack 받음
+
+  ```yaml
+  - id: open-pr
+    type: tool
+    use: github.openPR
+    with:
+      projectId: '${inputs.projectId}'
+      head: '${steps.create-branch.output.branch}'
+      title: 'auto: ${inputs.title}'
+      body: |
+        Generated from harness ${run.id}.
+      base: main # optional, default 'main'
+      draft: false # optional
+  ```
+
+빌트인 도구 (백로그):
+
+- `github.getIssue`, `github.listPRs`, `github.comment`
 
 ### 2.2 `llm`
 

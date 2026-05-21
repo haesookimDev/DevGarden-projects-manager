@@ -10,6 +10,7 @@ import { PrismaClient, UserRole } from '@prisma/client';
 import { io as ioClient, type Socket as ClientSocket } from 'socket.io-client';
 import { ClientJwtService } from '../../src/clients/client-jwt.service';
 import { ClientsGateway } from '../../src/clients/clients.gateway';
+import { GithubPrService } from '../../src/github/github-pr.service';
 import { PrismaModule } from '../../src/prisma/prisma.module';
 import { RunsGateway } from '../../src/runs/runs.gateway';
 import { RunsService } from '../../src/runs/runs.service';
@@ -29,7 +30,16 @@ beforeAll(async () => {
 
   const moduleRef = await Test.createTestingModule({
     imports: [PrismaModule],
-    providers: [ClientJwtService, ClientsGateway, RunsGateway, RunsService],
+    providers: [
+      ClientJwtService,
+      ClientsGateway,
+      RunsGateway,
+      RunsService,
+      // GithubPrService is only invoked by the github:openPR handler — these
+      // tests never trigger that path, so a stub keeps the DI graph happy
+      // without bringing the GitHub App env vars into scope.
+      { provide: GithubPrService, useValue: { open: () => Promise.reject(new Error('not used')) } },
+    ],
   }).compile();
 
   app = moduleRef.createNestApplication();

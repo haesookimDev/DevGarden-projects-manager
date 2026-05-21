@@ -155,7 +155,11 @@ async function dispatch(
 async function runToolStep(step: ToolStep, ctx: ExprContext, opts: RunOptions): Promise<unknown> {
   const handler = lookupTool(step.use, opts.tools);
   const args = interpolateRecord(step.with ?? {}, ctx);
-  return handler.run(args, { runId: opts.runId, workingDir: opts.workingDir });
+  return handler.run(args, {
+    runId: opts.runId,
+    workingDir: opts.workingDir,
+    host: opts.host,
+  });
 }
 
 function lookupTool(use: string, tools: Map<string, ToolHandler>): ToolHandler {

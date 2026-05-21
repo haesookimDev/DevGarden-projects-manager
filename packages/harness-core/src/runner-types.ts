@@ -10,9 +10,19 @@ export interface ToolHandler {
   run(input: Record<string, unknown>, ctx: ToolRunContext): Promise<unknown>;
 }
 
+/**
+ * Bridge for tools that need to round-trip through the host application — e.g.
+ * a `github.openPR` tool that must ask the api to talk to the GitHub App.
+ * The host (apps/client) implements this on top of socket.io with ack.
+ */
+export interface HostBridge {
+  request<T = unknown>(event: string, payload: unknown, timeoutMs?: number): Promise<T>;
+}
+
 export interface ToolRunContext {
   readonly runId: string;
   readonly workingDir?: string;
+  readonly host?: HostBridge;
 }
 
 export interface LlmDispatch {
@@ -64,6 +74,8 @@ export interface RunOptions {
   subagent?: SubagentDispatch;
   workingDir?: string;
   hooks?: RunHooks;
+  /** Optional bridge for tools that need to talk to the host app (e.g. github.openPR). */
+  host?: HostBridge;
   /** Hard ceiling on `loop` and `subagent` iterations. Defaults to 10. */
   maxIterations?: number;
 }

@@ -6,6 +6,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { LogLevel, RunStatus, StepKind, StepStatus } from '@prisma/client';
 import { RUN_EVENTS } from '@devgarden/shared';
 import type { Socket } from 'socket.io';
+import type { GithubPrService } from '../github/github-pr.service';
 import { RunsGateway } from './runs.gateway';
 import type { RunsService } from './runs.service';
 
@@ -17,10 +18,16 @@ function makeGateway() {
     appendStep: vi.fn().mockResolvedValue(undefined),
     setStatus: vi.fn().mockResolvedValue(undefined),
   } satisfies Partial<RunsService>;
+  const githubPr = {
+    open: vi.fn().mockResolvedValue({ url: 'https://github.com/x/y/pull/1', number: 1 }),
+  } satisfies Partial<GithubPrService>;
 
-  const gw = new RunsGateway(runs as unknown as RunsService);
+  const gw = new RunsGateway(
+    runs as unknown as RunsService,
+    githubPr as unknown as GithubPrService,
+  );
   gw.server = { to } as unknown as RunsGateway['server'];
-  return { gw, emit, to, runs };
+  return { gw, emit, to, runs, githubPr };
 }
 
 function authedSocket(clientId = 'client-abc'): Socket {
@@ -174,6 +181,59 @@ describe('RunsGateway', () => {
       });
       expect(ack).toEqual({ ok: true });
       expect(runs.setStatus).toHaveBeenCalledWith('run-1', RunStatus.SUCCESS);
+    });
+  });
+
+  describe('onOpenPullRequest', () => {
+    it('opens a PR via GithubPrService and acks with the url + number', async () => {
+      const { gw, githubPr } = makeGateway();
+      const ack = await gw.onOpenPullRequest(authedSocket(), {
+        projectId: 'proj-1',
+        head: 'feat/auto',
+        title: 'auto PR',
+        body: 'opened from harness',
+      });
+      expect(ack).toEqual({ ok: true, url: 'https://github.com/x/y/pull/1', number: 1 });
+      expect(githubPr.open).toHaveBeenCalledWith({
+        projectId: 'proj-1',
+        head: 'feat/auto',
+        base: undefined,
+        title: 'auto PR',
+        body: 'opened from harness',
+        draft: undefined,
+      });
+    });
+
+    it('rejects unauthenticated sockets', async () => {
+      const { gw, githubPr } = makeGateway();
+      const ack = await gw.onOpenPullRequest({ id: 's', data: {} } as unknown as Socket, {
+        projectId: 'p',
+        head: 'h',
+        title: 't',
+      });
+      expect(ack).toEqual({ ok: false, error: 'unauthorized' });
+      expect(githubPr.open).not.toHaveBeenCalled();
+    });
+
+    it('validates required fields', async () => {
+      const { gw, githubPr } = makeGateway();
+      const ack = await gw.onOpenPullRequest(authedSocket(), { projectId: 'p' });
+      expect(ack).toEqual({
+        ok: false,
+        error: 'projectId, head, and title are required',
+      });
+      expect(githubPr.open).not.toHaveBeenCalled();
+    });
+
+    it('returns ok:false when GithubPrService throws', async () => {
+      const { gw, githubPr } = makeGateway();
+      githubPr.open.mockRejectedValueOnce(new Error('boom'));
+      const ack = await gw.onOpenPullRequest(authedSocket(), {
+        projectId: 'p',
+        head: 'h',
+        title: 't',
+      });
+      expect(ack).toEqual({ ok: false, error: 'boom' });
     });
   });
 });

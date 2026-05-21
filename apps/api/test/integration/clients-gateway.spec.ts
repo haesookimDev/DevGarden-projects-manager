@@ -41,6 +41,11 @@ afterAll(async () => {
 });
 
 beforeEach(async () => {
+  // HarnessRun → Client FK is `onDelete: Restrict`, so we must clear children
+  // first. Some sibling test files seed runs and leave them between files.
+  await prisma.runLog.deleteMany();
+  await prisma.runStep.deleteMany();
+  await prisma.harnessRun.deleteMany();
   await prisma.client.deleteMany();
   await prisma.user.deleteMany();
 });
