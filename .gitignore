@@ -1,0 +1,62 @@
+# --- agent prompt files (절대 커밋 금지) ---
+CLAUDE.md
+AGENTS.md
+.claude/
+.codex/
+.cursor/
+
+# --- secrets ---
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+secrets/
+**/secrets/**
+
+# --- node ---
+node_modules/
+.pnpm-store/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.npm/
+
+# --- build / cache ---
+dist/
+build/
+out/
+.next/
+.turbo/
+.vite/
+.cache/
+coverage/
+*.tsbuildinfo
+
+# --- tauri / rust ---
+target/
+apps/client/src-tauri/target/
+apps/client/src-tauri/Cargo.lock
+
+# --- test artifacts ---
+playwright-report/
+test-results/
+.playwright/
+
+# --- editor / OS ---
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+!.vscode/extensions.json
+!.vscode/settings.json.example
+*.swp
+*.swo
+
+# --- prisma ---
+apps/api/prisma/migrations/dev.db*
+
+# --- logs ---
+logs/
+*.log
