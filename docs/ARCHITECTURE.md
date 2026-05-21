@@ -84,6 +84,22 @@ Browser ──▶ /signin                          (web)
 - `INTERNAL_API_SECRET` 은 web ↔ api 만 알아야 한다. 브라우저로 노출되면 안 됨 (server-only env).
 - 사용자 측 JWT(NextAuth 세션 쿠키)의 api 직접 검증은 차후 PR에서 추가.
 
+### 2.2.2 프로젝트 등록 (PR #6 / api 측)
+
+```
+Browser ──▶ web (BFF)            ──▶ POST /internal/projects        (api)
+            (NextAuth session으로                 (x-internal-secret 헤더)
+             user 식별)                          - ProjectsService.createFromGithub
+                                                 - GithubAppService.installationOctokit(installationId)
+                                                 - octokit.repos.get(owner, repo)  ──▶ GitHub
+                                                 - prisma.project.create
+                                                 - 409 if (ownerId, githubRepoId) duplicate
+            ◀── 201 { id, repoFullName, githubRepoId }
+```
+
+- GitHub App credentials는 `GITHUB_APP_ID` + `GITHUB_APP_PRIVATE_KEY` env. `GithubAppService` 가 installation token을 60s margin으로 캐싱
+- web UI(레포 picker)는 후속 PR. 본 PR은 api만.
+
 ### 2.3 클라이언트 페어링
 
 ```
@@ -124,3 +140,4 @@ Browser ──▶ /signin                          (web)
 - **Step 타입**: `harness-core`의 `StepKind` enum + 핸들러 등록
 - **CLI 에이전트**: `process` 어댑터에 새 명령 등록 + 매니페스트
 - **Webhook 이벤트**: `apps/api/src/webhooks/github/handlers/` 핸들러 추가
+- **GitHub API 도메인**: `apps/api/src/github/` 에 새 도메인 service 추가 (issues, PRs, runs 등). `GithubAppService.installationOctokit()` 으로 installation-scope octokit 획득.

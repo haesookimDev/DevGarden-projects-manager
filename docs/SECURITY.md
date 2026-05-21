@@ -36,7 +36,8 @@
 ## 5. GitHub 연동 보안
 
 - Webhook: HMAC SHA-256 서명 검증, replay 방지(timestamp ± 5분)
-- Installation token: 1시간 만료, 자동 갱신
+- Installation token: 1시간 만료. `GithubAppService` 가 60s margin으로 캐시 + 자동 재발급
+- `GITHUB_APP_PRIVATE_KEY` (PEM): env 로 주입할 때 `\n` literal 사용 가능 (서비스가 줄바꿈으로 unescape)
 - 쓰기 API(이슈 코멘트, PR 생성): 사용자 의도 확인 후에만
 
 ## 6. 감사 로그
