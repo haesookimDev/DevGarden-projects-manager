@@ -15,6 +15,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@devgarden/harness-core": "workspace:*",
     "@devgarden/shared": "workspace:*",
     "@tauri-apps/api": "^2.1.1",
     "@tauri-apps/plugin-store": "^2.2.0",
