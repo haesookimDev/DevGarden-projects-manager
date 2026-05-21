@@ -7,7 +7,14 @@ export interface UpsertUserInput {
   email?: string | null;
 }
 
-export async function upsertUserViaApi(input: UpsertUserInput): Promise<void> {
+export interface UpsertedUser {
+  id: string;
+  githubId: number;
+  login: string;
+  role: string;
+}
+
+export async function upsertUserViaApi(input: UpsertUserInput): Promise<UpsertedUser> {
   const apiBase = process.env.API_INTERNAL_URL;
   const secret = process.env.INTERNAL_API_SECRET;
 
@@ -28,4 +35,6 @@ export async function upsertUserViaApi(input: UpsertUserInput): Promise<void> {
     const text = await res.text().catch(() => '');
     throw new Error(`upsertUserViaApi failed: ${res.status} ${text}`);
   }
+
+  return (await res.json()) as UpsertedUser;
 }

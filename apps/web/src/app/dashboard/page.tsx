@@ -1,7 +1,20 @@
+import Link from 'next/link';
 import { auth, signOut } from '@/auth';
+import { listProjectsByOwner, type ProjectSummary } from '@/lib/api/projects';
 
 export default async function DashboardPage() {
   const session = await auth();
+  const ownerId = session?.user?.id;
+
+  let projects: ProjectSummary[] = [];
+  let listError: string | null = null;
+  if (ownerId) {
+    try {
+      projects = await listProjectsByOwner(ownerId);
+    } catch (e) {
+      listError = e instanceof Error ? e.message : 'Failed to load projects';
+    }
+  }
 
   return (
     <main className="p-8">
@@ -30,8 +43,41 @@ export default async function DashboardPage() {
         <p className="text-sm text-neutral-500">github id: {session?.user?.githubId ?? '?'}</p>
       </section>
 
-      <section className="mt-8 text-sm text-neutral-500">
-        프로젝트 추가·하네스 실행 UI는 다음 PR에서 추가됩니다.
+      <section className="mt-8">
+        <div className="flex items-center justify-between">
+          <h2 className="text-xl font-semibold">Projects</h2>
+          <Link
+            href="/dashboard/projects/new"
+            className="rounded-md bg-white px-3 py-1.5 text-sm font-medium text-neutral-900 hover:bg-neutral-200"
+          >
+            Add project
+          </Link>
+        </div>
+
+        {listError && (
+          <p className="mt-3 rounded-md border border-red-800 bg-red-950 px-3 py-2 text-sm text-red-200">
+            {listError}
+          </p>
+        )}
+
+        {!listError && projects.length === 0 && (
+          <p className="mt-3 text-sm text-neutral-500">
+            아직 등록된 프로젝트가 없습니다. &ldquo;Add project&rdquo; 를 눌러 시작하세요.
+          </p>
+        )}
+
+        {projects.length > 0 && (
+          <ul className="mt-3 divide-y divide-neutral-800 rounded-md border border-neutral-800">
+            {projects.map((p) => (
+              <li key={p.id} className="px-4 py-3">
+                <p className="font-medium">{p.repoFullName}</p>
+                <p className="text-xs text-neutral-500">
+                  installation #{p.githubInstallationId} · local: {p.localRoot}
+                </p>
+              </li>
+            ))}
+          </ul>
+        )}
       </section>
     </main>
   );

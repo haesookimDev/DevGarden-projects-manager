@@ -98,7 +98,7 @@ Browser ──▶ web (BFF)            ──▶ POST /internal/projects        
 ```
 
 - GitHub App credentials는 `GITHUB_APP_ID` + `GITHUB_APP_PRIVATE_KEY` env. `GithubAppService` 가 installation token을 60s margin으로 캐싱
-- web UI(레포 picker)는 후속 PR. 본 PR은 api만.
+- web UI: `/dashboard` 에 프로젝트 목록 + `/dashboard/projects/new` 폼 (server action으로 web→api 호출). 자동 picker 는 OAuth user token 활용 PR 에서 추가.
 
 ### 2.3 클라이언트 페어링
 

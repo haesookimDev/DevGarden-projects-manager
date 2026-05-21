@@ -16,4 +16,11 @@ test.describe('auth middleware', () => {
     await page.goto('/signin');
     await expect(page.getByRole('button', { name: /continue with github/i })).toBeVisible();
   });
+
+  test('unauthenticated user is redirected from /dashboard/projects/new to /signin', async ({
+    page,
+  }) => {
+    await page.goto('/dashboard/projects/new');
+    await expect(page).toHaveURL(/\/signin(\?|$)/);
+  });
 });
