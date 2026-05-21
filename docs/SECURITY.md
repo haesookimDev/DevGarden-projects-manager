@@ -15,13 +15,14 @@
 
 ## 3. 시크릿 관리
 
-| 시크릿                     | 보관                                                         |
-| -------------------------- | ------------------------------------------------------------ |
-| GitHub OAuth client secret | API 환경변수 (`.env`)                                        |
-| GitHub App private key     | 파일 마운트 또는 base64 env                                  |
-| Session secret             | API 환경변수                                                 |
-| LLM provider API key       | DB에 AES-256-GCM envelope encryption, server master key 사용 |
-| 클라이언트 페어링 토큰     | DB에 bcrypt 해시, 10분 만료, 1회용                           |
+| 시크릿                     | 보관                                                                            |
+| -------------------------- | ------------------------------------------------------------------------------- |
+| GitHub OAuth client secret | web 환경변수 — `AUTH_GITHUB_SECRET` (alias of `GITHUB_OAUTH_CLIENT_SECRET`)     |
+| GitHub App private key     | 파일 마운트 또는 base64 env                                                     |
+| Session secret (NextAuth)  | web 환경변수 — `AUTH_SECRET`                                                    |
+| Internal API secret        | web/api 양쪽 환경변수 — `INTERNAL_API_SECRET`. 브라우저 노출 금지 (server-only) |
+| LLM provider API key       | DB에 AES-256-GCM envelope encryption, server master key 사용                    |
+| 클라이언트 페어링 토큰     | DB에 bcrypt 해시, 10분 만료, 1회용                                              |
 
 `.env`, `*.pem`은 gitignore. `.env.example`은 키 이름만 포함.
 

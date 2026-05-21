@@ -66,6 +66,24 @@ GitHub → POST /webhooks/github (HMAC 검증)
        → Socket.io 방 "project:<id>"에 broadcast
 ```
 
+### 2.2.1 OAuth 로그인 + User upsert (PR #5)
+
+```
+Browser ──▶ /signin                          (web)
+        ──▶ NextAuth → GitHub OAuth dance
+        ◀── signIn callback (web server)
+            - allow-list 검사 (OWNER_GITHUB_LOGINS)
+            - POST /internal/users/upsert ──▶ api
+                    (header: x-internal-secret)
+            - api: UsersService.upsertByGithub(prisma)
+            - 200 응답 시 NextAuth JWT 세션 발급
+        ──▶ /dashboard
+```
+
+- 브라우저는 `api`를 직접 호출하지 않는다(MVP). 모든 mutating 호출은 web 서버를 거쳐 `/internal/*` 로 들어간다.
+- `INTERNAL_API_SECRET` 은 web ↔ api 만 알아야 한다. 브라우저로 노출되면 안 됨 (server-only env).
+- 사용자 측 JWT(NextAuth 세션 쿠키)의 api 직접 검증은 차후 PR에서 추가.
+
 ### 2.3 클라이언트 페어링
 
 ```
