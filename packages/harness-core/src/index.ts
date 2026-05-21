@@ -13,3 +13,16 @@ export type {
 export { parseHarness, parseHarnessRaw, HarnessParseError } from './parser';
 
 export { evalExpression, interpolate, ExprError, type ExprContext } from './expr';
+
+export { runHarness, RunnerError } from './runner';
+export type {
+  ToolHandler,
+  ToolRunContext,
+  LlmDispatch,
+  SubagentDispatch,
+  RunLogEvent,
+  StepResult,
+  RunResult,
+  RunHooks,
+  RunOptions,
+} from './runner-types';
