@@ -20,9 +20,10 @@
 
 1. `git checkout -b <branch>`
 2. 변경 → 테스트 작성/통과 → 문서 동기화
-3. `git -c user.name="haesookimDev" -c user.email="ww232330@gmail.com" commit -m "<type>: <subject>"`
+3. `git -c user.name="haesookimDev" -c user.email="ww232330@gmail.com" commit -m "<type>: <subject>"` (한 PR 안에서도 [§4 분리 원칙](#4-커밋-단위-분리-원칙) 적용)
 4. `git push -u origin <branch>`
-5. `gh pr create` (자세한 본문 포함)
+5. `gh pr create` (자세한 본문 포함 — [§5](#5-pr-본문-반드시-작성))
+6. CI/테스트 통과 확인 → `gh pr merge` (자동 머지 — [§6](#6-머지))
 
 ## 3. 커밋 메시지
 
@@ -106,7 +107,41 @@ docs: Update db-schema.md to match prisma file
 - 마이그레이션 / 데이터 영향 / 롤백 방법
 ```
 
-## 6. 코드 스타일
+## 6. 머지
+
+CI(Lint · Typecheck) 와 테스트가 모두 통과한 PR은 **`gh` 커맨드로 즉시 머지**한다. 사용자 확인 불필요.
+
+표준 명령:
+
+```bash
+gh pr merge <N> --merge --delete-branch
+```
+
+- `--merge`: merge commit 생성. 커밋 분리 정책([§4](#4-커밋-단위-분리-원칙))을 유지하기 위해 **`--squash` 금지**. rebase가 필요하면 `--rebase` 사용.
+- `--delete-branch`: 머지된 feature 브랜치 원격에서 삭제.
+
+머지 후 절차:
+
+```bash
+git checkout main && git pull origin main
+```
+
+### 자동 머지 조건 (모두 만족 시)
+
+- CI(Lint · Typecheck · 신설된 test job) 모두 `pass`
+- PR 본문의 Test Plan 체크박스가 모두 ✅
+- merge conflict 없음
+
+### 예외 — 사용자 확인이 필요한 경우
+
+- DB schema 파괴적 변경(drop column/table, NOT NULL backfill)
+- secret 회전 / 권한·결제 모델 변경
+- main 브랜치 보호 규칙에 막힌 경우
+- CI 일부 실패 / conflict
+
+위 경우는 머지 보류 후 사용자에게 보고.
+
+## 7. 코드 스타일
 
 - TypeScript strict 모드
 - 포매터: Prettier (저장 시 자동), 린터: ESLint (`@typescript-eslint`)
@@ -114,7 +149,7 @@ docs: Update db-schema.md to match prisma file
 - 함수는 작게: 50줄을 넘으면 분리 검토
 - React: 서버/클라이언트 컴포넌트 명시, 클라이언트는 `'use client'` 1줄로 시작
 
-## 7. 테스트 규칙
+## 8. 테스트 규칙
 
 - **백엔드 기능 추가 시 Vitest 테스트 필수**
 - **프론트엔드 기능 추가/변경 시 Playwright E2E 필수**
@@ -122,13 +157,13 @@ docs: Update db-schema.md to match prisma file
 - DB 의존 테스트는 Testcontainers PostgreSQL 사용 (CI/로컬 일관)
 - 자세한 규칙은 [`./TESTING.md`](./TESTING.md)
 
-## 8. 문서 동기화
+## 9. 문서 동기화
 
 - 새 기능/수정 시 **반드시 docs/ 해당 파일 동기화**
 - PR에서 docs 변경이 없으면 리뷰어가 이유를 묻는다
 - CLAUDE.md/AGENTS.md에는 직접 정보 적지 말고, 항상 `docs/...` 링크로 연결
 
-## 9. 보안
+## 10. 보안
 
 - 비밀(API key, GitHub App private key, OAuth secret)은 `.env`에만, 절대 커밋 금지
 - `.env*`, `*.pem`, `secrets/**`는 gitignore에 포함
