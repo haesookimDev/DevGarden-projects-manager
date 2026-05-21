@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
+import type { ConnectionStatus } from './lib/client-socket';
 import { pairClient, PairClientError } from './lib/pair-client';
 import { tauriPairingStorage, type PairingRecord } from './lib/pairing-storage';
+import { useClientSocket } from './lib/use-client-socket';
 
 const DEFAULT_API_BASE = 'http://localhost:3001';
 
@@ -15,6 +17,9 @@ export default function App() {
   const [status, setStatus] = useState<Status>({ kind: 'loading' });
   const [apiBase, setApiBase] = useState(DEFAULT_API_BASE);
   const [token, setToken] = useState('');
+
+  const pairing = status.kind === 'paired' ? status.record : undefined;
+  const connection = useClientSocket({ apiBaseUrl: pairing?.apiBaseUrl, jwt: pairing?.jwt });
 
   useEffect(() => {
     let cancelled = false;
@@ -75,7 +80,8 @@ export default function App() {
           <p style={metaStyle}>clientId: {status.record.clientId}</p>
           <p style={metaStyle}>api: {status.record.apiBaseUrl}</p>
           <p style={metaStyle}>paired at: {status.record.pairedAt}</p>
-          <button onClick={handleUnpair} style={buttonStyle}>
+          <ConnectionPill status={connection} />
+          <button onClick={handleUnpair} style={{ ...buttonStyle, marginTop: 12 }}>
             Unpair
           </button>
         </section>
@@ -163,3 +169,34 @@ const errorStyle: React.CSSProperties = {
   fontSize: 13,
 };
 const metaStyle: React.CSSProperties = { fontSize: 12, color: '#888', margin: '4px 0' };
+
+function ConnectionPill({ status }: { status: ConnectionStatus }) {
+  const { color, label } = pillFor(status);
+  return (
+    <p
+      data-testid="connection-pill"
+      style={{
+        marginTop: 12,
+        fontSize: 12,
+        color,
+      }}
+    >
+      ● {label}
+    </p>
+  );
+}
+
+function pillFor(status: ConnectionStatus): { color: string; label: string } {
+  switch (status.kind) {
+    case 'idle':
+      return { color: '#666', label: 'idle' };
+    case 'connecting':
+      return { color: '#dca44a', label: 'connecting…' };
+    case 'connected':
+      return { color: '#9be39b', label: `connected (since ${status.since.slice(11, 19)})` };
+    case 'disconnected':
+      return { color: '#888', label: `disconnected${status.reason ? `: ${status.reason}` : ''}` };
+    case 'error':
+      return { color: '#fbb', label: `error: ${status.message}` };
+  }
+}

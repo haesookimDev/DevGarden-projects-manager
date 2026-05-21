@@ -150,7 +150,7 @@ Desktop client ──▶ wss://api/clients  (namespace)
 ```
 
 - 네임스페이스 `/clients` 는 데스크탑 클라이언트 전용. 향후 `project:<id>` room 으로 broadcast 추가 예정 (`run:*` 이벤트).
-- 클라이언트 측 socket.io adapter + heartbeat 송신은 다음 PR.
+- 클라이언트 측 (`apps/client/src/lib/client-socket.ts`): `startClientSocket()` 가 `socket.io-client` 로 `/clients` 에 connect (auth.token = pairing JWT), reconnection 자동 (2s ~ 30s backoff), connect 시 `HEARTBEAT_INTERVAL_MS = 30_000` 주기로 `heartbeat` emit. `useClientSocket` React hook 이 paired 상태 변경에 따라 자동 연결/해제.
 - web 대시보드의 실시간 클라이언트 상태 표시는 또 다음 PR.
 
 ---
