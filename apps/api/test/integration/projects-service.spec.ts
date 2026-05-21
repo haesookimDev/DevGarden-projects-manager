@@ -123,6 +123,10 @@ describe('ProjectsService.listByOwner', () => {
       repoFullName: 'a/r1',
       localRoot: '/tmp/1',
     });
+    // Two creates in the same millisecond produce a tied createdAt and the
+    // `orderBy: { createdAt: desc }` is then unstable. Sleep > 1ms to force
+    // distinct timestamps and keep the assertion deterministic.
+    await new Promise((r) => setTimeout(r, 5));
     fakeApp.repoToReturn = { id: 2, full_name: 'a/r2' };
     await svc.createFromGithub({
       ownerId: a.id,
