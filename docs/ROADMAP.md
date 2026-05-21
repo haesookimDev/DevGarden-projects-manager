@@ -1,133 +1,132 @@
 # Roadmap & TODO
 
 > v0.1(MVP)을 끝까지 돌아가는 시스템으로 만드는 것이 1차 목표.
-> 각 단계는 **하나의 PR**로 구성. 모든 PR은 [`./CONVENTIONS.md`](./CONVENTIONS.md) 절차를 따른다.
+> 각 단계는 ROADMAP 상 한 단위(여기서는 "ROADMAP PR")로 정의되지만, 실제로는 [`§4 커밋 단위 분리 원칙`](./CONVENTIONS.md#4-커밋-단위-분리-원칙) 에 따라 **여러 GitHub PR 로 분할**해서 머지하는 경우가 많다.
+> 모든 PR 은 [`./CONVENTIONS.md`](./CONVENTIONS.md) 절차를 따른다.
+
+---
+
+## Progress snapshot (2026-05-21)
+
+- **머지된 GitHub PR**: 23 개 (PR #1 ~ #23)
+- **테스트**: api unit 15 + web unit 14 + client unit 18 + harness-core 30 + llm-adapters 10 + api integration 23 + web e2e 10 = **120 cases**
+- **CI**: 5 jobs (Lint · Typecheck · Unit · Integration · E2E) 모두 green
+- **운영 정책 도입**: 한 PR 안의 commit 분리(§4), CI 통과 시 자동 머지(§6)
+- **남은 우선순위**: M3 PR #11/#12 의 마지막 wiring (api WS run dispatch + client runner 연결) → 그 후 M4 ~ M6
+
+| Milestone                          | 상태                                 |
+| ---------------------------------- | ------------------------------------ |
+| M0 모노레포 부트스트랩             | ✅ 완료                              |
+| M1 인증 & 기본 도메인              | ✅ 완료                              |
+| M2 데스크탑 클라이언트 페어링      | ✅ 완료                              |
+| M3 하네스 코어 & 첫 실행           | 🟡 부품 완성, 통합 wiring 1단계 남음 |
+| M4 GitHub 연동 마감 + PR 자동 생성 | ⬜ 미시작                            |
+| M5 옵저버빌리티 & 메타데이터       | ⬜ 미시작                            |
+| M6 폴리시 & 출시 준비              | ⬜ 미시작                            |
 
 ---
 
 ## M0. 모노레포 부트스트랩
 
-- [ ] **PR #1** `chore: bootstrap monorepo`
-  - pnpm workspace + Turborepo 셋업
-  - 루트 `package.json`, `pnpm-workspace.yaml`, `turbo.json`
-  - `.editorconfig`, `.prettierrc`, `.eslintrc`
-  - GitHub Actions: lint + typecheck workflow
-  - Verify: `pnpm install && pnpm lint && pnpm typecheck` 통과
+- [x] **ROADMAP PR #1** `chore: bootstrap monorepo` → GH #1
+  - pnpm workspace + Turborepo 셋업, 루트 설정, GitHub Actions lint/typecheck
 
-- [ ] **PR #2** `chore: scaffold apps and packages`
-  - `apps/web` (Next.js create), `apps/api` (Nest CLI), `apps/client` (Tauri init)
-  - `packages/shared`, `packages/harness-core`, `packages/llm-adapters`, `packages/ui`
-  - Verify: 각 앱 `pnpm dev`로 부트 OK (빈 화면)
+- [x] **ROADMAP PR #2** `chore: scaffold apps and packages` → GH #2
+  - apps/{web,api,client} + packages/{shared,harness-core,llm-adapters,ui}
 
-- [ ] **PR #3** `chore: docker-compose for dev`
-  - `infra/docker-compose.dev.yml` (postgres만)
-  - `infra/docker-compose.yml` (web+api+postgres)
-  - `.env.example` 등록
-  - Verify: `docker compose up postgres` → API에서 연결 성공
+- [x] **ROADMAP PR #3** `chore: docker-compose for dev` → GH #3
+  - infra/docker-compose.{dev,}.yml + Dockerfile + .env.example
 
 ## M1. 인증 & 기본 도메인
 
-- [ ] **PR #4** `feat(api): prisma schema and migrations`
-  - `apps/api/prisma/schema.prisma` 작성 (docs/db-schema.md 기반)
-  - 초기 마이그레이션 생성
-  - Vitest + Testcontainers 셋업
-  - Verify: `pnpm test:int` 마이그레이션 적용 후 기본 CRUD 테스트 통과
+- [x] **ROADMAP PR #4** `feat(api): prisma schema and migrations` → GH #6
+  - 11 모델 + initial migration + Testcontainers 셋업
 
-- [ ] **PR #5** `feat(web,api): GitHub OAuth login`
-  - Auth.js (NextAuth v5) + GitHub provider
-  - api 측 세션 검증 미들웨어
-  - allow-list (`OWNER_GITHUB_LOGINS` env) 적용
-  - E2E: 로그인 → 대시보드 진입 (Playwright + GitHub OAuth mock)
-  - Verify: 로컬에서 실제 GitHub 로그인 1회
+- [x] **ROADMAP PR #5** `feat(web,api): GitHub OAuth login` → GH #7
+  - NextAuth v5 + GitHub provider + allow-list + InternalAuthGuard
+  - E2E 보강은 GH #8 (Playwright 셋업), GH #11 (auth-fixture)
 
-- [ ] **PR #6** `feat(api): GitHub App installation + repo listing`
-  - GitHub App 생성 가이드 (docs)
-  - installation token 발급 로직
-  - `/projects` POST: 레포 선택 → DB 저장
-  - 단위 + 통합 테스트 (octokit 모킹)
-  - Verify: web에서 레포 추가 → 목록에 표시
+- [x] **ROADMAP PR #6** `feat(api): GitHub App installation + repo listing` → GH #9 + GH #10
+  - GH #9: GithubAppService, ProjectsService, `/internal/projects` API
+  - GH #10: web 측 `/dashboard/projects/new` 폼 + 목록
 
 ## M2. 데스크탑 클라이언트 페어링
 
-- [ ] **PR #7** `feat(api,client): pairing flow`
-  - api: `/clients/pair` 엔드포인트, 1회용 토큰 발급
-  - client: 페어링 UI (토큰 입력 폼)
-  - client: JWT 보관 (Tauri secure storage)
-  - Vitest + 클라이언트 IPC 모킹
-  - Verify: 토큰 입력 → 200 + JWT 저장 확인
+- [x] **ROADMAP PR #7** `feat(api,client): pairing flow` → GH #12 + GH #13 + GH #14
+  - GH #12: api `/internal/clients/pairings`, `/clients/pair`, ClientJwtService
+  - GH #13: web `/dashboard/clients/new` 폼 + 1회용 토큰 표시
+  - GH #14: Tauri client 페어링 UI + `tauri-plugin-store` JWT 저장
 
-- [ ] **PR #8** `feat(api,client): socket.io connect + heartbeat`
-  - api Gateway, client 어댑터
-  - 방(room) 모델: `client:<id>`, `project:<id>`
-  - heartbeat 30s + 끊김 감지
-  - Verify: 클라이언트 띄우면 web 대시보드에 online 표시
+- [x] **ROADMAP PR #8** `feat(api,client): socket.io connect + heartbeat` → GH #15 + GH #16 + GH #17
+  - GH #15: api ClientsGateway (JWT auth + ONLINE/OFFLINE + heartbeat)
+  - GH #16: client `socket.io-client` 자동 연결 + 30s heartbeat + 연결 pill
+  - GH #17: web dashboard에 client list + 5s 폴링
 
 ## M3. 하네스 코어 & 첫 실행
 
-- [ ] **PR #9** `feat(harness-core): YAML parser + IR + zod schema`
-  - YAML → IR 변환, 컨텍스트 평가기(jexl 서브셋)
-  - 단위 테스트: 모든 step kind, 표현식, 실패 케이스
-  - Verify: `vitest` 80%+ 커버리지
+- [x] **ROADMAP PR #9** `feat(harness-core): YAML parser + IR + zod schema` → GH #18
+  - 5 step kind 의 recursive schema, safe expression evaluator, 22 unit tests
 
-- [ ] **PR #10** `feat(llm-adapters): codex-cli + openai-compatible`
-  - 공통 인터페이스
-  - codex-cli: subprocess 호출
-  - openai-compatible: fetch 기반 stream
-  - 통합 테스트 (mock 서버)
-  - Verify: Ollama에 실제 요청 1회
+- [x] **ROADMAP PR #10** `feat(llm-adapters): codex-cli + openai-compatible` → GH #19
+  - 공통 LlmProvider 인터페이스 + 두 구현 + 10 unit tests
 
-- [ ] **PR #11** `feat(client): harness runner + git/fs/process tools`
-  - 빌트인 도구 구현 (allow-list 강제)
-  - worktree 생성/제거
-  - 로그를 api로 stream
-  - Verify: 샘플 하네스(echo + fs.write) 실행 성공
+- 🟡 **ROADMAP PR #11** `feat(client): harness runner + git/fs/process tools` → GH #20 + GH #21 + GH #22 + GH #23 + ⬜ 마지막 wiring
+  - GH #20: harness-core `runHarness` 엔진 (tool/llm/condition/loop + onFail + 8 unit)
+  - GH #21: client tools (`fs`, `process`, `git`) + PathPolicy + 8 unit
+  - GH #22: api `RunsService` + `/internal/runs` CRUD + 5 integration
+  - GH #23: web `/dashboard/runs/[id]` SSR + 2s 폴링 + 1 e2e
+  - ⬜ **남음**: api `POST /internal/runs` 가 ClientsGateway 로 `run:start` emit, client 가 받아서 `runHarness` 호출 + `appendStep/appendLog/setStatus` 로 보고
+  - Verify: 샘플 하네스(echo + fs.write) 실 실행 성공 (마지막 wiring 후)
 
-- [ ] **PR #12** `feat(web,api): run UI + live log stream`
-  - web 실행 페이지 (단계별 상태, 라이브 로그)
-  - api: `/runs` CRUD + socket 라우팅
+- ⬜ **ROADMAP PR #12** `feat(web,api): run UI + live log stream`
+  - 진짜 socket.io `run:log` broadcast (현재는 폴링)
+  - run trigger UI (현재는 trigger 없음, detail 만 표시)
   - Playwright E2E: 트리거 → 로그 수신 → 완료 표시
-  - Verify: end-to-end 실행 1회 성공
 
 ## M4. GitHub 연동 마감 + PR 자동 생성
 
-- [ ] **PR #13** `feat(api): GitHub webhook receiver`
+- ⬜ **ROADMAP PR #13** `feat(api): GitHub webhook receiver`
   - `/webhooks/github` HMAC 검증
   - 이슈/PR/푸시 이벤트 → DB + socket broadcast
   - Verify: 실제 push → 대시보드 갱신
 
-- [ ] **PR #14** `feat(client): auto branch → commit → push → PR`
-  - 하네스의 git/github 도구 마무리
+- ⬜ **ROADMAP PR #14** `feat(client): auto branch → commit → push → PR`
+  - 하네스의 git/github 도구 마무리 (이미 git tools 는 GH #21 에 있음 — webhook + PR 생성만 남음)
   - 커밋/PR 시 `-c user.name="haesookimDev" -c user.email="ww232330@gmail.com"` 적용
   - E2E: 가짜 이슈 → 자동 PR 생성 → 웹에서 PR 카드 확인
-  - Verify: 실 GitHub 레포에서 1회 성공
 
 ## M5. 옵저버빌리티 & 메타데이터
 
-- [ ] **PR #15** `feat(web): project metadata dashboard`
-  - 언어/스택/열린 PR/이슈 수 카드
-  - 캐시 정책 (5분)
-
-- [ ] **PR #16** `feat(web): runs history + cost/success metrics`
-  - 하네스별/프로젝트별/모델별 집계
-  - 토큰 비용 단가 설정 UI
-
-- [ ] **PR #17** `feat(web): tasks unified view (issues + internal todos)`
-  - 칸반/리스트 토글
-  - 내부 TODO CRUD + 하네스 트리거 버튼
+- ⬜ **ROADMAP PR #15** `feat(web): project metadata dashboard`
+- ⬜ **ROADMAP PR #16** `feat(web): runs history + cost/success metrics`
+- ⬜ **ROADMAP PR #17** `feat(web): tasks unified view (issues + internal todos)`
 
 ## M6. 폴리시 & 출시 준비
 
-- [ ] **PR #18** `chore: production docker-compose + healthcheck + backup script`
-- [ ] **PR #19** `docs: setup guide for self-hosting`
-- [ ] **PR #20** `chore: client signed installers (Mac/Win/Linux)` (선택)
+- ⬜ **ROADMAP PR #18** `chore: production docker-compose + healthcheck + backup script`
+- ⬜ **ROADMAP PR #19** `docs: setup guide for self-hosting`
+- ⬜ **ROADMAP PR #20** `chore: client signed installers (Mac/Win/Linux)` (선택)
+
+---
+
+## 정책·인프라 보조 PR (ROADMAP 외)
+
+본 항목들은 ROADMAP 상의 기능 단계는 아니지만 합의·운영 정책 도입이나 인프라 보강 차원에서 별도로 머지되었다.
+
+- ✅ **GH #4** `docs: Add commit granularity policy` — [`CONVENTIONS §4`](./CONVENTIONS.md#4-커밋-단위-분리-원칙)
+- ✅ **GH #5** `docs: Add auto-merge policy after CI pass` — [`CONVENTIONS §6`](./CONVENTIONS.md#6-머지)
+- ✅ **GH #8** `chore(web): Set up Playwright e2e and fix middleware redirect` (M2 PR #5 회귀 발견·수정)
+- ✅ **GH #11** `test(web): Add authenticated dashboard e2e via session cookie injection`
 
 ---
 
 ## v0.2+ 백로그
 
+- 진짜 OAuth round-trip e2e (HTTPS mock + self-signed cert)
 - 하네스 노드 UI (드래그-드롭)
 - 다중 클라이언트 라우팅 / 큐잉
 - 서브에이전트 마켓플레이스
 - 외부 일정 도구 연동 (Linear/Jira/Notion)
 - 비용 알람·예산 한도
 - 멀티 LLM provider routing (cost/latency 기반)
+- 클라이언트 JWT 의 OS keychain 저장 (현재 `tauri-plugin-store` plain JSON)
