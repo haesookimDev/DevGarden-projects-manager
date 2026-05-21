@@ -75,25 +75,25 @@ describe('CodexCliProvider', () => {
   it('throws LlmProviderError when the subprocess exits non-zero', async () => {
     const child = makeFakeChild({ stdout: '', stderr: 'oops', exitCode: 2 });
     const provider = new CodexCliProvider({ id: 'codex', spawnImpl: makeSpawn(child) });
-    await expect(
-      provider.chat({ model: 'x', messages: [] }),
-    ).rejects.toBeInstanceOf(LlmProviderError);
+    await expect(provider.chat({ model: 'x', messages: [] })).rejects.toBeInstanceOf(
+      LlmProviderError,
+    );
   });
 
   it('throws LlmProviderError when stdout is not JSON', async () => {
     const child = makeFakeChild({ stdout: 'not json', exitCode: 0 });
     const provider = new CodexCliProvider({ id: 'codex', spawnImpl: makeSpawn(child) });
-    await expect(
-      provider.chat({ model: 'x', messages: [] }),
-    ).rejects.toThrow(/codex-cli emitted non-JSON/);
+    await expect(provider.chat({ model: 'x', messages: [] })).rejects.toThrow(
+      /codex-cli emitted non-JSON/,
+    );
   });
 
   it('throws LlmProviderError when the subprocess emits error', async () => {
     const child = makeFakeChild({ emitError: new Error('ENOENT codex') });
     const provider = new CodexCliProvider({ id: 'codex', spawnImpl: makeSpawn(child) });
-    await expect(
-      provider.chat({ model: 'x', messages: [] }),
-    ).rejects.toThrow(/codex-cli spawn failed/);
+    await expect(provider.chat({ model: 'x', messages: [] })).rejects.toThrow(
+      /codex-cli spawn failed/,
+    );
   });
 
   it('uses default command "codex" and args ["chat","--format","json"]', () => {
