@@ -58,3 +58,22 @@ export async function listRunsByProject(projectId: string): Promise<RunSummary[]
   }
   return (await res.json()) as RunSummary[];
 }
+
+export interface CreateRunInput {
+  harnessId: string;
+  projectId: string;
+  clientId: string;
+  triggeredByUserId: string;
+  branchName?: string;
+  workingDir?: string;
+  inputs?: Record<string, unknown>;
+}
+
+export async function createRun(input: CreateRunInput): Promise<RunSummary> {
+  const res = await internalFetch('/internal/runs', { method: 'POST', body: input });
+  if (!res.ok) {
+    const text = await res.text().catch(() => '');
+    throw new Error(`createRun failed: ${res.status} ${text}`);
+  }
+  return (await res.json()) as RunSummary;
+}
