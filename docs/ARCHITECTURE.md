@@ -104,19 +104,37 @@ Browser ──▶ web (BFF)            ──▶ POST /internal/projects        
 
 ```
 Browser ──▶ web (BFF) ──▶ POST /internal/runs              (api)
-                              { harnessId, projectId, clientId, triggeredByUserId, branchName? }
-                              - RunsService.createRun  →  HarnessRun (status QUEUED)
+                              { harnessId, projectId, clientId, triggeredByUserId, branchName?, inputs? }
+                              - RunsService.createRun           →  HarnessRun (status QUEUED)
+                              - RunsService.getHarnessDefinition →  raw definition
+                              - RunsGateway.emitRunStart(clientId, {
+                                  runId, harness, inputs, workingDir
+                                })  ──▶  socket.io `client:<id>` room
                               ◀── 201 { id, ... }
 
-(다음 PR 에서) Socket.io 로 client 에 'run:start' 전달
-client 측 runner 가 step 별로 (다음 PR 에서) RunStep / RunLog 를 api 에 append
-RunsService.appendStep / appendLog / setStatus
+Desktop client (paired socket, `/clients` 네임스페이스)
+  on 'run:start'  ──▶  `executeRun(socket, payload)` (apps/client/src/lib/run-executor.ts)
+                       - parseHarnessRaw → Harness
+                       - buildToolRegistry({ policy: { rootDir: workingDir }, processAllowList })
+                       - runHarness(harness, { runId, inputs, llm, tools, workingDir, hooks })
+                       - hooks 가 step / log 마다 socket.emit
+                       ──▶  emit 'run:status' { runId, status: 'RUNNING' }
+                       ──▶  emit 'run:log'    { runId, level, source, message } (반복)
+                       ──▶  emit 'run:step'   { runId, stepIndex, stepId, kind, status, durationMs, output, error } (반복)
+                       ──▶  emit 'run:status' { runId, status: 'SUCCESS'|'FAILED' }
 
-GET /internal/runs/:id       → 단일 run + steps + logs (최근 500)
+RunsGateway (apps/api/src/runs/runs.gateway.ts)
+  on 'run:log'    →  RunsService.appendLog
+  on 'run:step'   →  RunsService.appendStep
+  on 'run:status' →  RunsService.setStatus  (자동 finishedAt 처리)
+
+GET /internal/runs/:id        → 단일 run + steps + logs (최근 500)
 GET /internal/runs?projectId  → 프로젝트별 최근 50 runs
 ```
 
-- 본 PR 은 RunsService + REST endpoint 만. WS run:\* event, client runner 연결, web run UI 는 후속 PR.
+- `RunsGateway` 는 `ClientsGateway` 와 같은 `/clients` 네임스페이스를 공유한다. 인증/heartbeat 는 `ClientsGateway` 가 담당하고, run 관련 이벤트만 `RunsGateway` 가 처리. `socket.data.clientId` 는 `ClientsGateway.handleConnection` 단계에서 채워지므로 `RunsGateway` 핸들러는 그 값을 가드 조건으로 사용.
+- 클라이언트는 `parseHarnessRaw` 가 실패하거나 `workingDir` 가 누락되면 즉시 `FAILED` 로 보고. LLM 단계는 기본 `NOOP_LLM` (호출 시 throw) — 첫 e2e 샘플 하네스는 fs/process tool 만 사용.
+- shared socket 이벤트 페이로드 타입은 `packages/shared/src/run-events.ts` 에 정의 (api ↔ client 단일 소스).
 
 ### 2.3 클라이언트 페어링
 

@@ -8,21 +8,21 @@
 
 ## Progress snapshot (2026-05-21)
 
-- **머지된 GitHub PR**: 23 개 (PR #1 ~ #23)
-- **테스트**: api unit 15 + web unit 14 + client unit 18 + harness-core 30 + llm-adapters 10 + api integration 23 + web e2e 10 = **120 cases**
+- **머지된 GitHub PR**: 25 개 (PR #1 ~ #25)
+- **테스트**: api unit 21 + web unit 14 + client unit 24 + harness-core 30 + llm-adapters 10 + api integration 25 + web e2e 10 = **134 cases**
 - **CI**: 5 jobs (Lint · Typecheck · Unit · Integration · E2E) 모두 green
 - **운영 정책 도입**: 한 PR 안의 commit 분리(§4), CI 통과 시 자동 머지(§6)
-- **남은 우선순위**: M3 PR #11/#12 의 마지막 wiring (api WS run dispatch + client runner 연결) → 그 후 M4 ~ M6
+- **다음 우선순위**: M3 PR #12 (web run trigger UI + 실시간 log broadcast) → 그 후 M4 ~ M6
 
-| Milestone                          | 상태                                 |
-| ---------------------------------- | ------------------------------------ |
-| M0 모노레포 부트스트랩             | ✅ 완료                              |
-| M1 인증 & 기본 도메인              | ✅ 완료                              |
-| M2 데스크탑 클라이언트 페어링      | ✅ 완료                              |
-| M3 하네스 코어 & 첫 실행           | 🟡 부품 완성, 통합 wiring 1단계 남음 |
-| M4 GitHub 연동 마감 + PR 자동 생성 | ⬜ 미시작                            |
-| M5 옵저버빌리티 & 메타데이터       | ⬜ 미시작                            |
-| M6 폴리시 & 출시 준비              | ⬜ 미시작                            |
+| Milestone                          | 상태                            |
+| ---------------------------------- | ------------------------------- |
+| M0 모노레포 부트스트랩             | ✅ 완료                         |
+| M1 인증 & 기본 도메인              | ✅ 완료                         |
+| M2 데스크탑 클라이언트 페어링      | ✅ 완료                         |
+| M3 하네스 코어 & 첫 실행           | 🟡 PR #11 완료, PR #12 진행 예정 |
+| M4 GitHub 연동 마감 + PR 자동 생성 | ⬜ 미시작                       |
+| M5 옵저버빌리티 & 메타데이터       | ⬜ 미시작                       |
+| M6 폴리시 & 출시 준비              | ⬜ 미시작                       |
 
 ---
 
@@ -70,13 +70,12 @@
 - [x] **ROADMAP PR #10** `feat(llm-adapters): codex-cli + openai-compatible` → GH #19
   - 공통 LlmProvider 인터페이스 + 두 구현 + 10 unit tests
 
-- 🟡 **ROADMAP PR #11** `feat(client): harness runner + git/fs/process tools` → GH #20 + GH #21 + GH #22 + GH #23 + ⬜ 마지막 wiring
+- [x] **ROADMAP PR #11** `feat(client): harness runner + git/fs/process tools` → GH #20 + GH #21 + GH #22 + GH #23 + GH #25
   - GH #20: harness-core `runHarness` 엔진 (tool/llm/condition/loop + onFail + 8 unit)
   - GH #21: client tools (`fs`, `process`, `git`) + PathPolicy + 8 unit
   - GH #22: api `RunsService` + `/internal/runs` CRUD + 5 integration
   - GH #23: web `/dashboard/runs/[id]` SSR + 2s 폴링 + 1 e2e
-  - ⬜ **남음**: api `POST /internal/runs` 가 ClientsGateway 로 `run:start` emit, client 가 받아서 `runHarness` 호출 + `appendStep/appendLog/setStatus` 로 보고
-  - Verify: 샘플 하네스(echo + fs.write) 실 실행 성공 (마지막 wiring 후)
+  - GH #25: end-to-end wiring — `RunsGateway` 가 `run:start` emit, client `run-executor` 가 받아서 `runHarness` 호출하고 `run:log/step/status` 로 보고 (api 8 unit + 2 integration, client 6 unit)
 
 - ⬜ **ROADMAP PR #12** `feat(web,api): run UI + live log stream`
   - 진짜 socket.io `run:log` broadcast (현재는 폴링)
