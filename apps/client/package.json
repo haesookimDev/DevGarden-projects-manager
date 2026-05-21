@@ -12,7 +12,7 @@
     "tauri:build": "tauri build",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run --passWithNoTests"
+    "test": "vitest run"
   },
   "dependencies": {
     "@devgarden/shared": "workspace:*",
