@@ -103,11 +103,28 @@ Browser ──▶ web (BFF)            ──▶ POST /internal/projects        
 ### 2.3 클라이언트 페어링
 
 ```
-1. 웹: "클라이언트 추가" → API가 1회용 토큰(10분) 발급
-2. 데스크탑 클라이언트: 토큰 입력 → /clients/pair (HTTPS)
-3. API: 검증 후 장기 JWT + clientId 반환
-4. 클라이언트: JWT로 Socket.io 연결 + 30s heartbeat
+1. Browser ──▶ web (BFF) ──▶ POST /internal/clients/pairings   (api, internal secret)
+                              { ownerId, clientName }
+                              - ClientsService.issuePairingToken
+                                - crypto.randomBytes(32) → base64url
+                                - bcrypt 해시 + 10분 만료로 ClientPairing row 생성
+                              ◀── 201 { token, expiresAt }
+   web 사용자에게 token 표시 (한 번만)
+
+2. Desktop client ──▶ POST /clients/pair                       (api, no internal secret)
+                       { token, hostname?, os?, version? }
+                       - ClientsService.consumePairingToken
+                         - 모든 unconsumed/unexpired pairing에 대해 bcrypt.compare
+                         - 일치 시 consumedAt = now, Client row 생성
+                         - ClientJwtService.sign({ clientId, ownerId })  → HS256, 30일
+                         - jwtTokenHash(bcrypt) 보관
+                       ◀── 200 { clientId, jwt, name }
+
+3. 클라이언트는 jwt를 secure storage에 저장 후 Socket.io 연결 (다음 PR)
 ```
+
+- 사용자 발급 JWT: AUTH_SECRET 공유. payload: sub=clientId, ownerId. issuer=devgarden-api, audience=devgarden-client.
+- pairing token: 1회용. bcrypt 해시만 저장하므로 server 침해 시에도 plaintext 누설 없음.
 
 ---
 
