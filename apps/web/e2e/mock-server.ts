@@ -142,6 +142,54 @@ function handle(req: IncomingMessage, res: ServerResponse): void {
     return;
   }
 
+  const runMatch = url.pathname.match(/^\/internal\/runs\/([^/]+)$/);
+  if (runMatch && req.method === 'GET') {
+    const id = runMatch[1]!;
+    res.writeHead(200, { 'content-type': 'application/json' }).end(
+      JSON.stringify({
+        id,
+        harnessId: 'h-1',
+        projectId: 'p-1',
+        clientId: 'c-1',
+        triggeredByUserId: 'u-1',
+        status: 'SUCCESS',
+        branchName: 'feat/mock',
+        workingDir: null,
+        startedAt: new Date(Date.now() - 60_000).toISOString(),
+        finishedAt: new Date().toISOString(),
+        steps: [
+          {
+            id: 'step-a',
+            stepIndex: 0,
+            stepId: 'plan',
+            kind: 'LLM',
+            status: 'SUCCESS',
+            durationMs: 1200,
+            error: null,
+            createdAt: new Date(Date.now() - 30_000).toISOString(),
+          },
+        ],
+        logs: [
+          {
+            id: 'log-a',
+            ts: new Date(Date.now() - 30_000).toISOString(),
+            level: 'INFO',
+            source: 'plan',
+            message: 'planning',
+          },
+          {
+            id: 'log-b',
+            ts: new Date().toISOString(),
+            level: 'INFO',
+            source: 'plan',
+            message: 'done',
+          },
+        ],
+      }),
+    );
+    return;
+  }
+
   res.writeHead(404).end(`mock-server: no route ${req.method} ${url.pathname}`);
 }
 
