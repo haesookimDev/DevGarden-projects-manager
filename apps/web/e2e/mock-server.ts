@@ -114,6 +114,34 @@ function handle(req: IncomingMessage, res: ServerResponse): void {
     return;
   }
 
+  if (url.pathname === '/internal/clients' && req.method === 'GET') {
+    res.writeHead(200, { 'content-type': 'application/json' }).end(
+      JSON.stringify([
+        {
+          id: 'mock-client-1',
+          name: 'Mock Laptop',
+          hostname: 'host-1',
+          os: 'darwin',
+          version: '0.0.0',
+          status: 'ONLINE',
+          lastSeenAt: new Date().toISOString(),
+          createdAt: new Date(Date.now() - 60_000).toISOString(),
+        },
+        {
+          id: 'mock-client-2',
+          name: 'Mock Server',
+          hostname: 'host-2',
+          os: 'linux',
+          version: '0.0.0',
+          status: 'OFFLINE',
+          lastSeenAt: null,
+          createdAt: new Date(Date.now() - 120_000).toISOString(),
+        },
+      ]),
+    );
+    return;
+  }
+
   res.writeHead(404).end(`mock-server: no route ${req.method} ${url.pathname}`);
 }
 

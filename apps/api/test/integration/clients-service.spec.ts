@@ -121,3 +121,24 @@ describe('ClientsService — consumePairingToken', () => {
     await expect(svc.consumePairingToken({ token })).rejects.toBeInstanceOf(UnauthorizedException);
   });
 });
+
+describe('ClientsService.listByOwner', () => {
+  it('returns owner-scoped clients ordered by createdAt desc', async () => {
+    const owner = await prisma.user.create({
+      data: { githubId: 600, login: 'lst', role: UserRole.OWNER },
+    });
+    const other = await prisma.user.create({
+      data: { githubId: 601, login: 'lst-other', role: UserRole.OWNER },
+    });
+    await prisma.client.create({ data: { ownerId: owner.id, name: 'first', jwtTokenHash: 'h' } });
+    await new Promise((r) => setTimeout(r, 5));
+    await prisma.client.create({ data: { ownerId: owner.id, name: 'second', jwtTokenHash: 'h' } });
+    await prisma.client.create({
+      data: { ownerId: other.id, name: 'other-only', jwtTokenHash: 'h' },
+    });
+
+    const svc = makeService();
+    const list = await svc.listByOwner(owner.id);
+    expect(list.map((c) => c.name)).toEqual(['second', 'first']);
+  });
+});
