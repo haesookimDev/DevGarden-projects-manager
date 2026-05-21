@@ -40,3 +40,35 @@ export async function createProject(input: CreateProjectInput): Promise<CreatePr
   }
   return (await res.json()) as CreateProjectResult;
 }
+
+export interface ProjectDetail extends ProjectSummary {
+  githubRepoId: number;
+  worktreePolicy: string;
+  updatedAt: string;
+  defaultClient: { id: string; name: string; status: string } | null;
+  defaultHarness: { id: string; name: string; version: number } | null;
+  runCount: number;
+  lastRun: {
+    id: string;
+    status: string;
+    startedAt: string;
+    finishedAt: string | null;
+  } | null;
+  lastEvent: {
+    id: string;
+    eventType: string;
+    action: string | null;
+    receivedAt: string;
+  } | null;
+}
+
+export async function getProject(id: string): Promise<ProjectDetail> {
+  const res = await internalFetch(`/internal/projects/${encodeURIComponent(id)}`, {
+    method: 'GET',
+  });
+  if (!res.ok) {
+    const text = await res.text().catch(() => '');
+    throw new Error(`getProject failed: ${res.status} ${text}`);
+  }
+  return (await res.json()) as ProjectDetail;
+}
