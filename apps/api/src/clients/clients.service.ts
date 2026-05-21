@@ -109,4 +109,11 @@ export class ClientsService {
 
     return { client: { ...client, jwtTokenHash: finalJwtHash }, jwt };
   }
+
+  listByOwner(ownerId: string): Promise<Client[]> {
+    return this.prisma.client.findMany({
+      where: { ownerId },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
 }
