@@ -1,6 +1,8 @@
 import Link from 'next/link';
 import { auth, signOut } from '@/auth';
+import { listClientsByOwner, type ClientSummary } from '@/lib/api/clients';
 import { listProjectsByOwner, type ProjectSummary } from '@/lib/api/projects';
+import { ClientList } from './clients/client-list';
 
 export default async function DashboardPage() {
   const session = await auth();
@@ -8,11 +10,18 @@ export default async function DashboardPage() {
 
   let projects: ProjectSummary[] = [];
   let listError: string | null = null;
+  let clients: ClientSummary[] = [];
+  let clientsError: string | null = null;
   if (ownerId) {
     try {
       projects = await listProjectsByOwner(ownerId);
     } catch (e) {
       listError = e instanceof Error ? e.message : 'Failed to load projects';
+    }
+    try {
+      clients = await listClientsByOwner(ownerId);
+    } catch (e) {
+      clientsError = e instanceof Error ? e.message : 'Failed to load clients';
     }
   }
 
@@ -90,10 +99,12 @@ export default async function DashboardPage() {
             Add client
           </Link>
         </div>
-        <p className="mt-3 text-sm text-neutral-500">
-          데스크탑 클라이언트 페어링은 토큰 발급 후 클라이언트 앱에서 완료합니다. 등록된 클라이언트
-          목록 UI 는 다음 PR 에서 추가됩니다.
-        </p>
+        {clientsError && (
+          <p className="mt-3 rounded-md border border-red-800 bg-red-950 px-3 py-2 text-sm text-red-200">
+            {clientsError}
+          </p>
+        )}
+        {!clientsError && <ClientList initial={clients} />}
       </section>
     </main>
   );
