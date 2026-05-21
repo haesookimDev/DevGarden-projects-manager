@@ -15,15 +15,15 @@
 
 ## 3. 시크릿 관리
 
-| 시크릿                     | 보관                                                                              |
-| -------------------------- | --------------------------------------------------------------------------------- |
-| GitHub OAuth client secret | web 환경변수 — `AUTH_GITHUB_SECRET` (alias of `GITHUB_OAUTH_CLIENT_SECRET`)       |
-| GitHub App private key     | 파일 마운트 또는 base64 env                                                       |
-| Session secret (NextAuth)  | web 환경변수 — `AUTH_SECRET`. api 의 `ClientJwtService` 도 같은 secret 사용       |
-| Internal API secret        | web/api 양쪽 환경변수 — `INTERNAL_API_SECRET`. 브라우저 노출 금지 (server-only)   |
-| LLM provider API key       | DB에 AES-256-GCM envelope encryption, server master key 사용                      |
-| 클라이언트 페어링 토큰     | DB에 bcrypt 해시 (cost 10), 10분 만료, 1회용                                      |
-| 클라이언트 JWT             | DB에는 bcrypt 해시만 저장 (rotate 시 비교용). 클라이언트 사본은 OS secure storage |
+| 시크릿                     | 보관                                                                                                                                                      |
+| -------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| GitHub OAuth client secret | web 환경변수 — `AUTH_GITHUB_SECRET` (alias of `GITHUB_OAUTH_CLIENT_SECRET`)                                                                               |
+| GitHub App private key     | 파일 마운트 또는 base64 env                                                                                                                               |
+| Session secret (NextAuth)  | web 환경변수 — `AUTH_SECRET`. api 의 `ClientJwtService` 도 같은 secret 사용                                                                               |
+| Internal API secret        | web/api 양쪽 환경변수 — `INTERNAL_API_SECRET`. 브라우저 노출 금지 (server-only)                                                                           |
+| LLM provider API key       | DB에 AES-256-GCM envelope encryption, server master key 사용                                                                                              |
+| 클라이언트 페어링 토큰     | DB에 bcrypt 해시 (cost 10), 10분 만료, 1회용                                                                                                              |
+| 클라이언트 JWT             | DB에는 bcrypt 해시만 저장 (rotate 시 비교용). 클라이언트 사본은 OS secure storage (현재 MVP: `tauri-plugin-store` 의 plain JSON 파일. 향후 keychain 전환) |
 
 `.env`, `*.pem`은 gitignore. `.env.example`은 키 이름만 포함.
 
