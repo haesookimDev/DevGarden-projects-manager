@@ -100,7 +100,7 @@ describe('CodexCliProvider', () => {
     const spawnSpy = vi.fn().mockImplementation(() => makeFakeChild({ stdout: '{"text":""}' }));
     const provider = new CodexCliProvider({ id: 'codex', spawnImpl: spawnSpy as never });
     void provider.chat({ model: 'x', messages: [] });
-    expect(spawnSpy.mock.calls[0][0]).toBe('codex');
-    expect(spawnSpy.mock.calls[0][1]).toEqual(['chat', '--format', 'json']);
+    expect(spawnSpy.mock.calls[0]![0]).toBe('codex');
+    expect(spawnSpy.mock.calls[0]![1]).toEqual(['chat', '--format', 'json']);
   });
 });

@@ -32,10 +32,10 @@ describe('OpenAICompatibleProvider', () => {
     expect(res.text).toBe('hi there');
     expect(res.tokens).toEqual({ input: 10, output: 5 });
 
-    const [url, init] = fetchFn.mock.calls[0];
+    const [url, init] = fetchFn.mock.calls[0]!;
     expect(url).toBe('http://localhost:11434/v1/chat/completions');
     expect(init.method).toBe('POST');
-    expect(JSON.parse(init.body)).toMatchObject({
+    expect(JSON.parse(init.body as string)).toMatchObject({
       model: 'qwen2.5:14b',
       messages: [{ role: 'user', content: 'hello' }],
       stream: false,
@@ -51,7 +51,7 @@ describe('OpenAICompatibleProvider', () => {
       fetchImpl: fetchFn,
     });
     await provider.chat({ model: 'gpt-4', messages: [] });
-    const init = fetchFn.mock.calls[0][1];
+    const init = fetchFn.mock.calls[0]![1]!;
     expect(init.headers.authorization).toBe('Bearer sk-test');
   });
 
@@ -79,7 +79,7 @@ describe('OpenAICompatibleProvider', () => {
       fetchImpl: fetchFn,
     });
     await provider.chat({ model: 'm', messages: [] });
-    expect(fetchFn.mock.calls[0][0]).toBe('http://x/chat/completions');
+    expect(fetchFn.mock.calls[0]![0]).toBe('http://x/chat/completions');
   });
 
   it('returns empty text when the upstream omits content', async () => {
