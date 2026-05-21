@@ -47,9 +47,7 @@ describe('runHarness — basic flow', () => {
       name: 'h',
       version: 1,
       inputs: [{ name: 'issueNumber', type: 'number', required: true }],
-      steps: [
-        { id: 'a', type: 'tool', use: 'gh', with: { issue: '${inputs.issueNumber}' } },
-      ],
+      steps: [{ id: 'a', type: 'tool', use: 'gh', with: { issue: '${inputs.issueNumber}' } }],
     });
     await runHarness(harness, {
       runId: 'r',
