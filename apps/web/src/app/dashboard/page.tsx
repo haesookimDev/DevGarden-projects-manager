@@ -94,11 +94,17 @@ export default async function DashboardPage() {
         {projects.length > 0 && (
           <ul className="mt-3 divide-y divide-neutral-800 rounded-md border border-neutral-800">
             {projects.map((p) => (
-              <li key={p.id} className="px-4 py-3">
-                <p className="font-medium">{p.repoFullName}</p>
-                <p className="text-xs text-neutral-500">
-                  installation #{p.githubInstallationId} · local: {p.localRoot}
-                </p>
+              <li key={p.id}>
+                <Link
+                  href={`/dashboard/projects/${p.id}`}
+                  data-testid="project-list-row"
+                  className="block px-4 py-3 hover:bg-neutral-900"
+                >
+                  <p className="font-medium">{p.repoFullName}</p>
+                  <p className="text-xs text-neutral-500">
+                    installation #{p.githubInstallationId} · local: {p.localRoot}
+                  </p>
+                </Link>
               </li>
             ))}
           </ul>

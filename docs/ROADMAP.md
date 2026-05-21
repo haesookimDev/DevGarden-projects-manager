@@ -8,21 +8,21 @@
 
 ## Progress snapshot (2026-05-21)
 
-- **머지된 GitHub PR**: 29 개 (PR #1 ~ #29)
-- **테스트**: api unit 37 + web unit 14 + client unit 28 + harness-core 30 + llm-adapters 10 + api integration 36 + web e2e 12 = **167 cases**
+- **머지된 GitHub PR**: 30 개 (PR #1 ~ #30)
+- **테스트**: api unit 37 + web unit 14 + client unit 28 + harness-core 30 + llm-adapters 10 + api integration 38 + web e2e 14 = **171 cases**
 - **CI**: 5 jobs (Lint · Typecheck · Unit · Integration · E2E) 모두 green
 - **운영 정책 도입**: 한 PR 안의 commit 분리(§4), CI 통과 시 자동 머지(§6)
-- **다음 우선순위**: M5 — observability (project metadata + runs history dashboards)
+- **다음 우선순위**: M5 PR #16 (runs history + cost/success metrics)
 
-| Milestone                          | 상태      |
-| ---------------------------------- | --------- |
-| M0 모노레포 부트스트랩             | ✅ 완료   |
-| M1 인증 & 기본 도메인              | ✅ 완료   |
-| M2 데스크탑 클라이언트 페어링      | ✅ 완료   |
-| M3 하네스 코어 & 첫 실행           | ✅ 완료   |
-| M4 GitHub 연동 마감 + PR 자동 생성 | ✅ 완료   |
-| M5 옵저버빌리티 & 메타데이터       | ⬜ 미시작 |
-| M6 폴리시 & 출시 준비              | ⬜ 미시작 |
+| Milestone                          | 상태                                      |
+| ---------------------------------- | ----------------------------------------- |
+| M0 모노레포 부트스트랩             | ✅ 완료                                   |
+| M1 인증 & 기본 도메인              | ✅ 완료                                   |
+| M2 데스크탑 클라이언트 페어링      | ✅ 완료                                   |
+| M3 하네스 코어 & 첫 실행           | ✅ 완료                                   |
+| M4 GitHub 연동 마감 + PR 자동 생성 | ✅ 완료                                   |
+| M5 옵저버빌리티 & 메타데이터       | 🟡 project detail 완료, runs history 예정 |
+| M6 폴리시 & 출시 준비              | ⬜ 미시작                                 |
 
 ---
 
@@ -101,7 +101,11 @@
 
 ## M5. 옵저버빌리티 & 메타데이터
 
-- ⬜ **ROADMAP PR #15** `feat(web): project metadata dashboard`
+- [x] **ROADMAP PR #15** `feat(web): project metadata dashboard` → GH #30
+  - api `ProjectsService.getDetail` + `GET /internal/projects/:id` — defaultClient/Harness include + runCount + lastRun + lastEvent
+  - web `/dashboard/projects/[id]` SSR — config + stats + last run link + trigger CTA
+  - 대시보드의 project rows 를 detail 페이지로 링크화
+  - 2 api integration + 2 web e2e
 - ⬜ **ROADMAP PR #16** `feat(web): runs history + cost/success metrics`
 - ⬜ **ROADMAP PR #17** `feat(web): tasks unified view (issues + internal todos)`
 

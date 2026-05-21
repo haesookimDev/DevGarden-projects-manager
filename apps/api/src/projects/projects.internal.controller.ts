@@ -1,4 +1,13 @@
-import { BadRequestException, Body, Controller, Get, Post, Query, UseGuards } from '@nestjs/common';
+import {
+  BadRequestException,
+  Body,
+  Controller,
+  Get,
+  Param,
+  Post,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 import { InternalAuthGuard } from '../auth/internal-auth.guard';
 import { ProjectsService, type CreateProjectInput } from './projects.service';
 
@@ -18,6 +27,41 @@ export class ProjectsInternalController {
       localRoot: p.localRoot,
       createdAt: p.createdAt,
     }));
+  }
+
+  @Get(':id')
+  async get(@Param('id') id: string) {
+    const detail = await this.projects.getDetail(id);
+    const p = detail.project;
+    return {
+      id: p.id,
+      repoFullName: p.repoFullName,
+      githubInstallationId: p.githubInstallationId,
+      githubRepoId: p.githubRepoId,
+      localRoot: p.localRoot,
+      worktreePolicy: p.worktreePolicy,
+      createdAt: p.createdAt.toISOString(),
+      updatedAt: p.updatedAt.toISOString(),
+      defaultClient: p.defaultClient,
+      defaultHarness: p.defaultHarness,
+      runCount: detail.runCount,
+      lastRun: detail.lastRun
+        ? {
+            id: detail.lastRun.id,
+            status: detail.lastRun.status,
+            startedAt: detail.lastRun.startedAt.toISOString(),
+            finishedAt: detail.lastRun.finishedAt?.toISOString() ?? null,
+          }
+        : null,
+      lastEvent: detail.lastEvent
+        ? {
+            id: detail.lastEvent.id,
+            eventType: detail.lastEvent.eventType,
+            action: detail.lastEvent.action,
+            receivedAt: detail.lastEvent.receivedAt.toISOString(),
+          }
+        : null,
+    };
   }
 
   @Post()
