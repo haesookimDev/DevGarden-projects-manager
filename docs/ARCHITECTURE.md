@@ -120,11 +120,12 @@ Browser ──▶ web (BFF)            ──▶ POST /internal/projects        
                          - jwtTokenHash(bcrypt) 보관
                        ◀── 200 { clientId, jwt, name }
 
-3. 클라이언트는 jwt를 secure storage에 저장 후 Socket.io 연결 (다음 PR)
+3. 클라이언트는 jwt를 secure storage에 저장 후 Socket.io 연결 (Tauri PR)
 ```
 
 - 사용자 발급 JWT: AUTH_SECRET 공유. payload: sub=clientId, ownerId. issuer=devgarden-api, audience=devgarden-client.
 - pairing token: 1회용. bcrypt 해시만 저장하므로 server 침해 시에도 plaintext 누설 없음.
+- web UI: `/dashboard/clients/new` 폼이 React 19 `useActionState` 로 발급 결과를 페이지 내에서 표시 (URL 에 토큰 노출 X). 토큰은 1회 표시되며 사용자가 복사해 Tauri client 에 입력.
 
 ---
 

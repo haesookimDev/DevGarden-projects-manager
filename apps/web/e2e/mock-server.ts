@@ -102,6 +102,18 @@ function handle(req: IncomingMessage, res: ServerResponse): void {
     return;
   }
 
+  if (url.pathname === '/internal/clients/pairings' && req.method === 'POST') {
+    readBody(req).then(() => {
+      res.writeHead(200, { 'content-type': 'application/json' }).end(
+        JSON.stringify({
+          token: 'mock-pairing-token-abcdef0123456789',
+          expiresAt: new Date(Date.now() + 10 * 60 * 1000).toISOString(),
+        }),
+      );
+    });
+    return;
+  }
+
   res.writeHead(404).end(`mock-server: no route ${req.method} ${url.pathname}`);
 }
 

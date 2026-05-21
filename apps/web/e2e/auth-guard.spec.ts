@@ -23,4 +23,11 @@ test.describe('auth middleware', () => {
     await page.goto('/dashboard/projects/new');
     await expect(page).toHaveURL(/\/signin(\?|$)/);
   });
+
+  test('unauthenticated user is redirected from /dashboard/clients/new to /signin', async ({
+    page,
+  }) => {
+    await page.goto('/dashboard/clients/new');
+    await expect(page).toHaveURL(/\/signin(\?|$)/);
+  });
 });
