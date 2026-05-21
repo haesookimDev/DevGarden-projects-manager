@@ -1,0 +1,19 @@
+// Exercises the authenticated dashboard flow. NextAuth refuses to perform the
+// real OAuth round-trip over HTTP, so instead the auth-fixture pre-signs a JWT
+// session cookie equivalent to what a successful jwt callback would produce.
+// A future PR can swap this for a true OAuth dance over HTTPS.
+
+import { test, expect, DEFAULT_AUTHED_USER } from './auth-fixture';
+
+test('authenticated user reaches dashboard with profile info', async ({ page }) => {
+  await page.goto('/dashboard');
+  await expect(page.getByRole('heading', { name: /dashboard/i })).toBeVisible();
+  await expect(page.getByText(DEFAULT_AUTHED_USER.login)).toBeVisible();
+  await expect(page.getByText(String(DEFAULT_AUTHED_USER.githubId))).toBeVisible();
+});
+
+test('authenticated user can open the new project form', async ({ page }) => {
+  await page.goto('/dashboard/projects/new');
+  await expect(page.getByRole('heading', { name: /add project/i })).toBeVisible();
+  await expect(page.getByPlaceholder(/octocat\/Hello-World/i)).toBeVisible();
+});

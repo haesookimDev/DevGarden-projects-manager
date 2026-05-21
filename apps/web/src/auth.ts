@@ -28,7 +28,15 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     GitHub({
       clientId: process.env.AUTH_GITHUB_ID,
       clientSecret: process.env.AUTH_GITHUB_SECRET,
-      authorization: { params: { scope: 'read:user user:email' } },
+      // URL overrides exist so end-to-end tests can swap GitHub for a local mock.
+      // In production these env vars are unset and NextAuth falls back to github.com.
+      authorization: {
+        url:
+          process.env.AUTH_GITHUB_AUTHORIZATION_URL ?? 'https://github.com/login/oauth/authorize',
+        params: { scope: 'read:user user:email' },
+      },
+      token: process.env.AUTH_GITHUB_TOKEN_URL ?? 'https://github.com/login/oauth/access_token',
+      userinfo: process.env.AUTH_GITHUB_USERINFO_URL ?? 'https://api.github.com/user',
     }),
   ],
   callbacks: {
