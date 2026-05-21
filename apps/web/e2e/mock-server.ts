@@ -169,6 +169,56 @@ function handle(req: IncomingMessage, res: ServerResponse): void {
     return;
   }
 
+  if (url.pathname === '/internal/runs/stats' && req.method === 'GET') {
+    res.writeHead(200, { 'content-type': 'application/json' }).end(
+      JSON.stringify({
+        sinceHours: 168,
+        total: 5,
+        counts: { SUCCESS: 3, FAILED: 1, QUEUED: 1 },
+        successRate: 3 / 4,
+        totalCostUsd: 0.0234,
+        avgCostUsd: 0.00585,
+        terminalCount: 4,
+      }),
+    );
+    return;
+  }
+
+  if (url.pathname === '/internal/runs' && req.method === 'GET' && url.searchParams.has('ownerId')) {
+    const now = Date.now();
+    res.writeHead(200, { 'content-type': 'application/json' }).end(
+      JSON.stringify([
+        {
+          id: 'mock-run-7',
+          harnessId: 'mock-harness-1',
+          projectId: 'mock-project-1',
+          clientId: 'mock-client-1',
+          triggeredByUserId: MOCK_DB_USER_ID,
+          status: 'SUCCESS',
+          branchName: 'feat/mock',
+          workingDir: null,
+          startedAt: new Date(now - 120_000).toISOString(),
+          finishedAt: new Date(now - 60_000).toISOString(),
+          repoFullName: 'mock/repo',
+        },
+        {
+          id: 'mock-run-6',
+          harnessId: 'mock-harness-1',
+          projectId: 'mock-project-1',
+          clientId: 'mock-client-1',
+          triggeredByUserId: MOCK_DB_USER_ID,
+          status: 'FAILED',
+          branchName: null,
+          workingDir: null,
+          startedAt: new Date(now - 600_000).toISOString(),
+          finishedAt: new Date(now - 580_000).toISOString(),
+          repoFullName: 'mock/repo',
+        },
+      ]),
+    );
+    return;
+  }
+
   if (url.pathname === '/internal/runs' && req.method === 'POST') {
     readBody(req).then(() => {
       res.writeHead(201, { 'content-type': 'application/json' }).end(
