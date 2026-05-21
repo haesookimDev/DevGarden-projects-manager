@@ -100,6 +100,24 @@ Browser ──▶ web (BFF)            ──▶ POST /internal/projects        
 - GitHub App credentials는 `GITHUB_APP_ID` + `GITHUB_APP_PRIVATE_KEY` env. `GithubAppService` 가 installation token을 60s margin으로 캐싱
 - web UI: `/dashboard` 에 프로젝트 목록 + `/dashboard/projects/new` 폼 (server action으로 web→api 호출). 자동 picker 는 OAuth user token 활용 PR 에서 추가.
 
+### 2.2.3 하네스 실행 — runs 도메인 (api 측)
+
+```
+Browser ──▶ web (BFF) ──▶ POST /internal/runs              (api)
+                              { harnessId, projectId, clientId, triggeredByUserId, branchName? }
+                              - RunsService.createRun  →  HarnessRun (status QUEUED)
+                              ◀── 201 { id, ... }
+
+(다음 PR 에서) Socket.io 로 client 에 'run:start' 전달
+client 측 runner 가 step 별로 (다음 PR 에서) RunStep / RunLog 를 api 에 append
+RunsService.appendStep / appendLog / setStatus
+
+GET /internal/runs/:id       → 단일 run + steps + logs (최근 500)
+GET /internal/runs?projectId  → 프로젝트별 최근 50 runs
+```
+
+- 본 PR 은 RunsService + REST endpoint 만. WS run:\* event, client runner 연결, web run UI 는 후속 PR.
+
 ### 2.3 클라이언트 페어링
 
 ```
