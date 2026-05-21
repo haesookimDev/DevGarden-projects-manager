@@ -12,6 +12,7 @@
 import {
   parseHarnessRaw,
   type Harness,
+  type HostBridge,
   type LlmDispatch,
   type RunHooks,
   type RunOptions,
@@ -30,6 +31,8 @@ import { buildToolRegistry, type ToolRegistryOptions } from '../tools/registry';
 
 export interface RunExecutorSocket {
   emit(event: string, payload: unknown): void;
+  /** Optional ack-style request used by tools (e.g. github.openPR). */
+  emitWithAck?(event: string, payload: unknown): Promise<unknown>;
 }
 
 export interface RunExecutorDeps {
@@ -107,6 +110,15 @@ export async function executeRun(
     },
   };
 
+  const host: HostBridge | undefined = socket.emitWithAck
+    ? {
+        request: async <T,>(name: string, payload: unknown) => {
+          const ack = (await socket.emitWithAck!(name, payload)) as T;
+          return ack;
+        },
+      }
+    : undefined;
+
   const result = await run(harness, {
     runId: event.runId,
     inputs: event.inputs ?? {},
@@ -114,6 +126,7 @@ export async function executeRun(
     tools,
     workingDir,
     hooks,
+    host,
   });
 
   emitStatus(socket, event.runId, result.status === 'success' ? 'SUCCESS' : 'FAILED');

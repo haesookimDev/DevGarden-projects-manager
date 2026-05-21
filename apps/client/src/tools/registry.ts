@@ -1,5 +1,6 @@
 import type { ToolHandler } from '@devgarden/harness-core';
 import { makeFsTools } from './fs';
+import { makeGithubTools } from './github';
 import { makeGitTools } from './git';
 import { makeProcessTool } from './process';
 import type { PathPolicy } from './path-policy';
@@ -18,6 +19,7 @@ export function buildToolRegistry(opts: ToolRegistryOptions): Map<string, ToolHa
     ...makeFsTools(opts.policy),
     makeProcessTool({ policy: opts.policy, allowList: opts.processAllowList }),
     ...makeGitTools({ policy: opts.policy }),
+    ...makeGithubTools(),
   ];
   const map = new Map<string, ToolHandler>();
   for (const t of all) map.set(t.name, t);
