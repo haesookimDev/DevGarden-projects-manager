@@ -8,21 +8,21 @@
 
 ## Progress snapshot (2026-05-21)
 
-- **머지된 GitHub PR**: 28 개 (PR #1 ~ #28)
-- **테스트**: api unit 29 + web unit 14 + client unit 24 + harness-core 30 + llm-adapters 10 + api integration 36 + web e2e 12 = **155 cases**
+- **머지된 GitHub PR**: 29 개 (PR #1 ~ #29)
+- **테스트**: api unit 37 + web unit 14 + client unit 28 + harness-core 30 + llm-adapters 10 + api integration 36 + web e2e 12 = **167 cases**
 - **CI**: 5 jobs (Lint · Typecheck · Unit · Integration · E2E) 모두 green
 - **운영 정책 도입**: 한 PR 안의 commit 분리(§4), CI 통과 시 자동 머지(§6)
-- **다음 우선순위**: M4 PR #14 (auto PR creation) → 그 후 M5
+- **다음 우선순위**: M5 — observability (project metadata + runs history dashboards)
 
-| Milestone                          | 상태                               |
-| ---------------------------------- | ---------------------------------- |
-| M0 모노레포 부트스트랩             | ✅ 완료                            |
-| M1 인증 & 기본 도메인              | ✅ 완료                            |
-| M2 데스크탑 클라이언트 페어링      | ✅ 완료                            |
-| M3 하네스 코어 & 첫 실행           | ✅ 완료                            |
-| M4 GitHub 연동 마감 + PR 자동 생성 | 🟡 webhook 완료, auto PR 진행 예정 |
-| M5 옵저버빌리티 & 메타데이터       | ⬜ 미시작                          |
-| M6 폴리시 & 출시 준비              | ⬜ 미시작                          |
+| Milestone                          | 상태      |
+| ---------------------------------- | --------- |
+| M0 모노레포 부트스트랩             | ✅ 완료   |
+| M1 인증 & 기본 도메인              | ✅ 완료   |
+| M2 데스크탑 클라이언트 페어링      | ✅ 완료   |
+| M3 하네스 코어 & 첫 실행           | ✅ 완료   |
+| M4 GitHub 연동 마감 + PR 자동 생성 | ✅ 완료   |
+| M5 옵저버빌리티 & 메타데이터       | ⬜ 미시작 |
+| M6 폴리시 & 출시 준비              | ⬜ 미시작 |
 
 ---
 
@@ -91,10 +91,13 @@
   - 5 integration + 5 HMAC unit
   - 후속: 이벤트별 broadcast / TodoItem upsert 는 PR #14 + PR #17 에서
 
-- ⬜ **ROADMAP PR #14** `feat(client): auto branch → commit → push → PR`
-  - 하네스의 git/github 도구 마무리 (이미 git tools 는 GH #21 에 있음 — webhook + PR 생성만 남음)
-  - 커밋/PR 시 `-c user.name="haesookimDev" -c user.email="ww232330@gmail.com"` 적용
-  - E2E: 가짜 이슈 → 자동 PR 생성 → 웹에서 PR 카드 확인
+- [x] **ROADMAP PR #14** `feat(client): auto branch → commit → push → PR` → GH #29
+  - api `GithubPrService` — `Project` lookup → installation Octokit → `pulls.create`
+  - api `RunsGateway` 가 새 socket 이벤트 `github:openPR` 처리 (ack 로 url/number 반환)
+  - harness-core `HostBridge` 인터페이스 신규 — tool 이 host(client) 에 async request 가능
+  - client `github.openPR` 도구 — host bridge 로 socket ack 받음
+  - 4 api unit + 4 client unit + 4 gateway handler unit
+  - 후속: 실 e2e (가짜 이슈 → 자동 PR) 는 GitHub App 자격 증명 필요한 manual smoke 로 진행
 
 ## M5. 옵저버빌리티 & 메타데이터
 

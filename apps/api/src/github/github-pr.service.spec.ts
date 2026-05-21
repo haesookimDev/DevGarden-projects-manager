@@ -61,9 +61,9 @@ describe('GithubPrService.open', () => {
 
   it('throws NotFoundException for unknown project', async () => {
     const { svc } = makeService({ project: null });
-    await expect(
-      svc.open({ projectId: 'missing', head: 'h', title: 't' }),
-    ).rejects.toBeInstanceOf(NotFoundException);
+    await expect(svc.open({ projectId: 'missing', head: 'h', title: 't' })).rejects.toBeInstanceOf(
+      NotFoundException,
+    );
   });
 
   it('throws on malformed repoFullName', async () => {

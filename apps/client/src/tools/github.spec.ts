@@ -45,8 +45,8 @@ describe('github.openPR', () => {
 
   it('requires projectId, head, title', async () => {
     const request = vi.fn();
-    await expect(
-      tool().run({ head: 'h', title: 't' } as never, ctx({ request })),
-    ).rejects.toThrow(/projectId/);
+    await expect(tool().run({ head: 'h', title: 't' } as never, ctx({ request }))).rejects.toThrow(
+      /projectId/,
+    );
   });
 });

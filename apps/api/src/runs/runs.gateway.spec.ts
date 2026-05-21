@@ -22,7 +22,10 @@ function makeGateway() {
     open: vi.fn().mockResolvedValue({ url: 'https://github.com/x/y/pull/1', number: 1 }),
   } satisfies Partial<GithubPrService>;
 
-  const gw = new RunsGateway(runs as unknown as RunsService, githubPr as unknown as GithubPrService);
+  const gw = new RunsGateway(
+    runs as unknown as RunsService,
+    githubPr as unknown as GithubPrService,
+  );
   gw.server = { to } as unknown as RunsGateway['server'];
   return { gw, emit, to, runs, githubPr };
 }
