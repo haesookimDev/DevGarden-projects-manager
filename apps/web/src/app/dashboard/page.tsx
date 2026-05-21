@@ -52,6 +52,22 @@ export default async function DashboardPage() {
         <p className="text-sm text-neutral-500">github id: {session?.user?.githubId ?? '?'}</p>
       </section>
 
+      <section className="mt-8 flex items-center justify-between rounded-md border border-neutral-800 bg-neutral-900/50 px-4 py-3">
+        <div>
+          <h2 className="text-base font-semibold">Trigger a harness run</h2>
+          <p className="text-xs text-neutral-500">
+            project · harness · client 을 선택해 즉시 큐에 넣습니다.
+          </p>
+        </div>
+        <Link
+          href="/dashboard/runs/new"
+          data-testid="dashboard-new-run-cta"
+          className="rounded-md bg-white px-3 py-1.5 text-sm font-medium text-neutral-900 hover:bg-neutral-200"
+        >
+          New run
+        </Link>
+      </section>
+
       <section className="mt-8">
         <div className="flex items-center justify-between">
           <h2 className="text-xl font-semibold">Projects</h2>

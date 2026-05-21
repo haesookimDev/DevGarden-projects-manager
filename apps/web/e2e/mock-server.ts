@@ -98,7 +98,53 @@ function handle(req: IncomingMessage, res: ServerResponse): void {
   }
 
   if (url.pathname === '/internal/projects' && req.method === 'GET') {
-    res.writeHead(200, { 'content-type': 'application/json' }).end('[]');
+    res.writeHead(200, { 'content-type': 'application/json' }).end(
+      JSON.stringify([
+        {
+          id: 'mock-project-1',
+          repoFullName: 'mock/repo',
+          githubInstallationId: 1,
+          localRoot: '/tmp/mock',
+          createdAt: new Date(Date.now() - 60_000).toISOString(),
+        },
+      ]),
+    );
+    return;
+  }
+
+  if (url.pathname === '/internal/harnesses' && req.method === 'GET') {
+    res.writeHead(200, { 'content-type': 'application/json' }).end(
+      JSON.stringify([
+        {
+          id: 'mock-harness-1',
+          ownerId: MOCK_DB_USER_ID,
+          name: 'echo',
+          version: 1,
+          createdAt: new Date(Date.now() - 120_000).toISOString(),
+          updatedAt: new Date(Date.now() - 60_000).toISOString(),
+        },
+      ]),
+    );
+    return;
+  }
+
+  if (url.pathname === '/internal/runs' && req.method === 'POST') {
+    readBody(req).then(() => {
+      res.writeHead(201, { 'content-type': 'application/json' }).end(
+        JSON.stringify({
+          id: 'mock-created-run-1',
+          harnessId: 'mock-harness-1',
+          projectId: 'mock-project-1',
+          clientId: 'mock-client-1',
+          triggeredByUserId: MOCK_DB_USER_ID,
+          status: 'QUEUED',
+          branchName: null,
+          workingDir: null,
+          startedAt: new Date().toISOString(),
+          finishedAt: null,
+        }),
+      );
+    });
     return;
   }
 
