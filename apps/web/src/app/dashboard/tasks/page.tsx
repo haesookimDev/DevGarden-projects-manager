@@ -57,7 +57,12 @@ export default async function TasksPage({ searchParams }: PageProps) {
       )}
 
       <section className="mt-6 flex flex-wrap items-center gap-2">
-        <FilterTab href="/dashboard/tasks" active={filterSource === undefined} label="All" testId="tasks-filter-all" />
+        <FilterTab
+          href="/dashboard/tasks"
+          active={filterSource === undefined}
+          label="All"
+          testId="tasks-filter-all"
+        />
         <FilterTab
           href="/dashboard/tasks?source=GITHUB_ISSUE"
           active={filterSource === 'GITHUB_ISSUE'}
@@ -71,12 +76,15 @@ export default async function TasksPage({ searchParams }: PageProps) {
           testId="tasks-filter-internal"
         />
         <span className="ml-auto text-xs text-neutral-500" data-testid="tasks-counts">
-          {counts.all} total · {counts.open} open · {counts.inProgress} in progress · {counts.done} done
+          {counts.all} total · {counts.open} open · {counts.inProgress} in progress · {counts.done}{' '}
+          done
         </span>
       </section>
 
       <section className="mt-4">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-neutral-400">Add an internal todo</h2>
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-neutral-400">
+          Add an internal todo
+        </h2>
         <NewTodoForm projects={projects.map((p) => ({ id: p.id, repoFullName: p.repoFullName }))} />
       </section>
 

@@ -8,21 +8,21 @@
 
 ## Progress snapshot (2026-05-21)
 
-- **머지된 GitHub PR**: 31 개 (PR #1 ~ #31)
-- **테스트**: api unit 37 + web unit 14 + client unit 28 + harness-core 30 + llm-adapters 10 + api integration 41 + web e2e 16 = **176 cases**
+- **머지된 GitHub PR**: 32 개 (PR #1 ~ #32)
+- **테스트**: api unit 37 + web unit 14 + client unit 28 + harness-core 30 + llm-adapters 10 + api integration 46 + web e2e 19 = **184 cases**
 - **CI**: 5 jobs (Lint · Typecheck · Unit · Integration · E2E) 모두 green
 - **운영 정책 도입**: 한 PR 안의 commit 분리(§4), CI 통과 시 자동 머지(§6)
-- **다음 우선순위**: M5 PR #17 (tasks unified view) → 그 후 M6 (출시 준비)
+- **다음 우선순위**: M6 (production polish · self-hosting docs · signed installers)
 
-| Milestone                          | 상태                                 |
-| ---------------------------------- | ------------------------------------ |
-| M0 모노레포 부트스트랩             | ✅ 완료                              |
-| M1 인증 & 기본 도메인              | ✅ 완료                              |
-| M2 데스크탑 클라이언트 페어링      | ✅ 완료                              |
-| M3 하네스 코어 & 첫 실행           | ✅ 완료                              |
-| M4 GitHub 연동 마감 + PR 자동 생성 | ✅ 완료                              |
-| M5 옵저버빌리티 & 메타데이터       | 🟡 PR #15/#16 완료, PR #17 진행 예정 |
-| M6 폴리시 & 출시 준비              | ⬜ 미시작                            |
+| Milestone                          | 상태      |
+| ---------------------------------- | --------- |
+| M0 모노레포 부트스트랩             | ✅ 완료   |
+| M1 인증 & 기본 도메인              | ✅ 완료   |
+| M2 데스크탑 클라이언트 페어링      | ✅ 완료   |
+| M3 하네스 코어 & 첫 실행           | ✅ 완료   |
+| M4 GitHub 연동 마감 + PR 자동 생성 | ✅ 완료   |
+| M5 옵저버빌리티 & 메타데이터       | ✅ 완료   |
+| M6 폴리시 & 출시 준비              | ⬜ 미시작 |
 
 ---
 
@@ -112,7 +112,13 @@
   - web `/dashboard/runs` 페이지 — stats grid (Total · SuccessRate · By status · Cost) + 최근 50 runs 리스트
   - dashboard 에 "History" CTA 추가
   - 3 api integration + 2 web e2e
-- ⬜ **ROADMAP PR #17** `feat(web): tasks unified view (issues + internal todos)`
+- [x] **ROADMAP PR #17** `feat(web): tasks unified view (issues + internal todos)` → GH #32
+  - api `GithubWebhookService` 가 `issues` 이벤트 도착 시 `TodoItem` upsert (state=closed → DONE)
+  - `(projectId, sourceType, sourceRef)` unique 인덱스로 자동 idempotent — re-delivery 안전
+  - api `TodosService` + `/internal/todos` (list / create internal / patch status)
+  - web `/dashboard/tasks` 페이지 — GitHub issues + internal todos 통합 리스트, source filter, 인라인 status 전이 (server actions)
+  - dashboard 에 "Tasks" CTA 추가
+  - 4 todos integration + 1 webhook→todo integration + 3 web e2e
 
 ## M6. 폴리시 & 출시 준비
 

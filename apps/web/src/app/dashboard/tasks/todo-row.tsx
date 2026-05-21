@@ -7,7 +7,8 @@ import type { TodoRow as TodoData } from '@/lib/api/todos';
 export function TodoRow({ todo }: { todo: TodoData }) {
   const [pending, startTransition] = useTransition();
 
-  const advance = todo.status === 'OPEN' ? 'IN_PROGRESS' : todo.status === 'IN_PROGRESS' ? 'DONE' : null;
+  const advance =
+    todo.status === 'OPEN' ? 'IN_PROGRESS' : todo.status === 'IN_PROGRESS' ? 'DONE' : null;
 
   return (
     <li
