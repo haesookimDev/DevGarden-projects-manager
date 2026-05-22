@@ -149,6 +149,7 @@
 
 ## v0.2+ 백로그
 
+- **Desktop client 의 실 harness 실행 path** — 현재 webview 는 페어링 + socket liveness 만 처리. `run-executor` + tools (fs/process/git) 는 Node.js API 를 쓰므로 Tauri webview (브라우저 context) 에서 직접 실행 불가. Node sidecar 프로세스 또는 Tauri Rust commands 로 옮겨야 함. v0.1 에서는 webview 빌드에서 runner wiring 을 분리해 둠.
 - 진짜 OAuth round-trip e2e (HTTPS mock + self-signed cert)
 - 하네스 노드 UI (드래그-드롭)
 - 다중 클라이언트 라우팅 / 큐잉
