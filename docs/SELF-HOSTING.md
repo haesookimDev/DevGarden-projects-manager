@@ -38,13 +38,23 @@ DevGarden 은 두 종류의 GitHub 자격증명을 사용한다 — **OAuth App*
 
 2. **GitHub App** 생성 — [https://github.com/settings/apps](https://github.com/settings/apps) → "New GitHub App"
    - Homepage URL: 위와 동일
-   - Webhook URL: `https://devgarden.example.com/webhooks/github`
-   - Webhook secret: 충분히 긴 임의 문자열 (`openssl rand -base64 32`) — `.env` 의 `GITHUB_WEBHOOK_SECRET` 에 동일하게.
+   - Webhook
+     - **공개 호스트인 경우**: Active 체크 + URL `https://devgarden.example.com/webhooks/github` + Webhook secret 을 `openssl rand -base64 32` 로 생성해서 `.env` 의 `GITHUB_WEBHOOK_SECRET` 에 동일하게 넣음.
+     - **로컬 dogfood (`localhost`)**: GitHub 가 `localhost` / 사설 IP 를 거부한다. 두 가지 선택지 — (a) Active 체크 해제 후 빈 URL 로 저장 (issue → TodoItem 자동 sync 와 push/PR audit 만 비활성, OAuth / Octokit / harness 실행은 정상), 또는 (b) `cloudflared tunnel --url http://localhost:3001` 같은 터널로 public URL 받아서 webhook URL 로 등록.
    - Permissions
      - Repository: Contents (read & write), Issues (read & write), Pull requests (read & write), Metadata (read).
-   - Subscribe to events: `Issues`, `Pull request`, `Push`.
+   - Subscribe to events: `Issues`, `Pull request`, `Push`. (webhook Active 해제 시 의미 없음.)
    - 생성 후 "Generate a private key" → `.pem` 다운로드. App ID 도 함께 메모.
    - GitHub App 을 자기 계정 / 조직에 install 해서 사용할 repo 를 선택한다.
+
+3. **Installation ID 확인** — 프로젝트 등록 폼에서 입력해야 함. 위 (2) 마지막 단계의 install 직후 주소창에 보이는 숫자가 곧 ID:
+
+   ```
+   https://github.com/settings/installations/12345678
+                                             ^^^^^^^^
+   ```
+
+   놓쳤다면 `https://github.com/settings/installations` (조직이면 `/organizations/{org}/settings/installations`) → DevGarden App 의 "Configure" 클릭 → 다시 URL 끝의 숫자.
 
 > `GITHUB_APP_PRIVATE_KEY` 는 PEM 파일 전체를 한 줄로 (개행은 `\n` 으로) 넣거나, secret mount 로 안전하게
 > 전달할 수 있다. compose override 로 `secrets:` 사용을 권장.
