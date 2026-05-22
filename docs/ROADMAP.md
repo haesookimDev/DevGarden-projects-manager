@@ -6,23 +6,23 @@
 
 ---
 
-## Progress snapshot (2026-05-21)
+## Progress snapshot (2026-05-22)
 
-- **머지된 GitHub PR**: 32 개 (PR #1 ~ #32)
-- **테스트**: api unit 37 + web unit 14 + client unit 28 + harness-core 30 + llm-adapters 10 + api integration 46 + web e2e 19 = **184 cases**
+- **머지된 GitHub PR**: 33 개 (PR #1 ~ #33)
+- **테스트**: api unit 37 + web unit 14 + client unit 28 + harness-core 30 + llm-adapters 10 + api integration 48 + web e2e 20 = **187 cases**
 - **CI**: 5 jobs (Lint · Typecheck · Unit · Integration · E2E) 모두 green
 - **운영 정책 도입**: 한 PR 안의 commit 분리(§4), CI 통과 시 자동 머지(§6)
-- **다음 우선순위**: M6 (production polish · self-hosting docs · signed installers)
+- **다음 우선순위**: M6 PR #19 (self-hosting 가이드)
 
-| Milestone                          | 상태      |
-| ---------------------------------- | --------- |
-| M0 모노레포 부트스트랩             | ✅ 완료   |
-| M1 인증 & 기본 도메인              | ✅ 완료   |
-| M2 데스크탑 클라이언트 페어링      | ✅ 완료   |
-| M3 하네스 코어 & 첫 실행           | ✅ 완료   |
-| M4 GitHub 연동 마감 + PR 자동 생성 | ✅ 완료   |
-| M5 옵저버빌리티 & 메타데이터       | ✅ 완료   |
-| M6 폴리시 & 출시 준비              | ⬜ 미시작 |
+| Milestone                          | 상태                             |
+| ---------------------------------- | -------------------------------- |
+| M0 모노레포 부트스트랩             | ✅ 완료                          |
+| M1 인증 & 기본 도메인              | ✅ 완료                          |
+| M2 데스크탑 클라이언트 페어링      | ✅ 완료                          |
+| M3 하네스 코어 & 첫 실행           | ✅ 완료                          |
+| M4 GitHub 연동 마감 + PR 자동 생성 | ✅ 완료                          |
+| M5 옵저버빌리티 & 메타데이터       | ✅ 완료                          |
+| M6 폴리시 & 출시 준비              | 🟡 PR #18 완료, PR #19 진행 예정 |
 
 ---
 
@@ -122,7 +122,13 @@
 
 ## M6. 폴리시 & 출시 준비
 
-- ⬜ **ROADMAP PR #18** `chore: production docker-compose + healthcheck + backup script`
+- [x] **ROADMAP PR #18** `chore: production docker-compose + healthcheck + backup script` → GH #33
+  - api: 새 `/healthz/ready` 가 Postgres ping 으로 readiness 확인 (compose healthcheck 가 이걸 사용)
+  - web: 새 `/api/healthz` 라우트 + middleware matcher 에서 제외 (auth 우회)
+  - prod compose: web healthcheck, log rotation (10MB×3), 메모리 limit 1g, start_period 30s
+  - `infra/backup.sh` / `infra/restore.sh` 추가 (pg_dump · gzip · --keep N · DESTRUCTIVE 확인)
+  - `infra/README.md` ops 문서
+  - 2 api integration + 1 web e2e
 - ⬜ **ROADMAP PR #19** `docs: setup guide for self-hosting`
 - ⬜ **ROADMAP PR #20** `chore: client signed installers (Mac/Win/Linux)` (선택)
 

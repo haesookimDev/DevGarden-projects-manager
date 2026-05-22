@@ -20,28 +20,29 @@
 자세한 결정 근거는 [docs/SPEC.md](docs/SPEC.md).
 현재 진행 상황은 [docs/ROADMAP.md](docs/ROADMAP.md) (Progress snapshot 섹션).
 
-## Status (2026-05-21)
+## Status (2026-05-22)
 
-| 영역                                   | 상태 |
-| -------------------------------------- | ---- |
-| 모노레포 부트스트랩                    | ✅   |
-| 인증 (OAuth + GitHub App + Projects)   | ✅   |
-| 클라이언트 페어링 + Socket.io          | ✅   |
-| Harness YAML/IR + 실행 엔진            | ✅   |
-| LLM 어댑터 (openai-compatible/codex)   | ✅   |
-| Client tools (fs/process/git/github)   | ✅   |
-| Runs CRUD + 대시보드 페이지            | ✅   |
-| End-to-end harness 실행 wiring         | ✅   |
-| Web run trigger 페이지                 | ✅   |
-| Run 실시간 socket broadcast (SSE)      | ✅   |
-| GitHub webhook receiver (HMAC + audit) | ✅   |
-| 자동 PR 생성 (github.openPR tool)      | ✅   |
-| Project detail 페이지 + stats          | ✅   |
-| Runs history + cost/success metrics    | ✅   |
-| Tasks unified view (issues + todos)    | ✅   |
-| **Production polish (M6)**             | ⬜   |
+| 영역                                   | 상태       |
+| -------------------------------------- | ---------- |
+| 모노레포 부트스트랩                    | ✅         |
+| 인증 (OAuth + GitHub App + Projects)   | ✅         |
+| 클라이언트 페어링 + Socket.io          | ✅         |
+| Harness YAML/IR + 실행 엔진            | ✅         |
+| LLM 어댑터 (openai-compatible/codex)   | ✅         |
+| Client tools (fs/process/git/github)   | ✅         |
+| Runs CRUD + 대시보드 페이지            | ✅         |
+| End-to-end harness 실행 wiring         | ✅         |
+| Web run trigger 페이지                 | ✅         |
+| Run 실시간 socket broadcast (SSE)      | ✅         |
+| GitHub webhook receiver (HMAC + audit) | ✅         |
+| 자동 PR 생성 (github.openPR tool)      | ✅         |
+| Project detail 페이지 + stats          | ✅         |
+| Runs history + cost/success metrics    | ✅         |
+| Tasks unified view (issues + todos)    | ✅         |
+| Prod compose + healthchecks + backup   | ✅         |
+| **Self-hosting setup guide**           | 🟡 진행 중 |
 
-테스트 누적: **184 cases** (api unit 37 · web unit 14 · client unit 28 · harness-core 30 · llm-adapters 10 · api integration 46 · web e2e 19).
+테스트 누적: **187 cases** (api unit 37 · web unit 14 · client unit 28 · harness-core 30 · llm-adapters 10 · api integration 48 · web e2e 20).
 
 ## Docs
 

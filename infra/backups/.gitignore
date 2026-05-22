@@ -1,0 +1,3 @@
+# DB dumps live here; ignore everything except this file itself
+*
+!.gitignore

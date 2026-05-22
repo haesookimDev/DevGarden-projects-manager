@@ -30,4 +30,10 @@ test.describe('auth middleware', () => {
     await page.goto('/dashboard/clients/new');
     await expect(page).toHaveURL(/\/signin(\?|$)/);
   });
+
+  test('healthz probe bypasses auth and returns 200 ok', async ({ request }) => {
+    const res = await request.get('/api/healthz');
+    expect(res.status()).toBe(200);
+    await expect.poll(async () => (await res.json()).status).toBe('ok');
+  });
 });
