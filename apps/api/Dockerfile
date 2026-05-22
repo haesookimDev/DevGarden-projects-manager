@@ -26,7 +26,11 @@ RUN pnpm --filter @devgarden/shared build
 RUN pnpm --filter @devgarden/api build
 RUN pnpm --filter @devgarden/api deploy --prod /out && \
     rm -rf /out/dist && \
-    cp -R apps/api/dist /out/dist
+    cp -R apps/api/dist /out/dist && \
+    # `pnpm deploy` rebuilds /out/node_modules from scratch and drops the
+    # generated `.prisma/client/` from the builder's hoisted store. Re-run
+    # generate inside /out so the runtime image's @prisma/client is wired up.
+    cd /out && ./node_modules/.bin/prisma generate
 
 FROM base AS runner
 WORKDIR /app
