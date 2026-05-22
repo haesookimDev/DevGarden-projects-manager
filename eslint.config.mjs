@@ -15,6 +15,8 @@ export default tseslint.config(
       '**/test-results/**',
       '**/src-tauri/target/**',
       '**/*.config.{js,cjs,mjs}',
+      // Build / tooling scripts that run on Node — outside the typed app surface.
+      '**/scripts/**',
     ],
   },
   js.configs.recommended,

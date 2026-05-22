@@ -4,6 +4,7 @@
 // `pnpm tauri icon src-tauri/icons/source.png` to fan it out into the platform-
 // specific variants. Replace with a real brand asset before public release.
 
+import { Buffer } from 'node:buffer';
 import { writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
