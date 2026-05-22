@@ -10,6 +10,7 @@ export default auth((req) => {
 });
 
 export const config = {
-  // Protect everything except: nextauth API, Next internals, static assets, signin page.
-  matcher: ['/((?!api/auth|_next/static|_next/image|favicon.ico|signin).*)'],
+  // Protect everything except: nextauth API, the healthz probe, Next internals,
+  // static assets, and the signin page itself.
+  matcher: ['/((?!api/auth|api/healthz|_next/static|_next/image|favicon.ico|signin).*)'],
 };
