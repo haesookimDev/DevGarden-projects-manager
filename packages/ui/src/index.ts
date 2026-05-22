@@ -1,10 +1,10 @@
-export { cn } from './lib/cn.js';
-export { Button, buttonVariants, type ButtonProps } from './button.js';
-export { Input } from './input.js';
-export { Label } from './label.js';
-export { Textarea } from './textarea.js';
-export { Badge, badgeVariants, type BadgeProps } from './badge.js';
-export { Card, CardHeader, CardFooter, CardTitle, CardDescription, CardContent } from './card.js';
+export { cn } from './lib/cn';
+export { Button, buttonVariants, type ButtonProps } from './button';
+export { Input } from './input';
+export { Label } from './label';
+export { Textarea } from './textarea';
+export { Badge, badgeVariants, type BadgeProps } from './badge';
+export { Card, CardHeader, CardFooter, CardTitle, CardDescription, CardContent } from './card';
 export {
   Select,
   SelectGroup,
@@ -16,4 +16,4 @@ export {
   SelectSeparator,
   SelectScrollUpButton,
   SelectScrollDownButton,
-} from './select.js';
+} from './select';
