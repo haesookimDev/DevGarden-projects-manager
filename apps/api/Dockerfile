@@ -10,6 +10,10 @@ FROM base AS builder
 WORKDIR /repo
 COPY pnpm-lock.yaml pnpm-workspace.yaml package.json .npmrc tsconfig.base.json ./
 COPY apps/api/package.json ./apps/api/
+# Prisma schema must be present before `pnpm install` runs the api's
+# `postinstall: prisma generate` hook. Schema changes already invalidate the
+# generated client, so it's fine for them to bust the install layer too.
+COPY apps/api/prisma ./apps/api/prisma
 COPY packages/shared/package.json ./packages/shared/
 RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
     pnpm install --frozen-lockfile --filter @devgarden/api... --prefer-offline
@@ -26,4 +30,6 @@ ENV NODE_ENV=production
 COPY --from=builder /out ./
 EXPOSE 3001
 USER node
-CMD ["node", "dist/main.js"]
+# `migrate deploy` is idempotent on already-applied migrations, so running it
+# on every boot is safe and keeps the schema in sync after upgrades.
+CMD ["sh", "-c", "./node_modules/.bin/prisma migrate deploy && node dist/main.js"]
