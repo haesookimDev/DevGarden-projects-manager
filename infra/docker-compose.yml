@@ -1,21 +1,41 @@
 name: devgarden
 
+# Production compose for a single-host self-hosted deployment.
+# Operational ergonomics:
+#   - Every service has a healthcheck so `docker compose ps` reflects reality.
+#   - `restart: unless-stopped` + JSON log rotation prevents disk runaway.
+#   - Modest CPU/memory limits keep a runaway runtime from starving the host.
+# See `infra/README.md` for backup / restore / upgrade workflows.
+
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: '10m'
+    max-file: '3'
+
 services:
   postgres:
     image: postgres:16-alpine
     container_name: devgarden-postgres
     restart: unless-stopped
+    logging: *default-logging
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB}
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./backups:/backups
     healthcheck:
       test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}']
       interval: 5s
       timeout: 5s
       retries: 10
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          memory: 1g
 
   api:
     build:
@@ -23,6 +43,7 @@ services:
       dockerfile: apps/api/Dockerfile
     container_name: devgarden-api
     restart: unless-stopped
+    logging: *default-logging
     depends_on:
       postgres:
         condition: service_healthy
@@ -42,10 +63,17 @@ services:
     ports:
       - '${API_PORT:-3001}:3001'
     healthcheck:
-      test: ['CMD', 'wget', '-qO-', 'http://localhost:3001/healthz']
+      # `/healthz/ready` probes the DB too, so the api is only marked healthy
+      # once Postgres is reachable from inside the container.
+      test: ['CMD', 'wget', '-qO-', 'http://localhost:3001/healthz/ready']
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          memory: 1g
 
   web:
     build:
@@ -53,6 +81,7 @@ services:
       dockerfile: apps/web/Dockerfile
     container_name: devgarden-web
     restart: unless-stopped
+    logging: *default-logging
     depends_on:
       api:
         condition: service_healthy
@@ -67,6 +96,16 @@ services:
       OWNER_GITHUB_LOGINS: ${OWNER_GITHUB_LOGINS}
     ports:
       - '${WEB_PORT:-3000}:3000'
+    healthcheck:
+      test: ['CMD', 'wget', '-qO-', 'http://localhost:3000/api/healthz']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          memory: 1g
 
 volumes:
   postgres_data:
