@@ -5,12 +5,12 @@
 
 ## Files
 
-| 파일                                                       | 용도                                                      |
-| ---------------------------------------------------------- | --------------------------------------------------------- |
-| [`docker-compose.yml`](./docker-compose.yml)               | Production compose — web · api · postgres + healthchecks  |
-| [`docker-compose.dev.yml`](./docker-compose.dev.yml)       | 개발용 — Postgres 한 컨테이너만 (web/api 는 호스트에서 dev) |
-| [`backup.sh`](./backup.sh)                                 | Postgres `pg_dump` 를 `./backups/` 에 gzip 으로 저장         |
-| [`restore.sh`](./restore.sh)                               | 백업 파일에서 DB 를 복구 (DESTRUCTIVE — 확인 후 실행)         |
+| 파일                                                 | 용도                                                        |
+| ---------------------------------------------------- | ----------------------------------------------------------- |
+| [`docker-compose.yml`](./docker-compose.yml)         | Production compose — web · api · postgres + healthchecks    |
+| [`docker-compose.dev.yml`](./docker-compose.dev.yml) | 개발용 — Postgres 한 컨테이너만 (web/api 는 호스트에서 dev) |
+| [`backup.sh`](./backup.sh)                           | Postgres `pg_dump` 를 `./backups/` 에 gzip 으로 저장        |
+| [`restore.sh`](./restore.sh)                         | 백업 파일에서 DB 를 복구 (DESTRUCTIVE — 확인 후 실행)       |
 
 ## Healthchecks
 
