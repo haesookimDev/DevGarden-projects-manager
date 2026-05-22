@@ -22,27 +22,29 @@
 
 ## Status (2026-05-22)
 
-| 영역                                   | 상태       |
-| -------------------------------------- | ---------- |
-| 모노레포 부트스트랩                    | ✅         |
-| 인증 (OAuth + GitHub App + Projects)   | ✅         |
-| 클라이언트 페어링 + Socket.io          | ✅         |
-| Harness YAML/IR + 실행 엔진            | ✅         |
-| LLM 어댑터 (openai-compatible/codex)   | ✅         |
-| Client tools (fs/process/git/github)   | ✅         |
-| Runs CRUD + 대시보드 페이지            | ✅         |
-| End-to-end harness 실행 wiring         | ✅         |
-| Web run trigger 페이지                 | ✅         |
-| Run 실시간 socket broadcast (SSE)      | ✅         |
-| GitHub webhook receiver (HMAC + audit) | ✅         |
-| 자동 PR 생성 (github.openPR tool)      | ✅         |
-| Project detail 페이지 + stats          | ✅         |
-| Runs history + cost/success metrics    | ✅         |
-| Tasks unified view (issues + todos)    | ✅         |
-| Prod compose + healthchecks + backup   | ✅         |
-| **Self-hosting setup guide**           | 🟡 진행 중 |
+| 영역                                   | 상태 |
+| -------------------------------------- | ---- |
+| 모노레포 부트스트랩                    | ✅   |
+| 인증 (OAuth + GitHub App + Projects)   | ✅   |
+| 클라이언트 페어링 + Socket.io          | ✅   |
+| Harness YAML/IR + 실행 엔진            | ✅   |
+| LLM 어댑터 (openai-compatible/codex)   | ✅   |
+| Client tools (fs/process/git/github)   | ✅   |
+| Runs CRUD + 대시보드 페이지            | ✅   |
+| End-to-end harness 실행 wiring         | ✅   |
+| Web run trigger 페이지                 | ✅   |
+| Run 실시간 socket broadcast (SSE)      | ✅   |
+| GitHub webhook receiver (HMAC + audit) | ✅   |
+| 자동 PR 생성 (github.openPR tool)      | ✅   |
+| Project detail 페이지 + stats          | ✅   |
+| Runs history + cost/success metrics    | ✅   |
+| Tasks unified view (issues + todos)    | ✅   |
+| Prod compose + healthchecks + backup   | ✅   |
+| Self-hosting setup guide               | ✅   |
 
 테스트 누적: **187 cases** (api unit 37 · web unit 14 · client unit 28 · harness-core 30 · llm-adapters 10 · api integration 48 · web e2e 20).
+
+**v0.1 MVP 완료.** 후속 작업은 [docs/ROADMAP.md](docs/ROADMAP.md) 의 v0.2+ 백로그 참조.
 
 ## Docs
 
@@ -55,6 +57,7 @@
 | [docs/HARNESS-FORMAT.md](docs/HARNESS-FORMAT.md) | 하네스 YAML 스키마               |
 | [docs/TESTING.md](docs/TESTING.md)               | 테스트 정책                      |
 | [docs/SECURITY.md](docs/SECURITY.md)             | 보안/시크릿 관리                 |
+| [docs/SELF-HOSTING.md](docs/SELF-HOSTING.md)     | self-hosted 배포 가이드          |
 | [docs/db-schema.md](docs/db-schema.md)           | DB 모델                          |
 
 ## Quick start (개발)
@@ -70,13 +73,15 @@ pnpm dev                                               # web(3000) + api(3001) +
 
 ## Production (self-hosted)
 
-`.env`의 모든 값을 채운 뒤:
+처음부터 끝까지 손에 잡히는 절차는 [docs/SELF-HOSTING.md](docs/SELF-HOSTING.md) — GitHub App 등록부터 백업 cron 까지 정리되어 있다. 빠르게 띄울 때:
 
 ```bash
+cp .env.example .env                                  # OAuth/GitHub App secrets 채우기
 docker compose -f infra/docker-compose.yml up -d --build
+docker compose -f infra/docker-compose.yml ps         # STATUS 가 모두 (healthy) 인지 확인
 ```
 
-> 현재 prod 이미지는 unoptimized scaffold. [PR #18](docs/ROADMAP.md#m6-폴리시--출시-준비)에서 multi-stage 최적화·헬스체크 강화·백업 스크립트가 추가된다.
+운영 스크립트 (백업·복구) 는 [infra/README.md](infra/README.md) 참조.
 
 ## License
 
