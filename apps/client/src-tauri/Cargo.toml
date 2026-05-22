@@ -1,6 +1,6 @@
 [package]
 name = "devgarden-client"
-version = "0.0.0"
+version = "0.1.0"
 description = "DevGarden desktop client"
 authors = ["haesookimDev"]
 edition = "2021"

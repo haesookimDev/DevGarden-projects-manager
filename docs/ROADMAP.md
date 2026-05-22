@@ -8,8 +8,8 @@
 
 ## Progress snapshot (2026-05-22)
 
-- **머지된 GitHub PR**: 34 개 (PR #1 ~ #34) — **v0.1 MVP 완료**
-- **테스트**: api unit 37 + web unit 14 + client unit 28 + harness-core 30 + llm-adapters 10 + api integration 48 + web e2e 20 = **187 cases**
+- **머지된 GitHub PR**: 46 개 (PR #1 ~ #46) — **v0.1.0 릴리즈 완료** (자세한 내역: [`CHANGELOG.md`](../CHANGELOG.md))
+- **테스트**: api unit 41 + web unit 14 + client unit 28 + harness-core 30 + llm-adapters 10 + api integration 53 + web e2e 20 = **196 cases**
 - **CI**: 5 jobs (Lint · Typecheck · Unit · Integration · E2E) 모두 green
 - **운영 정책 도입**: 한 PR 안의 commit 분리(§4), CI 통과 시 자동 머지(§6)
 - **다음 우선순위**: v0.2+ 백로그 (관심사 별로 우선순위 매기기)
