@@ -1,15 +1,15 @@
-# Icons (placeholder)
+# Icons
 
-이 디렉토리는 Tauri 빌드 시 필요한 아이콘 파일을 보관한다.
+Tauri 빌드 시 컴파일러가 임베드하는 아이콘 파일들. `tauri.conf.json` 의 `bundle.icon` 에 나열된 파일이 모두 존재해야 `pnpm tauri build` 가 성공한다.
 
-MVP scaffold 단계에서는 아이콘이 비어 있다. 실제 `pnpm tauri:build`를 수행하기 전에 다음 파일이 채워져야 한다:
+v0.1 placeholder 는 단색 DevGarden 그린 PNG 다. 실제 브랜드 자산이 생기면 같은 절차로 교체:
 
-- `32x32.png`
-- `128x128.png`
-- `128x128@2x.png`
-- `icon.icns` (macOS)
-- `icon.ico` (Windows)
+```bash
+# 1. 1024x1024 source PNG 준비 (없으면 placeholder 생성)
+node scripts/gen-icon-source.mjs            # → src-tauri/icons/source.png
 
-생성 도구: `pnpm tauri icon <source.png>` — 단일 1024x1024 PNG에서 모든 사이즈 생성.
+# 2. 모든 플랫폼 변종 생성
+pnpm tauri icon src-tauri/icons/source.png  # 32x32 / 128x128 / icon.icns / icon.ico / android/ / ios/ / Square*Logo
+```
 
-`pnpm tauri:dev`는 아이콘 없이도 동작한다 (개발 모드에서는 번들링하지 않음).
+자체 source.png 가 있다면 (1) 스킵하고 바로 (2) 만 — `tauri icon <path>` 가 PNG 라면 어디서든 받는다.
