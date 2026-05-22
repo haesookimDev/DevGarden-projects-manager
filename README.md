@@ -42,9 +42,9 @@
 | Prod compose + healthchecks + backup   | ✅   |
 | Self-hosting setup guide               | ✅   |
 
-테스트 누적: **187 cases** (api unit 37 · web unit 14 · client unit 28 · harness-core 30 · llm-adapters 10 · api integration 48 · web e2e 20).
+테스트 누적: **196 cases** (api unit 41 · web unit 14 · client unit 28 · harness-core 30 · llm-adapters 10 · api integration 53 · web e2e 20).
 
-**v0.1 MVP 완료.** 후속 작업은 [docs/ROADMAP.md](docs/ROADMAP.md) 의 v0.2+ 백로그 참조.
+**v0.1.0 릴리즈 완료** ([CHANGELOG](CHANGELOG.md)). 후속 작업은 [docs/ROADMAP.md](docs/ROADMAP.md) 의 v0.2+ 백로그 참조.
 
 ## Docs
 
