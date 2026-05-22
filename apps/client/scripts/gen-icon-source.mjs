@@ -52,7 +52,12 @@ function buildPng(width, height, rgba) {
   }
   const idatPayload = deflateSync(raw, { level: 9 });
 
-  return Buffer.concat([signature, chunk('IHDR', ihdr), chunk('IDAT', idatPayload), chunk('IEND', Buffer.alloc(0))]);
+  return Buffer.concat([
+    signature,
+    chunk('IHDR', ihdr),
+    chunk('IDAT', idatPayload),
+    chunk('IEND', Buffer.alloc(0)),
+  ]);
 }
 
 const here = dirname(fileURLToPath(import.meta.url));
