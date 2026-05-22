@@ -41,11 +41,44 @@ DevGarden 은 두 종류의 GitHub 자격증명을 사용한다 — **OAuth App*
    - Webhook
      - **공개 호스트인 경우**: Active 체크 + URL `https://devgarden.example.com/webhooks/github` + Webhook secret 을 `openssl rand -base64 32` 로 생성해서 `.env` 의 `GITHUB_WEBHOOK_SECRET` 에 동일하게 넣음.
      - **로컬 dogfood (`localhost`)**: GitHub 가 `localhost` / 사설 IP 를 거부한다. 두 가지 선택지 — (a) Active 체크 해제 후 빈 URL 로 저장 (issue → TodoItem 자동 sync 와 push/PR audit 만 비활성, OAuth / Octokit / harness 실행은 정상), 또는 (b) `cloudflared tunnel --url http://localhost:3001` 같은 터널로 public URL 받아서 webhook URL 로 등록.
-   - Permissions
-     - Repository: Contents (read & write), Issues (read & write), Pull requests (read & write), Metadata (read).
-   - Subscribe to events: `Issues`, `Pull request`, `Push`. (webhook Active 해제 시 의미 없음.)
+
+   #### Permissions
+
+   DevGarden api 가 실제로 호출하는 GitHub API 는 두 개 (`repos.get`, `pulls.create`). 거기에 webhook subscribe 가 요구하는 read 권한을 더한 매트릭스:
+
+   | Permission (App 설정 페이지) | 권장 access | 왜 / 안 주면 무엇이 깨지나                                                                                                                                |
+   | ---------------------------- | ----------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+   | Repository · Metadata        | **Read**    | App 만들면 자동 포함. 모든 repo API 의 prerequisite.                                                                                                      |
+   | Repository · Contents        | **R & W**   | Read: webhook `push` 이벤트 수신. Write: 향후 client 가 App token 으로 git push 할 때 (v0.1 client 는 host git 으로 push 하므로 Read 만으로도 동작은 함). |
+   | Repository · Pull requests   | **R & W**   | Write: `github.openPR` 의 `octokit.pulls.create`. 안 주면 자동 PR 생성 실패. Read: webhook `pull_request` 이벤트.                                         |
+   | Repository · Issues          | **R & W**   | Read: webhook `issues` 이벤트 → `TodoItem` 자동 sync. Write: 향후 `github.commentIssue` 같은 도구. 안 주면 issues → tasks 동기화만 안 됨.                 |
+   | Organization permissions     | (전부 없음) | 개인 repo dogfood 면 불필요. 조직 repo 면 install 자체가 조직 admin 승인 필요.                                                                            |
+   | Account permissions          | (전부 없음) | OAuth App 으로 별도 처리. GitHub App 은 repo 만.                                                                                                          |
+
+   #### Subscribe to events (같은 페이지 하단)
+   - ☑ **Issues** — `TodoItem` 자동 sync 용
+   - ☑ **Pull request** — 향후 PR 상태 추적용 (현재는 audit 만)
+   - ☑ **Push** — `GithubEvent` audit 기록용
+
+   위 3 개를 받으려면 매트릭스의 Contents Read / Pull requests Read / Issues Read 가 각각 활성화되어야 함 (GitHub 가 자동 검증).
+
+   #### 시나리오별 최소 권한
+
+   **최소 (개인 repo dogfood, webhook 비활성, 자동 PR 만 사용)**:
+
+   | 항목             | 값       |
+   | ---------------- | -------- |
+   | Metadata         | Read     |
+   | Pull requests    | R & W    |
+   | Contents         | Read     |
+   | Webhook Active   | ☐ 해제   |
+   | Subscribe events | (불필요) |
+
+   **완전 (M5 의 webhook 기반 기능까지 전부)**: 매트릭스의 4 개 권한을 모두 위에 적힌 access 로 + Active 활성 + 3 개 events 구독.
    - 생성 후 "Generate a private key" → `.pem` 다운로드. App ID 도 함께 메모.
    - GitHub App 을 자기 계정 / 조직에 install 해서 사용할 repo 를 선택한다.
+
+   > 권한을 나중에 변경하면 `https://github.com/settings/installations/{ID}` 페이지 상단에 노란 배너 → "Accept new permissions" 를 눌러야 새 권한이 활성화된다. 권한 변경은 api 재시작 불필요 (다음 token fetch 때 자동 반영).
 
 3. **Installation ID 확인** — 프로젝트 등록 폼에서 입력해야 함. 위 (2) 마지막 단계의 install 직후 주소창에 보이는 숫자가 곧 ID:
 
