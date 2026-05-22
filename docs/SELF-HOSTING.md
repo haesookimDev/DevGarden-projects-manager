@@ -56,8 +56,14 @@ DevGarden 은 두 종류의 GitHub 자격증명을 사용한다 — **OAuth App*
 
    놓쳤다면 `https://github.com/settings/installations` (조직이면 `/organizations/{org}/settings/installations`) → DevGarden App 의 "Configure" 클릭 → 다시 URL 끝의 숫자.
 
-> `GITHUB_APP_PRIVATE_KEY` 는 PEM 파일 전체를 한 줄로 (개행은 `\n` 으로) 넣거나, secret mount 로 안전하게
-> 전달할 수 있다. compose override 로 `secrets:` 사용을 권장.
+> `GITHUB_APP_PRIVATE_KEY` 는 세 가지 포맷 모두 허용 (서버가 normalize):
+>
+> - **base64 인코딩 PEM (권장)** — escape 이슈 없음:
+>   `base64 -i devgarden.pem | tr -d '\n'` (macOS) 또는 `base64 -w0 devgarden.pem` (linux) 의 출력을 그대로 `.env` 에 붙여넣기.
+> - 다중행 PEM — 큰따옴표로 감싸서 `GITHUB_APP_PRIVATE_KEY="-----BEGIN ...\n...\n-----END ..."`.
+> - 한 줄 + 리터럴 `\n` — `GITHUB_APP_PRIVATE_KEY="-----BEGIN ...\\nMI...\\n-----END ..."`.
+>
+> 운영용은 compose override 의 `secrets:` 로 파일 마운트하는 게 가장 안전 (env 평문 노출 회피).
 
 ## 2. 첫 배포
 
