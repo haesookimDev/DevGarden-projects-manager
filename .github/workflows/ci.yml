@@ -90,8 +90,10 @@ jobs:
       - name: Generate prisma client
         run: pnpm --filter @devgarden/api prisma:generate
 
-      - name: Run integration tests (api)
-        run: pnpm --filter @devgarden/api test:int
+      - name: Run integration tests
+        # `turbo run test:int` builds dependent workspace packages first
+        # (e.g. @devgarden/shared dist/) so vitest can resolve them.
+        run: pnpm test:int
 
   test-e2e:
     name: E2E tests (web)
@@ -112,8 +114,9 @@ jobs:
       - name: Install playwright browsers
         run: pnpm --filter @devgarden/web exec playwright install --with-deps chromium
 
-      - name: Run e2e tests (web)
-        run: pnpm --filter @devgarden/web test:e2e
+      - name: Run e2e tests
+        # `turbo run test:e2e` builds workspace deps first.
+        run: pnpm test:e2e
 
       - name: Upload playwright report on failure
         if: failure()
