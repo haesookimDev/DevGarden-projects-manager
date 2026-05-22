@@ -19,6 +19,10 @@ RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
     pnpm install --frozen-lockfile --filter @devgarden/api... --prefer-offline
 COPY packages/shared ./packages/shared
 COPY apps/api ./apps/api
+# @devgarden/shared ships dist/, not raw .ts — Node 22 refuses to strip types
+# under node_modules at runtime. Build the package before the api so its dist
+# is in place when api code does `require('@devgarden/shared')`.
+RUN pnpm --filter @devgarden/shared build
 RUN pnpm --filter @devgarden/api build
 RUN pnpm --filter @devgarden/api deploy --prod /out && \
     rm -rf /out/dist && \
