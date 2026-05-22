@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
+import { Button, Input, Label } from '@devgarden/ui';
 import { auth } from '@/auth';
 import { createProject } from '@/lib/api/projects';
 
@@ -50,15 +51,15 @@ export default async function NewProjectPage({
 
   return (
     <main className="p-8">
-      <header className="flex items-center justify-between border-b border-neutral-800 pb-4">
+      <header className="flex items-center justify-between border-b border-border pb-4">
         <h1 className="text-2xl font-semibold">Add project</h1>
-        <Link href="/dashboard" className="text-sm text-neutral-400 hover:text-neutral-200">
+        <Link href="/dashboard" className="text-sm text-muted-foreground hover:text-foreground">
           ← Dashboard
         </Link>
       </header>
 
       {error && (
-        <p className="mt-4 rounded-md border border-red-800 bg-red-950 px-3 py-2 text-sm text-red-200">
+        <p className="mt-4 rounded-md border border-destructive/50 bg-destructive/10 px-3 py-2 text-sm text-destructive">
           {decodeURIComponent(error)}
         </p>
       )}
@@ -84,21 +85,16 @@ export default async function NewProjectPage({
           required
         />
 
-        <button
-          type="submit"
-          className="rounded-md bg-white px-4 py-2 text-sm font-medium text-neutral-900 hover:bg-neutral-200"
-        >
-          Create
-        </button>
+        <Button type="submit">Create</Button>
       </form>
 
-      <p className="mt-6 text-xs text-neutral-500">
+      <p className="mt-6 text-xs text-muted-foreground">
         Installation ID 는 GitHub App 설치 후 발급됩니다. 찾는 방법:{' '}
         <a
           href="https://github.com/settings/installations"
           target="_blank"
           rel="noreferrer"
-          className="underline hover:text-neutral-300"
+          className="underline hover:text-foreground"
         >
           github.com/settings/installations
         </a>{' '}
@@ -121,17 +117,12 @@ function Field({
   helper?: string;
   required?: boolean;
 }) {
+  const id = `field-${name}`;
   return (
-    <label className="block">
-      <span className="block text-sm font-medium text-neutral-300">{label}</span>
-      <input
-        name={name}
-        type="text"
-        placeholder={placeholder}
-        required={required}
-        className="mt-1 block w-full rounded-md border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm text-neutral-100 placeholder:text-neutral-500 focus:border-neutral-500 focus:outline-none"
-      />
-      {helper && <p className="mt-1 text-xs text-neutral-500">{helper}</p>}
-    </label>
+    <div className="space-y-1.5">
+      <Label htmlFor={id}>{label}</Label>
+      <Input id={id} name={name} type="text" placeholder={placeholder} required={required} />
+      {helper && <p className="text-xs text-muted-foreground">{helper}</p>}
+    </div>
   );
 }

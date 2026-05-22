@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
+import { Button, Card, CardContent, CardHeader, CardTitle } from '@devgarden/ui';
 import { getProject } from '@/lib/api/projects';
 
 export default async function ProjectDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -13,8 +14,8 @@ export default async function ProjectDetailPage({ params }: { params: Promise<{ 
 
   return (
     <main className="p-8">
-      <header className="border-b border-neutral-800 pb-4">
-        <p className="text-sm text-neutral-400">
+      <header className="border-b border-border pb-4">
+        <p className="text-sm text-muted-foreground">
           <Link href="/dashboard" className="hover:underline">
             ← Dashboard
           </Link>
@@ -22,7 +23,7 @@ export default async function ProjectDetailPage({ params }: { params: Promise<{ 
         <h1 className="mt-2 text-2xl font-semibold" data-testid="project-detail-name">
           {project.repoFullName}
         </h1>
-        <p className="mt-1 text-xs text-neutral-500">
+        <p className="mt-1 text-xs text-muted-foreground">
           installation #{project.githubInstallationId} · repo #{project.githubRepoId}
         </p>
       </header>
@@ -48,7 +49,7 @@ export default async function ProjectDetailPage({ params }: { params: Promise<{ 
       </section>
 
       <section className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <Card title="Configuration">
+        <DetailCard title="Configuration">
           <Row
             label="Local root"
             value={<code className="font-mono text-xs">{project.localRoot}</code>}
@@ -56,16 +57,16 @@ export default async function ProjectDetailPage({ params }: { params: Promise<{ 
           <Row label="Worktree policy" value={project.worktreePolicy.toLowerCase()} />
           <Row label="Created" value={new Date(project.createdAt).toLocaleString()} />
           <Row label="Updated" value={new Date(project.updatedAt).toLocaleString()} />
-        </Card>
+        </DetailCard>
 
-        <Card title="Defaults">
+        <DetailCard title="Defaults">
           <Row
             label="Default client"
             value={
               project.defaultClient ? (
                 `${project.defaultClient.name} (${project.defaultClient.status.toLowerCase()})`
               ) : (
-                <span className="text-neutral-500">not set</span>
+                <span className="text-muted-foreground">not set</span>
               )
             }
           />
@@ -75,11 +76,11 @@ export default async function ProjectDetailPage({ params }: { params: Promise<{ 
               project.defaultHarness ? (
                 `${project.defaultHarness.name} (v${project.defaultHarness.version})`
               ) : (
-                <span className="text-neutral-500">not set</span>
+                <span className="text-muted-foreground">not set</span>
               )
             }
           />
-        </Card>
+        </DetailCard>
       </section>
 
       {project.lastRun && (
@@ -87,11 +88,11 @@ export default async function ProjectDetailPage({ params }: { params: Promise<{ 
           <h2 className="text-lg font-semibold">Latest run</h2>
           <Link
             href={`/dashboard/runs/${project.lastRun.id}`}
-            className="mt-2 block rounded-md border border-neutral-800 px-4 py-3 hover:bg-neutral-900"
+            className="mt-2 block rounded-md border border-border px-4 py-3 transition-colors hover:bg-accent"
             data-testid="project-last-run-link"
           >
             <p className="font-mono text-sm">{project.lastRun.id.slice(0, 12)}</p>
-            <p className="mt-1 text-xs text-neutral-500">
+            <p className="mt-1 text-xs text-muted-foreground">
               {project.lastRun.status.toLowerCase()} · started{' '}
               {new Date(project.lastRun.startedAt).toLocaleString()}
             </p>
@@ -100,12 +101,9 @@ export default async function ProjectDetailPage({ params }: { params: Promise<{ 
       )}
 
       <section className="mt-8">
-        <Link
-          href="/dashboard/runs/new"
-          className="rounded-md bg-white px-3 py-1.5 text-sm font-medium text-neutral-900 hover:bg-neutral-200"
-        >
-          Trigger a new run
-        </Link>
+        <Button asChild size="sm">
+          <Link href="/dashboard/runs/new">Trigger a new run</Link>
+        </Button>
       </section>
     </main>
   );
@@ -113,29 +111,34 @@ export default async function ProjectDetailPage({ params }: { params: Promise<{ 
 
 function Stat({ label, value, testId }: { label: string; value: string; testId: string }) {
   return (
-    <div
-      data-testid={testId}
-      className="rounded-md border border-neutral-800 bg-neutral-900/50 px-4 py-3"
-    >
-      <p className="text-xs uppercase tracking-wide text-neutral-500">{label}</p>
-      <p className="mt-1 text-lg font-semibold">{value}</p>
-    </div>
+    <Card data-testid={testId}>
+      <CardContent className="px-4 py-3">
+        <p className="text-xs uppercase tracking-wide text-muted-foreground">{label}</p>
+        <p className="mt-1 text-lg font-semibold">{value}</p>
+      </CardContent>
+    </Card>
   );
 }
 
-function Card({ title, children }: { title: string; children: React.ReactNode }) {
+function DetailCard({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="rounded-md border border-neutral-800 p-4">
-      <h2 className="text-sm font-semibold uppercase tracking-wide text-neutral-400">{title}</h2>
-      <dl className="mt-3 space-y-2 text-sm">{children}</dl>
-    </div>
+    <Card>
+      <CardHeader className="pb-2">
+        <CardTitle className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+          {title}
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <dl className="space-y-2 text-sm">{children}</dl>
+      </CardContent>
+    </Card>
   );
 }
 
 function Row({ label, value }: { label: string; value: React.ReactNode }) {
   return (
     <div className="grid grid-cols-3 gap-2">
-      <dt className="text-neutral-500">{label}</dt>
+      <dt className="text-muted-foreground">{label}</dt>
       <dd className="col-span-2">{value}</dd>
     </div>
   );
