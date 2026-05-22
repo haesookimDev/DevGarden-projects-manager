@@ -204,6 +204,30 @@ macOS WKWebView 가 CORS 에 의해 차단됐을 때 보여주는 메시지. api
 
 수정 후 web 컨테이너만 재시작: `docker compose -f infra/docker-compose.yml up -d --force-recreate web`.
 
+### 6.1.2 프로젝트 등록 시 `Repository ... not found for installation N`
+
+GitHub App 의 installation 이 그 repo 에 access 권한을 안 받았을 때. PEM / installation ID / repo 이름 모두 맞아도 권한이 없으면 GitHub 가 404 로 거절한다.
+
+해결: `https://github.com/settings/installations/{INSTALLATION_ID}` → "Repository access" → "All repositories" 또는 "Only select repositories" 에 해당 repo 추가 → Save. 그 후 폼 재submit. env / api 재시작 불필요 (권한은 live).
+
+흔한 원인: 처음 install 할 때 "Only select repositories" 로 했는데 새 repo 가 list 에 없음 / repo 이름 오타 (대소문자 + 하이픈).
+
+### 6.1.3 프로젝트 등록 시 `Invalid keyData`
+
+`GITHUB_APP_PRIVATE_KEY` 가 깨진 상태로 컨테이너에 도달함. base64 인코딩 입력 권장 (§1.3 끝 blockquote). 진단:
+
+```bash
+# 1. 새 코드가 들어갔는가
+docker exec devgarden-api sh -c 'grep -c normalizePrivateKey /app/dist/github/github-app.service.js'
+
+# 2. env 값의 길이 / 시작 부분
+docker exec devgarden-api sh -c '
+  v="$GITHUB_APP_PRIVATE_KEY"
+  echo "len=$(printf %s "$v" | wc -c) head=$(printf %s "$v" | head -c 20)"'
+```
+
+length 가 0 → compose 가 .env 못 읽음 (root 디렉터리에서 실행해야 함). length 가 짧음 → multi-line PEM 이 따옴표 없이 들어가 첫 줄만 잘림 → base64 로 교체.
+
 ### 6.2 로그인했는데 dashboard 진입 직후 401
 
 - `INTERNAL_API_SECRET` 가 web 과 api 컨테이너에서 다를 때. .env 한 곳에서 동일하게 관리하고 두 컨테이너 모두
