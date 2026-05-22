@@ -173,6 +173,12 @@ docker compose -f infra/docker-compose.yml logs --tail=200 postgres
 - `api unhealthy` 인데 postgres 는 healthy → `/healthz/ready` 가 503 — 보통 DATABASE_URL 오타, 또는 마이그레이션 실패. api 로그 확인.
 - `web unhealthy` → `/api/healthz` 가 응답 못 함 — Next 가 부팅 실패. web 로그에서 `Error:` 스택 확인.
 
+### 6.1.0 데스크탑 클라이언트가 "Load failed" 로 페어링 실패
+
+macOS WKWebView 가 CORS 에 의해 차단됐을 때 보여주는 메시지. api 가 응답하지만 `Access-Control-Allow-Origin` 헤더가 없어서 브라우저가 응답을 버린다. v0.1 부터 api 는 `tauri://localhost` / `https://tauri.localhost` 를 기본 allow-list 에 포함한다 — 그 외 origin 에서 호출하려면 `.env` 에 `CORS_ALLOW_ORIGINS=https://your-origin` 을 추가.
+
+확인: `docker compose -f infra/docker-compose.yml logs --tail=50 api | grep CORS` 로 거절 로그 확인.
+
 ### 6.1.1 로그인 시 GitHub 에서 `redirect_uri_mismatch` 또는 callback 이 `0.0.0.0` 으로 감
 
 `AUTH_URL` 미설정이거나 OAuth App 의 callback URL 이 일치하지 않을 때. 둘 다 확인:
