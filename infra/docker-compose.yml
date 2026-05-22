@@ -87,6 +87,11 @@ services:
         condition: service_healthy
     environment:
       NODE_ENV: production
+      # Public URL of the web app (browser-facing). NextAuth uses this to
+      # build the OAuth callback redirect_uri. Without it NextAuth falls
+      # back to the container's HOSTNAME (0.0.0.0) and GitHub rejects with
+      # redirect_uri_mismatch.
+      AUTH_URL: ${AUTH_URL:-${NEXT_PUBLIC_API_URL}}
       NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
       API_INTERNAL_URL: http://api:3001
       AUTH_SECRET: ${AUTH_SECRET}
