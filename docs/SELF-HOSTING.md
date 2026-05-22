@@ -66,17 +66,20 @@ cp .env.example .env
 
 `.env` 에서 채워야 할 값들:
 
-| 키                                                  | 생성 방법 / 출처                                                    |
-| --------------------------------------------------- | ------------------------------------------------------------------- |
-| `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB` | 임의 (변경 권장; 외부 노출되지 않지만 백업 파일에 사용자명 포함).   |
-| `AUTH_SECRET`                                       | `openssl rand -base64 32`                                           |
-| `ENCRYPTION_KEY`                                    | `openssl rand -base64 32`                                           |
-| `INTERNAL_API_SECRET`                               | `openssl rand -base64 32`                                           |
-| `GITHUB_OAUTH_CLIENT_ID` / `_SECRET`                | OAuth App 발급값 (§1.3).                                            |
-| `GITHUB_APP_ID`, `GITHUB_APP_PRIVATE_KEY`           | GitHub App 발급값 (§1.3).                                           |
-| `GITHUB_WEBHOOK_SECRET`                             | GitHub App Webhook secret 과 **동일** 값.                           |
-| `OWNER_GITHUB_LOGINS`                               | 로그인 허용할 GitHub login. 콤마 구분.                              |
-| `NEXT_PUBLIC_API_URL`                               | 브라우저가 접근하는 api 주소. 보통 `https://devgarden.example.com`. |
+| 키                                                  | 생성 방법 / 출처                                                                                     |
+| --------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB` | 임의 (변경 권장; 외부 노출되지 않지만 백업 파일에 사용자명 포함).                                    |
+| `AUTH_SECRET`                                       | `openssl rand -base64 32`                                                                            |
+| `ENCRYPTION_KEY`                                    | `openssl rand -base64 32`                                                                            |
+| `INTERNAL_API_SECRET`                               | `openssl rand -base64 32`                                                                            |
+| `GITHUB_OAUTH_CLIENT_ID` / `_SECRET`                | OAuth App 발급값 (§1.3).                                                                             |
+| `GITHUB_APP_ID`, `GITHUB_APP_PRIVATE_KEY`           | GitHub App 발급값 (§1.3).                                                                            |
+| `GITHUB_WEBHOOK_SECRET`                             | GitHub App Webhook secret 과 **동일** 값.                                                            |
+| `OWNER_GITHUB_LOGINS`                               | 로그인 허용할 GitHub login. 콤마 구분.                                                               |
+| `AUTH_URL`                                          | 브라우저로 접근하는 **web** 주소 (예: `http://localhost:3000`). OAuth callback redirect_uri 의 base. |
+| `NEXT_PUBLIC_API_URL`                               | 브라우저가 접근하는 api 주소. 보통 `https://devgarden.example.com`.                                  |
+
+> ⚠ OAuth App 의 "Authorization callback URL" 은 **`${AUTH_URL}/api/auth/callback/github`** 와 정확히 일치해야 한다. 안 그러면 로그인 후 GitHub 가 `redirect_uri_mismatch` 로 거절한다. 로컬 테스트라면 OAuth App 의 callback URL 을 `http://localhost:3000/api/auth/callback/github` 로 등록.
 
 ### 2.3 띄우기
 
@@ -169,6 +172,15 @@ docker compose -f infra/docker-compose.yml logs --tail=200 postgres
 
 - `api unhealthy` 인데 postgres 는 healthy → `/healthz/ready` 가 503 — 보통 DATABASE_URL 오타, 또는 마이그레이션 실패. api 로그 확인.
 - `web unhealthy` → `/api/healthz` 가 응답 못 함 — Next 가 부팅 실패. web 로그에서 `Error:` 스택 확인.
+
+### 6.1.1 로그인 시 GitHub 에서 `redirect_uri_mismatch` 또는 callback 이 `0.0.0.0` 으로 감
+
+`AUTH_URL` 미설정이거나 OAuth App 의 callback URL 이 일치하지 않을 때. 둘 다 확인:
+
+- `.env` 의 `AUTH_URL` 이 브라우저로 접근하는 web 주소와 같은지 (예: `http://localhost:3000`).
+- GitHub OAuth App 의 "Authorization callback URL" 이 `${AUTH_URL}/api/auth/callback/github` 와 정확히 일치하는지 (path 포함, trailing slash 없이).
+
+수정 후 web 컨테이너만 재시작: `docker compose -f infra/docker-compose.yml up -d --force-recreate web`.
 
 ### 6.2 로그인했는데 dashboard 진입 직후 401
 
