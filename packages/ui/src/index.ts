@@ -4,14 +4,7 @@ export { Input } from './input.js';
 export { Label } from './label.js';
 export { Textarea } from './textarea.js';
 export { Badge, badgeVariants, type BadgeProps } from './badge.js';
-export {
-  Card,
-  CardHeader,
-  CardFooter,
-  CardTitle,
-  CardDescription,
-  CardContent,
-} from './card.js';
+export { Card, CardHeader, CardFooter, CardTitle, CardDescription, CardContent } from './card.js';
 export {
   Select,
   SelectGroup,
