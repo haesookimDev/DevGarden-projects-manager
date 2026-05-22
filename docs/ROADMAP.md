@@ -8,21 +8,21 @@
 
 ## Progress snapshot (2026-05-22)
 
-- **머지된 GitHub PR**: 33 개 (PR #1 ~ #33)
+- **머지된 GitHub PR**: 34 개 (PR #1 ~ #34) — **v0.1 MVP 완료**
 - **테스트**: api unit 37 + web unit 14 + client unit 28 + harness-core 30 + llm-adapters 10 + api integration 48 + web e2e 20 = **187 cases**
 - **CI**: 5 jobs (Lint · Typecheck · Unit · Integration · E2E) 모두 green
 - **운영 정책 도입**: 한 PR 안의 commit 분리(§4), CI 통과 시 자동 머지(§6)
-- **다음 우선순위**: M6 PR #19 (self-hosting 가이드)
+- **다음 우선순위**: v0.2+ 백로그 (관심사 별로 우선순위 매기기)
 
-| Milestone                          | 상태                             |
-| ---------------------------------- | -------------------------------- |
-| M0 모노레포 부트스트랩             | ✅ 완료                          |
-| M1 인증 & 기본 도메인              | ✅ 완료                          |
-| M2 데스크탑 클라이언트 페어링      | ✅ 완료                          |
-| M3 하네스 코어 & 첫 실행           | ✅ 완료                          |
-| M4 GitHub 연동 마감 + PR 자동 생성 | ✅ 완료                          |
-| M5 옵저버빌리티 & 메타데이터       | ✅ 완료                          |
-| M6 폴리시 & 출시 준비              | 🟡 PR #18 완료, PR #19 진행 예정 |
+| Milestone                          | 상태                                         |
+| ---------------------------------- | -------------------------------------------- |
+| M0 모노레포 부트스트랩             | ✅ 완료                                      |
+| M1 인증 & 기본 도메인              | ✅ 완료                                      |
+| M2 데스크탑 클라이언트 페어링      | ✅ 완료                                      |
+| M3 하네스 코어 & 첫 실행           | ✅ 완료                                      |
+| M4 GitHub 연동 마감 + PR 자동 생성 | ✅ 완료                                      |
+| M5 옵저버빌리티 & 메타데이터       | ✅ 완료                                      |
+| M6 폴리시 & 출시 준비              | ✅ 완료 (PR #20 signed installers 는 백로그) |
 
 ---
 
@@ -129,8 +129,10 @@
   - `infra/backup.sh` / `infra/restore.sh` 추가 (pg_dump · gzip · --keep N · DESTRUCTIVE 확인)
   - `infra/README.md` ops 문서
   - 2 api integration + 1 web e2e
-- ⬜ **ROADMAP PR #19** `docs: setup guide for self-hosting`
-- ⬜ **ROADMAP PR #20** `chore: client signed installers (Mac/Win/Linux)` (선택)
+- [x] **ROADMAP PR #19** `docs: setup guide for self-hosting` → GH #34
+  - 새 `docs/SELF-HOSTING.md` — host 요구사항, GitHub OAuth/App 등록, .env 작성표, `docker compose up -d` 부팅 흐름, 첫 로그인, 데스크탑 클라이언트 페어링, 백업/복구 cron, 업그레이드, troubleshooting (unhealthy / 401 / webhook 안 들어옴 / 디스크 가득), 보안 체크리스트
+  - README quickstart 와 docs 인덱스에 링크
+- ⬜ **ROADMAP PR #20** `chore: client signed installers (Mac/Win/Linux)` (선택, v0.2+ 백로그로 이동)
 
 ---
 
