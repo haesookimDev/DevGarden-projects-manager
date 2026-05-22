@@ -12,7 +12,7 @@
 - **테스트**: api unit 41 + web unit 14 + client unit 28 + harness-core 30 + llm-adapters 10 + api integration 53 + web e2e 20 = **196 cases**
 - **CI**: 5 jobs (Lint · Typecheck · Unit · Integration · E2E) 모두 green
 - **운영 정책 도입**: 한 PR 안의 commit 분리(§4), CI 통과 시 자동 머지(§6)
-- **다음 우선순위**: v0.2+ 백로그 (관심사 별로 우선순위 매기기)
+- **다음 우선순위**: v0.2 ([roadmap/v0.2/README.md](./roadmap/v0.2/README.md)) — N0 design system + N2 node sidecar 부터 병행 시작
 
 | Milestone                          | 상태                                         |
 | ---------------------------------- | -------------------------------------------- |
@@ -147,14 +147,30 @@
 
 ---
 
-## v0.2+ 백로그
+## v0.2 (다음 릴리즈)
 
-- **Desktop client 의 실 harness 실행 path** — 현재 webview 는 페어링 + socket liveness 만 처리. `run-executor` + tools (fs/process/git) 는 Node.js API 를 쓰므로 Tauri webview (브라우저 context) 에서 직접 실행 불가. Node sidecar 프로세스 또는 Tauri Rust commands 로 옮겨야 함. v0.1 에서는 webview 빌드에서 runner wiring 을 분리해 둠.
+상세 계획: [`roadmap/v0.2/README.md`](./roadmap/v0.2/README.md) — 마일스톤 N0~N6 의 개별 plan + 결정 사항 + 트랙별 PR 분할.
+
+큰 그림:
+
+- **N0** [Design system foundation](./roadmap/v0.2/N0-design-system.md) — shadcn/ui 본격 도입, 테마, 일관 empty/loading/error.
+- **N1** [GitHub onboarding overhaul](./roadmap/v0.2/N1-github-onboarding.md) — Manifest flow (기본) + BYO App (fallback) + 자동 installation / repo picker. v0.1 에서 발견된 가장 큰 마찰 해소.
+- **N2** [Node sidecar runner](./roadmap/v0.2/N2-node-sidecar-runner.md) — Tauri Rust 가 Node sidecar 를 spawn, harness 실행을 webview 밖으로. v0.1 의 webview Node API 한계 해소.
+- **N3** [Project workflow polish](./roadmap/v0.2/N3-project-workflow.md) — repo 자동 clone + worktree 옵션 + project detail v2 + run preset.
+- **N4** [Harness editor + templates](./roadmap/v0.2/N4-harness-editor.md) — Web 에서 YAML 편집 + zod live validation + dry-run + 5 개 시작 템플릿.
+- **N5** [Run controls + notifications](./roadmap/v0.2/N5-controls-notifications.md) — cancel · retry · web toast / Slack / email.
+- **N6** [Observability deepening](./roadmap/v0.2/N6-observability.md) — runs search / timeline gantt / webhook delivery dashboard / cost trends / budget alarms.
+
+## v0.3+ 백로그
+
 - 진짜 OAuth round-trip e2e (HTTPS mock + self-signed cert)
 - 하네스 노드 UI (드래그-드롭)
 - 다중 클라이언트 라우팅 / 큐잉
 - 서브에이전트 마켓플레이스
 - 외부 일정 도구 연동 (Linear/Jira/Notion)
-- 비용 알람·예산 한도
 - 멀티 LLM provider routing (cost/latency 기반)
 - 클라이언트 JWT 의 OS keychain 저장 (현재 `tauri-plugin-store` plain JSON)
+- Tauri Rust commands 로 tools 전면 재구현 (v0.2 의 Node sidecar 보다 native)
+- Signed installers (Mac / Win / Linux) — cert 발급 환경 의존
+- i18n / mobile responsive
+- Team / multi-user 권한 모델
