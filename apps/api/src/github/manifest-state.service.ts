@@ -19,11 +19,11 @@ interface Pending {
 @Injectable()
 export class ManifestStateService {
   private readonly pending = new Map<string, Pending>();
-  private readonly ttlMs: number;
 
-  constructor(ttlMs: number = DEFAULT_TTL_MS) {
-    this.ttlMs = ttlMs;
-  }
+  // Mutable so tests can shrink the TTL without a constructor parameter
+  // (NestJS DI would otherwise try to resolve the primitive as a provider
+  // and fail with "Nest can't resolve dependencies of ManifestStateService").
+  ttlMs: number = DEFAULT_TTL_MS;
 
   /** Generate + remember a fresh state token tied to an owner. */
   issue(ownerId: string, now: number = Date.now()): string {

@@ -22,7 +22,8 @@ describe('ManifestStateService', () => {
   });
 
   it('expires entries past the TTL', () => {
-    const svc = new ManifestStateService(1_000);
+    const svc = new ManifestStateService();
+    svc.ttlMs = 1_000;
     const t0 = 1_000_000_000;
     const state = svc.issue('user_1', t0);
     expect(svc.consume(state, t0 + 999)).toBe('user_1');
