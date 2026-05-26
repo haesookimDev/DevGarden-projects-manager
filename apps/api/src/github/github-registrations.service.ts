@@ -1,8 +1,9 @@
+import { Buffer } from 'node:buffer';
 import { BadRequestException, Inject, Injectable, Logger } from '@nestjs/common';
 import type { Octokit } from '@octokit/rest';
 import type { GithubAppRegistration, GithubAppSource } from '@prisma/client';
 
-import { encryptEnvelope } from '../crypto/envelope';
+import { decryptEnvelopeUtf8, encryptEnvelope } from '../crypto/envelope';
 import { PrismaService } from '../prisma/prisma.service';
 import { normalizePrivateKey } from './github-app.service';
 
@@ -151,6 +152,23 @@ export class GithubRegistrationsService {
 
   async getByOwner(ownerId: string): Promise<GithubAppRegistration | null> {
     return this.prisma.githubAppRegistration.findUnique({ where: { ownerId } });
+  }
+
+  /**
+   * Decrypt the Bytes columns of a registration row into their plaintext
+   * forms. Callers (like GithubInstallationsService) need the appId +
+   * privateKey to mint installation tokens via App JWT. Keep the surface
+   * narrow — return only the fields a downstream caller may legitimately
+   * need so we never accidentally expose the webhook secret elsewhere.
+   */
+  decryptAppCredentials(registration: GithubAppRegistration): {
+    appId: number;
+    privateKeyPem: string;
+  } {
+    return {
+      appId: registration.appId,
+      privateKeyPem: decryptEnvelopeUtf8(Buffer.from(registration.privateKeyPem)),
+    };
   }
 
   private normalizePem(pem: string): string {
