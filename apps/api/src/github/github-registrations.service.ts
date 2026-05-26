@@ -102,6 +102,53 @@ export class GithubRegistrationsService {
     });
   }
 
+  /**
+   * Persist the credentials returned by GitHub's manifest-conversion call.
+   * Unlike createByo (which we validated client-side first), the manifest
+   * payload is trusted — GitHub generated it for us 30 seconds ago.
+   */
+  async createFromManifest(input: {
+    ownerId: string;
+    appId: number;
+    appSlug?: string | null;
+    privateKeyPem: string;
+    webhookSecret: string;
+    clientId?: string | null;
+    clientSecret?: string | null;
+    htmlUrl?: string | null;
+  }): Promise<GithubAppRegistration> {
+    const source: GithubAppSource = 'MANIFEST';
+    const encryptedPem = toBytes(encryptEnvelope(input.privateKeyPem));
+    const encryptedWebhook = toBytes(encryptEnvelope(input.webhookSecret));
+    const encryptedClientSecret = input.clientSecret
+      ? toBytes(encryptEnvelope(input.clientSecret))
+      : null;
+    return this.prisma.githubAppRegistration.upsert({
+      where: { ownerId: input.ownerId },
+      create: {
+        ownerId: input.ownerId,
+        source,
+        appId: input.appId,
+        appSlug: input.appSlug ?? null,
+        webhookSecret: encryptedWebhook,
+        privateKeyPem: encryptedPem,
+        clientId: input.clientId ?? null,
+        clientSecret: encryptedClientSecret,
+        htmlUrl: input.htmlUrl ?? null,
+      },
+      update: {
+        source,
+        appId: input.appId,
+        appSlug: input.appSlug ?? null,
+        webhookSecret: encryptedWebhook,
+        privateKeyPem: encryptedPem,
+        clientId: input.clientId ?? null,
+        clientSecret: encryptedClientSecret,
+        htmlUrl: input.htmlUrl ?? null,
+      },
+    });
+  }
+
   async getByOwner(ownerId: string): Promise<GithubAppRegistration | null> {
     return this.prisma.githubAppRegistration.findUnique({ where: { ownerId } });
   }

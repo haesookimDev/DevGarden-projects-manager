@@ -10,12 +10,16 @@ import {
 } from '@nestjs/common';
 
 import { InternalAuthGuard } from '../auth/internal-auth.guard';
+import { GithubManifestService } from './github-manifest.service';
 import { GithubRegistrationsService, projectRegistration } from './github-registrations.service';
 
 @Controller('internal/github/registrations')
 @UseGuards(InternalAuthGuard)
 export class GithubRegistrationsInternalController {
-  constructor(private readonly svc: GithubRegistrationsService) {}
+  constructor(
+    private readonly svc: GithubRegistrationsService,
+    private readonly manifest: GithubManifestService,
+  ) {}
 
   @Get()
   async getOne(@Query('ownerId') ownerId: string) {
@@ -23,6 +27,20 @@ export class GithubRegistrationsInternalController {
     const row = await this.svc.getByOwner(ownerId);
     if (!row) throw new NotFoundException(`No registration for owner ${ownerId}`);
     return projectRegistration(row);
+  }
+
+  /**
+   * Issues a manifest + state token for the BFF to render as an auto-submit
+   * form pointed at https://github.com/settings/apps/new. The BFF only sees
+   * the JSON; it never touches secrets.
+   */
+  @Post('manifest/start')
+  startManifest(@Body() body: unknown) {
+    if (typeof body !== 'object' || body === null) {
+      throw new BadRequestException('Body must be a JSON object');
+    }
+    const ownerId = requireBodyString(body as Record<string, unknown>, 'ownerId');
+    return this.manifest.start(ownerId);
   }
 
   @Post()
@@ -66,6 +84,9 @@ function requireString(b: Record<string, unknown>, key: string): string {
   }
   return v;
 }
+
+// Aliased so the new manifest/start handler can call it without re-declaring.
+const requireBodyString = requireString;
 
 function optionalString(b: Record<string, unknown>, key: string): string | undefined {
   const v = b[key];
