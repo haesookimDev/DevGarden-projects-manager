@@ -11,12 +11,18 @@ export function getInternalApiConfig(): { baseUrl: string; secret: string } {
 
 export async function internalFetch(
   path: string,
-  init: { method: 'GET' | 'POST' | 'PATCH' | 'DELETE'; body?: unknown },
+  init: {
+    method: 'GET' | 'POST' | 'PATCH' | 'DELETE';
+    body?: unknown;
+    /** Extra request headers (merged on top of x-internal-secret + content-type). */
+    headers?: Record<string, string>;
+  },
 ): Promise<Response> {
   const { baseUrl, secret } = getInternalApiConfig();
 
   const headers: Record<string, string> = {
     'x-internal-secret': secret,
+    ...(init.headers ?? {}),
   };
   let body: string | undefined;
   if (init.body !== undefined) {
