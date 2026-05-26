@@ -21,6 +21,11 @@ const MOCK_DB_USER_ID = 'cuid_test_user';
 const MOCK_ACCESS_TOKEN = 'mock-access-token';
 const MOCK_CODE = 'mock-auth-code';
 
+// Empty-fixtures toggle. Flipped via POST /mock/set-empty so e2e specs can
+// exercise EmptyState rendering without a separate mock-server boot.
+// `fullyParallel: false` in playwright.config.ts keeps this safe.
+let emptyFixtures = false;
+
 export async function startMockServer(port = 0): Promise<MockServerHandle> {
   const server = createServer((req, res) => handle(req, res));
   await new Promise<void>((resolve) => server.listen(port, '127.0.0.1', resolve));
@@ -40,6 +45,22 @@ export async function startMockServer(port = 0): Promise<MockServerHandle> {
 
 function handle(req: IncomingMessage, res: ServerResponse): void {
   const url = new URL(req.url ?? '/', 'http://localhost');
+
+  // --- Test control: toggle empty-fixtures mode (e2e-only) ---
+  if (url.pathname === '/mock/set-empty' && req.method === 'POST') {
+    readBody(req).then((raw) => {
+      try {
+        const body = JSON.parse(raw || '{}') as { value?: boolean };
+        emptyFixtures = Boolean(body.value);
+        res
+          .writeHead(200, { 'content-type': 'application/json' })
+          .end(JSON.stringify({ emptyFixtures }));
+      } catch {
+        res.writeHead(400).end('invalid body');
+      }
+    });
+    return;
+  }
 
   // --- GitHub OAuth mock ---
 
@@ -98,6 +119,10 @@ function handle(req: IncomingMessage, res: ServerResponse): void {
   }
 
   if (url.pathname === '/internal/projects' && req.method === 'GET') {
+    if (emptyFixtures) {
+      res.writeHead(200, { 'content-type': 'application/json' }).end('[]');
+      return;
+    }
     res.writeHead(200, { 'content-type': 'application/json' }).end(
       JSON.stringify([
         {
@@ -154,6 +179,10 @@ function handle(req: IncomingMessage, res: ServerResponse): void {
   }
 
   if (url.pathname === '/internal/harnesses' && req.method === 'GET') {
+    if (emptyFixtures) {
+      res.writeHead(200, { 'content-type': 'application/json' }).end('[]');
+      return;
+    }
     res.writeHead(200, { 'content-type': 'application/json' }).end(
       JSON.stringify([
         {
@@ -170,6 +199,10 @@ function handle(req: IncomingMessage, res: ServerResponse): void {
   }
 
   if (url.pathname === '/internal/todos' && req.method === 'GET') {
+    if (emptyFixtures) {
+      res.writeHead(200, { 'content-type': 'application/json' }).end('[]');
+      return;
+    }
     const source = url.searchParams.get('source');
     const now = Date.now();
     const all = [
@@ -272,6 +305,20 @@ function handle(req: IncomingMessage, res: ServerResponse): void {
   }
 
   if (url.pathname === '/internal/runs/stats' && req.method === 'GET') {
+    if (emptyFixtures) {
+      res.writeHead(200, { 'content-type': 'application/json' }).end(
+        JSON.stringify({
+          sinceHours: 168,
+          total: 0,
+          counts: {},
+          successRate: null,
+          totalCostUsd: 0,
+          avgCostUsd: 0,
+          terminalCount: 0,
+        }),
+      );
+      return;
+    }
     res.writeHead(200, { 'content-type': 'application/json' }).end(
       JSON.stringify({
         sinceHours: 168,
@@ -291,6 +338,10 @@ function handle(req: IncomingMessage, res: ServerResponse): void {
     req.method === 'GET' &&
     url.searchParams.has('ownerId')
   ) {
+    if (emptyFixtures) {
+      res.writeHead(200, { 'content-type': 'application/json' }).end('[]');
+      return;
+    }
     const now = Date.now();
     res.writeHead(200, { 'content-type': 'application/json' }).end(
       JSON.stringify([
@@ -358,6 +409,10 @@ function handle(req: IncomingMessage, res: ServerResponse): void {
   }
 
   if (url.pathname === '/internal/clients' && req.method === 'GET') {
+    if (emptyFixtures) {
+      res.writeHead(200, { 'content-type': 'application/json' }).end('[]');
+      return;
+    }
     res.writeHead(200, { 'content-type': 'application/json' }).end(
       JSON.stringify([
         {
