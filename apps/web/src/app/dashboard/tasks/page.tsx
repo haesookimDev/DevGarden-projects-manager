@@ -1,6 +1,8 @@
 import Link from 'next/link';
+import { ListChecks } from 'lucide-react';
 import { Button, Card, CardContent } from '@devgarden/ui';
 import { auth } from '@/auth';
+import { EmptyState } from '@/components/empty-state';
 import { listProjectsByOwner, type ProjectSummary } from '@/lib/api/projects';
 import { listTodosByOwner, type TodoRow as TodoData, type TodoSource } from '@/lib/api/todos';
 import { NewTodoForm } from './new-todo-form';
@@ -91,9 +93,16 @@ export default async function TasksPage({ searchParams }: PageProps) {
 
       <section className="mt-6">
         {todos.length === 0 && (
-          <p className="text-sm text-muted-foreground">
-            {filterSource ? '필터에 맞는 task 가 없습니다.' : '아직 task 가 없습니다.'}
-          </p>
+          <EmptyState
+            icon={ListChecks}
+            title={filterSource ? '필터에 맞는 task 가 없습니다' : 'Task 가 없습니다'}
+            description={
+              filterSource
+                ? '필터를 “All” 로 바꾸거나, 위 폼으로 새 todo 를 추가하세요.'
+                : 'GitHub issue 가 동기화되거나, 위 폼으로 내부 todo 를 추가하면 여기에 표시됩니다.'
+            }
+            testId="tasks-empty"
+          />
         )}
         {todos.length > 0 && (
           <Card className="overflow-hidden p-0">

@@ -2,7 +2,9 @@ import Link from 'next/link';
 import { auth, signOut } from '@/auth';
 import { listClientsByOwner, type ClientSummary } from '@/lib/api/clients';
 import { listProjectsByOwner, type ProjectSummary } from '@/lib/api/projects';
+import { FolderKanban } from 'lucide-react';
 import { Button, Card, CardContent, CardDescription, CardTitle } from '@devgarden/ui';
+import { EmptyState } from '@/components/empty-state';
 import { ClientList } from './clients/client-list';
 
 export default async function DashboardPage() {
@@ -91,9 +93,13 @@ export default async function DashboardPage() {
         )}
 
         {!listError && projects.length === 0 && (
-          <p className="mt-3 text-sm text-muted-foreground">
-            아직 등록된 프로젝트가 없습니다. &ldquo;Add project&rdquo; 를 눌러 시작하세요.
-          </p>
+          <EmptyState
+            className="mt-3"
+            icon={FolderKanban}
+            title="등록된 프로젝트가 없습니다"
+            description="우상단의 “Add project” 를 눌러 첫 프로젝트를 등록하세요."
+            testId="dashboard-projects-empty"
+          />
         )}
 
         {projects.length > 0 && (

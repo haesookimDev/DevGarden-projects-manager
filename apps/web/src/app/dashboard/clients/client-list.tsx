@@ -1,7 +1,9 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { Laptop } from 'lucide-react';
 import { Card, CardContent } from '@devgarden/ui';
+import { EmptyState } from '@/components/empty-state';
 import type { ClientSummary } from '@/lib/api/clients';
 
 const POLL_INTERVAL_MS = 5_000;
@@ -36,9 +38,13 @@ export function ClientList({ initial }: { initial: ClientSummary[] }) {
 
   if (clients.length === 0) {
     return (
-      <p className="mt-3 text-sm text-muted-foreground">
-        등록된 클라이언트가 없습니다. &ldquo;Add client&rdquo; 를 눌러 페어링 토큰을 발급하세요.
-      </p>
+      <EmptyState
+        className="mt-3"
+        icon={Laptop}
+        title="등록된 클라이언트가 없습니다"
+        description="우상단의 “Add client” 를 눌러 페어링 토큰을 발급하세요. 토큰은 10분간 유효합니다."
+        testId="dashboard-clients-empty"
+      />
     );
   }
 
