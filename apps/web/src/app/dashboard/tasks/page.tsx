@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { Button, Card, CardContent } from '@devgarden/ui';
 import { auth } from '@/auth';
 import { listProjectsByOwner, type ProjectSummary } from '@/lib/api/projects';
 import { listTodosByOwner, type TodoRow as TodoData, type TodoSource } from '@/lib/api/todos';
@@ -38,20 +39,20 @@ export default async function TasksPage({ searchParams }: PageProps) {
 
   return (
     <main className="p-8">
-      <header className="border-b border-neutral-800 pb-4">
-        <p className="text-sm text-neutral-400">
+      <header className="border-b border-border pb-4">
+        <p className="text-sm text-muted-foreground">
           <Link href="/dashboard" className="hover:underline">
             ← Dashboard
           </Link>
         </p>
         <h1 className="mt-2 text-2xl font-semibold">Tasks</h1>
-        <p className="mt-1 text-sm text-neutral-500">
+        <p className="mt-1 text-sm text-muted-foreground">
           GitHub issues 미러 + 내부 todo 를 한 화면에서. issues 는 webhook 으로 자동 동기화.
         </p>
       </header>
 
       {error && (
-        <p className="mt-4 rounded-md border border-red-800 bg-red-950 px-3 py-2 text-sm text-red-200">
+        <p className="mt-4 rounded-md border border-destructive/50 bg-destructive/10 px-3 py-2 text-sm text-destructive">
           {error}
         </p>
       )}
@@ -75,14 +76,14 @@ export default async function TasksPage({ searchParams }: PageProps) {
           label="Internal"
           testId="tasks-filter-internal"
         />
-        <span className="ml-auto text-xs text-neutral-500" data-testid="tasks-counts">
+        <span className="ml-auto text-xs text-muted-foreground" data-testid="tasks-counts">
           {counts.all} total · {counts.open} open · {counts.inProgress} in progress · {counts.done}{' '}
           done
         </span>
       </section>
 
       <section className="mt-4">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-neutral-400">
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
           Add an internal todo
         </h2>
         <NewTodoForm projects={projects.map((p) => ({ id: p.id, repoFullName: p.repoFullName }))} />
@@ -90,19 +91,20 @@ export default async function TasksPage({ searchParams }: PageProps) {
 
       <section className="mt-6">
         {todos.length === 0 && (
-          <p className="text-sm text-neutral-500">
+          <p className="text-sm text-muted-foreground">
             {filterSource ? '필터에 맞는 task 가 없습니다.' : '아직 task 가 없습니다.'}
           </p>
         )}
         {todos.length > 0 && (
-          <ul
-            data-testid="tasks-list"
-            className="divide-y divide-neutral-800 rounded-md border border-neutral-800"
-          >
-            {todos.map((t) => (
-              <TodoRow key={t.id} todo={t} />
-            ))}
-          </ul>
+          <Card className="overflow-hidden p-0">
+            <CardContent className="p-0">
+              <ul data-testid="tasks-list" className="divide-y divide-border">
+                {todos.map((t) => (
+                  <TodoRow key={t.id} todo={t} />
+                ))}
+              </ul>
+            </CardContent>
+          </Card>
         )}
       </section>
     </main>
@@ -121,18 +123,11 @@ function FilterTab({
   testId: string;
 }) {
   return (
-    <Link
-      href={href}
-      data-testid={testId}
-      data-active={active ? 'true' : 'false'}
-      className={`rounded-md px-3 py-1 text-sm ${
-        active
-          ? 'bg-white text-neutral-900'
-          : 'border border-neutral-700 text-neutral-300 hover:bg-neutral-800'
-      }`}
-    >
-      {label}
-    </Link>
+    <Button asChild variant={active ? 'default' : 'outline'} size="sm">
+      <Link href={href} data-testid={testId} data-active={active ? 'true' : 'false'}>
+        {label}
+      </Link>
+    </Button>
   );
 }
 
