@@ -1,6 +1,8 @@
 import Link from 'next/link';
+import { PlayCircle } from 'lucide-react';
 import { Card, CardContent } from '@devgarden/ui';
 import { auth } from '@/auth';
+import { EmptyState } from '@/components/empty-state';
 import { getRunsStats, listRunsByOwner, type RunHistoryRow, type RunsStats } from '@/lib/api/runs';
 
 export default async function RunsHistoryPage() {
@@ -46,7 +48,22 @@ export default async function RunsHistoryPage() {
       <section className="mt-8">
         <h2 className="text-lg font-semibold">Recent runs ({runs.length})</h2>
         {runs.length === 0 && (
-          <p className="mt-2 text-sm text-muted-foreground">아직 실행된 run 이 없습니다.</p>
+          <EmptyState
+            className="mt-3"
+            icon={PlayCircle}
+            title="실행된 run 이 없습니다"
+            description="대시보드의 “New run” 또는 프로젝트 상세의 “Trigger a new run” 으로 첫 실행을 시작하세요."
+            action={
+              <Link
+                href="/dashboard/runs/new"
+                className="text-sm font-medium underline-offset-4 hover:underline"
+                data-testid="runs-empty-new-cta"
+              >
+                Trigger a new run →
+              </Link>
+            }
+            testId="runs-empty"
+          />
         )}
         {runs.length > 0 && (
           <Card className="mt-3 overflow-hidden p-0">
