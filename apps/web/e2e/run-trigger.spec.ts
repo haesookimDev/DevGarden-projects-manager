@@ -18,7 +18,7 @@ test('authenticated user can trigger a run and lands on the run detail page', as
 
   await chooseSelectOption(page, 'run-trigger-project-trigger', 'mock/repo');
   await chooseSelectOption(page, 'run-trigger-harness-trigger', 'echo (v1)');
-  await chooseSelectOption(page, 'run-trigger-client-trigger', 'mock-client-1 (online)');
+  await chooseSelectOption(page, 'run-trigger-client-trigger', 'Mock Laptop (online)');
 
   await page.getByTestId('run-trigger-submit').click();
 
