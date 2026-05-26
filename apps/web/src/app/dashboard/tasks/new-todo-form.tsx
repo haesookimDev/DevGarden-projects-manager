@@ -1,6 +1,15 @@
 'use client';
 
 import { useState, useTransition } from 'react';
+import {
+  Button,
+  Input,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@devgarden/ui';
 import { createInternalTodoAction } from './actions';
 
 export interface NewTodoFormProps {
@@ -10,6 +19,7 @@ export interface NewTodoFormProps {
 export function NewTodoForm({ projects }: NewTodoFormProps) {
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+  const [projectId, setProjectId] = useState('');
   const noProjects = projects.length === 0;
 
   async function handleSubmit(formData: FormData) {
@@ -24,43 +34,41 @@ export function NewTodoForm({ projects }: NewTodoFormProps) {
     <form
       action={handleSubmit}
       data-testid="new-todo-form"
-      className="mt-3 grid grid-cols-1 gap-2 rounded-md border border-neutral-800 p-3 sm:grid-cols-[180px_1fr_auto]"
+      className="mt-3 grid grid-cols-1 gap-2 rounded-md border border-border p-3 sm:grid-cols-[180px_1fr_auto]"
     >
-      <select
-        name="projectId"
-        required
-        disabled={pending || noProjects}
-        defaultValue=""
-        className="rounded-md border border-neutral-700 bg-neutral-900 px-2 py-1.5 text-sm text-neutral-100 disabled:opacity-50"
-      >
-        <option value="" disabled>
-          {noProjects ? '(no projects)' : '— project —'}
-        </option>
-        {projects.map((p) => (
-          <option key={p.id} value={p.id}>
-            {p.repoFullName}
-          </option>
-        ))}
-      </select>
-      <input
+      {/* Hidden input mirrors Radix Select's controlled value for form action. */}
+      <input type="hidden" name="projectId" value={projectId} />
+      <Select value={projectId} onValueChange={setProjectId} disabled={pending || noProjects}>
+        <SelectTrigger data-testid="new-todo-project-trigger" className="h-9">
+          <SelectValue placeholder={noProjects ? '(no projects)' : '— project —'} />
+        </SelectTrigger>
+        <SelectContent>
+          {projects.map((p) => (
+            <SelectItem key={p.id} value={p.id}>
+              {p.repoFullName}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      <Input
         name="title"
         placeholder="What needs doing?"
         required
         disabled={pending}
-        className="rounded-md border border-neutral-700 bg-neutral-900 px-3 py-1.5 text-sm text-neutral-100 placeholder:text-neutral-500"
+        className="h-9"
       />
-      <button
+      <Button
         type="submit"
         disabled={pending || noProjects}
         data-testid="new-todo-submit"
-        className="rounded-md bg-white px-3 py-1.5 text-sm font-medium text-neutral-900 hover:bg-neutral-200 disabled:opacity-50"
+        size="sm"
       >
         {pending ? 'Adding…' : 'Add'}
-      </button>
+      </Button>
       {error && (
         <p
           data-testid="new-todo-error"
-          className="sm:col-span-3 rounded-md border border-red-800 bg-red-950 px-3 py-2 text-xs text-red-200"
+          className="rounded-md border border-destructive/50 bg-destructive/10 px-3 py-2 text-xs text-destructive sm:col-span-3"
         >
           {error}
         </p>
