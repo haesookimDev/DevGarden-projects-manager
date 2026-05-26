@@ -11,11 +11,17 @@ declare module 'next-auth' {
       login: string;
     } & DefaultSession['user'];
   }
+}
 
+declare module 'next-auth/jwt' {
   interface JWT {
     dbUserId?: string;
     githubId?: number;
     login?: string;
+    /** GitHub OAuth access token. Server-side only — never copied to
+     *  session. Read via lib/auth/github-token.ts so the cookie surface
+     *  is the single touch point. */
+    githubAccessToken?: string;
   }
 }
 
@@ -44,7 +50,16 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       const login = typeof profile?.login === 'string' ? profile.login : undefined;
       return isAllowed(login, allowList);
     },
-    async jwt({ token, profile }) {
+    async jwt({ token, account, profile }) {
+      // Capture the OAuth access_token on the initial sign-in. account is
+      // populated only on the first JWT callback after sign-in; on
+      // subsequent calls token already holds the access_token from the prior
+      // round, so we keep it. The N1 manifest/installations flow needs this
+      // token to call apps.listInstallationsForAuthenticatedUser on the
+      // user's behalf.
+      if (account?.access_token && typeof account.access_token === 'string') {
+        token.githubAccessToken = account.access_token;
+      }
       if (profile) {
         const login = typeof profile.login === 'string' ? profile.login : undefined;
         const githubId = typeof profile.id === 'number' ? profile.id : undefined;
