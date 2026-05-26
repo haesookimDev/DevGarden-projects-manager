@@ -3,6 +3,12 @@ import { createAppAuth } from '@octokit/auth-app';
 import { Octokit } from '@octokit/rest';
 
 import { GithubAppService } from './github-app.service';
+import { GithubInstallationsInternalController } from './github-installations.internal.controller';
+import {
+  GithubInstallationsService,
+  USER_OCTOKIT_FACTORY,
+  type UserOctokitFactory,
+} from './github-installations.service';
 import { GithubManifestService } from './github-manifest.service';
 import { GithubManifestPublicController } from './github-manifest.public.controller';
 import { GithubPrService } from './github-pr.service';
@@ -21,17 +27,31 @@ const defaultOctokitFactory: OctokitFactory = ({ appId, privateKey }) =>
     ? new Octokit()
     : new Octokit({ authStrategy: createAppAuth, auth: { appId, privateKey } });
 
+const defaultUserOctokitFactory: UserOctokitFactory = (token) => new Octokit({ auth: token });
+
 @Global()
 @Module({
-  controllers: [GithubRegistrationsInternalController, GithubManifestPublicController],
+  controllers: [
+    GithubRegistrationsInternalController,
+    GithubInstallationsInternalController,
+    GithubManifestPublicController,
+  ],
   providers: [
     GithubAppService,
     GithubPrService,
     GithubRegistrationsService,
     GithubManifestService,
+    GithubInstallationsService,
     ManifestStateService,
     { provide: OCTOKIT_FACTORY, useValue: defaultOctokitFactory },
+    { provide: USER_OCTOKIT_FACTORY, useValue: defaultUserOctokitFactory },
   ],
-  exports: [GithubAppService, GithubPrService, GithubRegistrationsService, GithubManifestService],
+  exports: [
+    GithubAppService,
+    GithubPrService,
+    GithubRegistrationsService,
+    GithubManifestService,
+    GithubInstallationsService,
+  ],
 })
 export class GithubModule {}
