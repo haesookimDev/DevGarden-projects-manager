@@ -1,4 +1,15 @@
 import { useEffect, useState } from 'react';
+import { CheckCircle2 } from 'lucide-react';
+import {
+  Button,
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  Input,
+  Label,
+  Textarea,
+} from '@devgarden/ui';
 import type { ConnectionStatus } from './lib/client-socket';
 import { pairClient, PairClientError } from './lib/pair-client';
 import { tauriPairingStorage, type PairingRecord } from './lib/pairing-storage';
@@ -65,138 +76,111 @@ export default function App() {
   }
 
   return (
-    <main style={containerStyle}>
-      <h1 style={{ marginBottom: 4 }}>DevGarden Client</h1>
-      <p style={{ color: '#888', marginTop: 0 }}>로컬 에이전트 브릿지 — pairing 단계</p>
+    <main className="mx-auto max-w-xl p-6">
+      <header className="space-y-1">
+        <h1 className="text-2xl font-semibold">DevGarden Client</h1>
+        <p className="text-sm text-muted-foreground">로컬 에이전트 브릿지 — pairing 단계</p>
+      </header>
 
-      {status.kind === 'loading' && <p>storage 로딩 중…</p>}
+      {status.kind === 'loading' && (
+        <p className="mt-6 text-sm text-muted-foreground">storage 로딩 중…</p>
+      )}
 
       {status.kind === 'paired' && (
-        <section style={cardStyle}>
-          <p style={{ marginTop: 0, color: '#9be39b' }}>✓ Paired</p>
-          <p>
-            <strong>{status.record.name}</strong>
-          </p>
-          <p style={metaStyle}>clientId: {status.record.clientId}</p>
-          <p style={metaStyle}>api: {status.record.apiBaseUrl}</p>
-          <p style={metaStyle}>paired at: {status.record.pairedAt}</p>
-          <ConnectionPill status={connection} />
-          <button onClick={handleUnpair} style={{ ...buttonStyle, marginTop: 12 }}>
-            Unpair
-          </button>
-        </section>
+        <Card className="mt-6">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base text-emerald-500">
+              <CheckCircle2 className="h-4 w-4" />
+              Paired
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-1 text-sm">
+            <p className="font-medium">{status.record.name}</p>
+            <p className="text-xs text-muted-foreground">clientId: {status.record.clientId}</p>
+            <p className="text-xs text-muted-foreground">api: {status.record.apiBaseUrl}</p>
+            <p className="text-xs text-muted-foreground">paired at: {status.record.pairedAt}</p>
+            <ConnectionPill status={connection} />
+            <div className="pt-3">
+              <Button onClick={handleUnpair} variant="outline" size="sm">
+                Unpair
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
       )}
 
       {(status.kind === 'unpaired' || status.kind === 'pairing' || status.kind === 'error') && (
-        <form onSubmit={handlePair} style={cardStyle}>
-          <label style={labelStyle}>
-            API base URL
-            <input
-              type="text"
-              value={apiBase}
-              onChange={(e) => setApiBase(e.target.value)}
-              style={inputStyle}
-              disabled={status.kind === 'pairing'}
-              required
-            />
-          </label>
-          <label style={labelStyle}>
-            Pairing token
-            <textarea
-              value={token}
-              onChange={(e) => setToken(e.target.value)}
-              rows={3}
-              style={{ ...inputStyle, fontFamily: 'monospace', fontSize: 12 }}
-              disabled={status.kind === 'pairing'}
-              required
-            />
-          </label>
-          <button type="submit" disabled={status.kind === 'pairing'} style={buttonStyle}>
-            {status.kind === 'pairing' ? 'Pairing…' : 'Pair this client'}
-          </button>
-          {status.kind === 'error' && (
-            <p data-testid="pair-error" style={errorStyle}>
-              {status.message}
-            </p>
-          )}
-        </form>
+        <Card className="mt-6">
+          <CardContent className="pt-6">
+            <form onSubmit={handlePair} className="space-y-4">
+              <div className="space-y-1.5">
+                <Label htmlFor="client-api-base">API base URL</Label>
+                <Input
+                  id="client-api-base"
+                  type="text"
+                  value={apiBase}
+                  onChange={(e) => setApiBase(e.target.value)}
+                  disabled={status.kind === 'pairing'}
+                  required
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="client-pairing-token">Pairing token</Label>
+                <Textarea
+                  id="client-pairing-token"
+                  value={token}
+                  onChange={(e) => setToken(e.target.value)}
+                  rows={3}
+                  className="font-mono text-xs"
+                  disabled={status.kind === 'pairing'}
+                  required
+                />
+              </div>
+              <Button type="submit" disabled={status.kind === 'pairing'}>
+                {status.kind === 'pairing' ? 'Pairing…' : 'Pair this client'}
+              </Button>
+              {status.kind === 'error' && (
+                <p
+                  data-testid="pair-error"
+                  className="rounded-md border border-destructive/50 bg-destructive/10 px-3 py-2 text-sm text-destructive"
+                >
+                  {status.message}
+                </p>
+              )}
+            </form>
+          </CardContent>
+        </Card>
       )}
     </main>
   );
 }
 
-const containerStyle: React.CSSProperties = {
-  fontFamily: 'system-ui, sans-serif',
-  padding: 24,
-  maxWidth: 560,
-};
-const cardStyle: React.CSSProperties = {
-  marginTop: 16,
-  padding: 16,
-  border: '1px solid #333',
-  borderRadius: 8,
-  background: '#111',
-  color: '#eee',
-};
-const labelStyle: React.CSSProperties = { display: 'block', marginBottom: 12, fontSize: 13 };
-const inputStyle: React.CSSProperties = {
-  display: 'block',
-  width: '100%',
-  marginTop: 4,
-  padding: '8px 10px',
-  background: '#000',
-  color: '#eee',
-  border: '1px solid #444',
-  borderRadius: 6,
-  boxSizing: 'border-box',
-};
-const buttonStyle: React.CSSProperties = {
-  padding: '8px 16px',
-  background: '#eee',
-  color: '#111',
-  border: 'none',
-  borderRadius: 6,
-  fontWeight: 500,
-  cursor: 'pointer',
-};
-const errorStyle: React.CSSProperties = {
-  marginTop: 12,
-  padding: '8px 10px',
-  background: '#3a1010',
-  color: '#fbb',
-  border: '1px solid #722',
-  borderRadius: 6,
-  fontSize: 13,
-};
-const metaStyle: React.CSSProperties = { fontSize: 12, color: '#888', margin: '4px 0' };
-
 function ConnectionPill({ status }: { status: ConnectionStatus }) {
-  const { color, label } = pillFor(status);
+  const { className, label } = pillFor(status);
   return (
-    <p
-      data-testid="connection-pill"
-      style={{
-        marginTop: 12,
-        fontSize: 12,
-        color,
-      }}
-    >
+    <p data-testid="connection-pill" className={`pt-2 text-xs ${className}`}>
       ● {label}
     </p>
   );
 }
 
-function pillFor(status: ConnectionStatus): { color: string; label: string } {
+function pillFor(status: ConnectionStatus): { className: string; label: string } {
   switch (status.kind) {
     case 'idle':
-      return { color: '#666', label: 'idle' };
+      return { className: 'text-muted-foreground', label: 'idle' };
     case 'connecting':
-      return { color: '#dca44a', label: 'connecting…' };
+      return { className: 'text-amber-500', label: 'connecting…' };
     case 'connected':
-      return { color: '#9be39b', label: `connected (since ${status.since.slice(11, 19)})` };
+      return {
+        className: 'text-emerald-500',
+        label: `connected (since ${status.since.slice(11, 19)})`,
+      };
     case 'disconnected':
-      return { color: '#888', label: `disconnected${status.reason ? `: ${status.reason}` : ''}` };
+      return {
+        className: 'text-muted-foreground',
+        label: `disconnected${status.reason ? `: ${status.reason}` : ''}`,
+      };
     case 'error':
-      return { color: '#fbb', label: `error: ${status.message}` };
+      return { className: 'text-destructive', label: `error: ${status.message}` };
   }
 }
