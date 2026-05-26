@@ -6,13 +6,13 @@
 
 ---
 
-## Progress snapshot (2026-05-22)
+## Progress snapshot (2026-05-26)
 
-- **머지된 GitHub PR**: 46 개 (PR #1 ~ #46) — **v0.1.0 릴리즈 완료** (자세한 내역: [`CHANGELOG.md`](../CHANGELOG.md))
-- **테스트**: api unit 41 + web unit 14 + client unit 28 + harness-core 30 + llm-adapters 10 + api integration 53 + web e2e 20 = **196 cases**
+- **머지된 GitHub PR**: 55 개 (PR #1 ~ #55) — **v0.1.0 릴리즈 완료** + **v0.2 N0 (design system foundation) 완료**
+- **테스트**: api unit 41 + web unit 14 + client unit 28 + harness-core 30 + llm-adapters 10 + api integration 53 + web e2e 23 = **199 cases** (+3 empty-state e2e)
 - **CI**: 5 jobs (Lint · Typecheck · Unit · Integration · E2E) 모두 green
 - **운영 정책 도입**: 한 PR 안의 commit 분리(§4), CI 통과 시 자동 머지(§6)
-- **다음 우선순위**: v0.2 ([roadmap/v0.2/README.md](./roadmap/v0.2/README.md)) — N0 design system + N2 node sidecar 부터 병행 시작
+- **다음 우선순위**: v0.2 ([roadmap/v0.2/README.md](./roadmap/v0.2/README.md)) — N0 ✅ 완료, 다음은 N1 (GitHub onboarding overhaul)
 
 | Milestone                          | 상태                                         |
 | ---------------------------------- | -------------------------------------------- |

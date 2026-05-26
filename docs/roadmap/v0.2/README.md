@@ -31,18 +31,18 @@ v0.2 가 끝나면:
 
 ## 3. 마일스톤 한눈에
 
-| #   | 마일스톤                                                       | 한 줄 요약                                                             | 의존성        |
-| --- | -------------------------------------------------------------- | ---------------------------------------------------------------------- | ------------- |
-| N0  | [Design system foundation](./N0-design-system.md)              | shadcn/ui 본격 도입, 테마 / skeleton / empty-state 표준화              | —             |
-| N1  | [GitHub onboarding overhaul](./N1-github-onboarding.md)        | Manifest flow + BYO + 자동 installation 탐색 + repo picker             | N0 (컴포넌트) |
-| N2  | [Node sidecar runner](./N2-node-sidecar-runner.md)             | Tauri Rust 가 Node sidecar 를 spawn, harness 실행 webview 밖으로       | —             |
-| N3  | [Project workflow polish](./N3-project-workflow.md)            | Repo 자동 clone + worktree 옵션 + project detail 개편 + run trigger v2 | N1, N2        |
-| N4  | [Harness editor + templates](./N4-harness-editor.md)           | Web 에서 YAML 편집 + zod 라이브 검증 + 시작 템플릿 카탈로그            | N0            |
-| N5  | [Run controls + notifications](./N5-controls-notifications.md) | Run cancel · retry · notification (web toast / Slack / email)          | N2 (cancel)   |
-| N6  | [Observability deepening](./N6-observability.md)               | Run search/filter, step gantt, webhook delivery dashboard, cost trends | N0            |
+| #   | 마일스톤                                                       | 한 줄 요약                                                             | 의존성        | 상태                                |
+| --- | -------------------------------------------------------------- | ---------------------------------------------------------------------- | ------------- | ----------------------------------- |
+| N0  | [Design system foundation](./N0-design-system.md)              | shadcn/ui 본격 도입, 테마 / skeleton / empty-state 표준화              | —             | ✅ 완료 (PR #49–#55, 2026-05-22~26) |
+| N1  | [GitHub onboarding overhaul](./N1-github-onboarding.md)        | Manifest flow + BYO + 자동 installation 탐색 + repo picker             | N0 (컴포넌트) | ▶ 다음                              |
+| N2  | [Node sidecar runner](./N2-node-sidecar-runner.md)             | Tauri Rust 가 Node sidecar 를 spawn, harness 실행 webview 밖으로       | —             | 대기                                |
+| N3  | [Project workflow polish](./N3-project-workflow.md)            | Repo 자동 clone + worktree 옵션 + project detail 개편 + run trigger v2 | N1, N2        | 대기                                |
+| N4  | [Harness editor + templates](./N4-harness-editor.md)           | Web 에서 YAML 편집 + zod 라이브 검증 + 시작 템플릿 카탈로그            | N0            | 대기                                |
+| N5  | [Run controls + notifications](./N5-controls-notifications.md) | Run cancel · retry · notification (web toast / Slack / email)          | N2 (cancel)   | 대기                                |
+| N6  | [Observability deepening](./N6-observability.md)               | Run search/filter, step gantt, webhook delivery dashboard, cost trends | N0            | 대기                                |
 
-> N0 와 N2 가 가장 먼저 시작 가능 (의존성 없음). N1/N3/N4 는 N0 의 component 가 갖춰진 뒤. N5 의 cancel 은 N2 의
-> sidecar IPC 가 먼저.
+> N0 ✅ 완료. 다음은 N1 (GitHub onboarding) — N0 컴포넌트 위에서 가시적 가치가 큰 트랙. N2 는 N1 다음 또는
+> 병행. N5 의 cancel 은 N2 의 sidecar IPC 가 먼저.
 
 ## 4. Cross-cutting 원칙
 
