@@ -138,12 +138,18 @@ importers:
       '@devgarden/shared':
         specifier: workspace:*
         version: link:../../packages/shared
+      '@devgarden/ui':
+        specifier: workspace:*
+        version: link:../../packages/ui
       '@tauri-apps/api':
         specifier: ^2.1.1
         version: 2.11.0
       '@tauri-apps/plugin-store':
         specifier: ^2.2.0
         version: 2.4.3
+      lucide-react:
+        specifier: ^0.469.0
+        version: 0.469.0(react@19.2.6)
       react:
         specifier: ^19.0.0
         version: 19.2.6
@@ -166,6 +172,15 @@ importers:
       '@vitejs/plugin-react':
         specifier: ^4.3.4
         version: 4.7.0(vite@6.4.2(@types/node@22.19.19)(jiti@2.7.0)(terser@5.47.1)(yaml@2.9.0))
+      autoprefixer:
+        specifier: ^10.4.20
+        version: 10.5.0(postcss@8.5.15)
+      postcss:
+        specifier: ^8.4.49
+        version: 8.5.15
+      tailwindcss:
+        specifier: ^3.4.17
+        version: 3.4.19(yaml@2.9.0)
       typescript:
         specifier: ^5.7.2
         version: 5.9.3
