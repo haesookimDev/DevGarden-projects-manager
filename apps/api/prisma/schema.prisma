@@ -29,12 +29,13 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  projects     Project[]
-  clients      Client[]
-  harnesses    Harness[]
-  llmProviders LlmProvider[]
-  pairings     ClientPairing[]
-  triggeredRuns HarnessRun[] @relation("RunTriggeredBy")
+  projects              Project[]
+  clients               Client[]
+  harnesses             Harness[]
+  llmProviders          LlmProvider[]
+  pairings              ClientPairing[]
+  triggeredRuns         HarnessRun[]           @relation("RunTriggeredBy")
+  githubAppRegistration GithubAppRegistration?
 }
 
 // =============================================================================
@@ -47,17 +48,17 @@ enum ClientStatus {
 }
 
 model Client {
-  id            String       @id @default(cuid())
-  ownerId       String
-  owner         User         @relation(fields: [ownerId], references: [id], onDelete: Cascade)
-  name          String
-  hostname      String?
-  os            String?
-  version       String?
-  jwtTokenHash  String
-  lastSeenAt    DateTime?
-  status        ClientStatus @default(OFFLINE)
-  createdAt     DateTime     @default(now())
+  id           String       @id @default(cuid())
+  ownerId      String
+  owner        User         @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  name         String
+  hostname     String?
+  os           String?
+  version      String?
+  jwtTokenHash String
+  lastSeenAt   DateTime?
+  status       ClientStatus @default(OFFLINE)
+  createdAt    DateTime     @default(now())
 
   defaultForProjects Project[]    @relation("ProjectDefaultClient")
   runs               HarnessRun[]
@@ -66,14 +67,14 @@ model Client {
 }
 
 model ClientPairing {
-  id          String    @id @default(cuid())
-  ownerId     String
-  owner       User      @relation(fields: [ownerId], references: [id], onDelete: Cascade)
-  clientName  String
-  tokenHash   String
-  expiresAt   DateTime
-  consumedAt  DateTime?
-  createdAt   DateTime  @default(now())
+  id         String    @id @default(cuid())
+  ownerId    String
+  owner      User      @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  clientName String
+  tokenHash  String
+  expiresAt  DateTime
+  consumedAt DateTime?
+  createdAt  DateTime  @default(now())
 
   @@index([ownerId])
   @@index([expiresAt])
@@ -90,23 +91,28 @@ enum WorktreePolicy {
 }
 
 model Project {
-  id                   String         @id @default(cuid())
+  id                   String              @id @default(cuid())
   ownerId              String
-  owner                User           @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  owner                User                @relation(fields: [ownerId], references: [id], onDelete: Cascade)
   githubInstallationId Int
+  // FK to the matching GithubInstallation row when one has been synced. The
+  // numeric githubInstallationId stays as the source of truth for legacy
+  // env-based deployments; the DB id is the new path that picker UIs use.
+  installationDbId     String?
+  installation         GithubInstallation? @relation(fields: [installationDbId], references: [id], onDelete: SetNull)
   githubRepoId         Int
   repoFullName         String
   defaultClientId      String?
-  defaultClient        Client?        @relation("ProjectDefaultClient", fields: [defaultClientId], references: [id])
+  defaultClient        Client?             @relation("ProjectDefaultClient", fields: [defaultClientId], references: [id])
   defaultHarnessId     String?
-  defaultHarness       Harness?       @relation("ProjectDefaultHarness", fields: [defaultHarnessId], references: [id])
+  defaultHarness       Harness?            @relation("ProjectDefaultHarness", fields: [defaultHarnessId], references: [id])
   localRoot            String
-  worktreePolicy       WorktreePolicy @default(AUTO_REMOVE_SUCCESS)
-  createdAt            DateTime       @default(now())
-  updatedAt            DateTime       @updatedAt
+  worktreePolicy       WorktreePolicy      @default(AUTO_REMOVE_SUCCESS)
+  createdAt            DateTime            @default(now())
+  updatedAt            DateTime            @updatedAt
 
-  todos HarnessRun[]
-  items TodoItem[]
+  todos        HarnessRun[]
+  items        TodoItem[]
   githubEvents GithubEvent[]
 
   @@unique([ownerId, githubRepoId])
@@ -317,4 +323,68 @@ model GithubEvent {
 
   @@index([projectId, receivedAt])
   @@index([eventType, receivedAt])
+}
+
+// =============================================================================
+// GitHub App registration + installations (v0.2 N1 onboarding overhaul)
+//
+// Pre-N1, GitHub App credentials lived purely in env vars (GITHUB_APP_ID +
+// GITHUB_APP_PRIVATE_KEY + GITHUB_WEBHOOK_SECRET) and the installation ID was
+// pasted manually by the user on the /dashboard/projects/new form. These two
+// models replace that flow:
+//   - GithubAppRegistration captures the App itself, sourced via either
+//     manifest flow (GitHub-generated credentials returned through callback)
+//     or BYO (user pastes appId + PEM directly). Secrets are
+//     envelope-encrypted with ENCRYPTION_KEY before persistence.
+//   - GithubInstallation mirrors the per-account install of that App. Repo
+//     pickers list rows from here instead of asking for a numeric ID.
+//
+// The legacy env-driven path is intentionally kept alive (GithubAppService
+// reads env first, DB second) for at least one minor so existing
+// self-hosters can migrate without downtime; the deprecation warning lands
+// in a later N1 PR.
+// =============================================================================
+
+enum GithubAppSource {
+  MANIFEST
+  BYO
+}
+
+model GithubAppRegistration {
+  id            String          @id @default(cuid())
+  ownerId       String          @unique
+  owner         User            @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  source        GithubAppSource
+  appId         Int
+  appSlug       String?
+  webhookSecret Bytes // envelope-encrypted (ENCRYPTION_KEY); nullable inputs handled in service
+  privateKeyPem Bytes // envelope-encrypted
+  clientId      String?
+  clientSecret  Bytes? // envelope-encrypted, populated only on MANIFEST flow
+  htmlUrl       String?
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  installations GithubInstallation[]
+
+  @@index([appId])
+}
+
+model GithubInstallation {
+  id                  String                @id @default(cuid())
+  registrationId      String
+  registration        GithubAppRegistration @relation(fields: [registrationId], references: [id], onDelete: Cascade)
+  installationId      Int                   @unique
+  accountLogin        String
+  accountType         String // "User" | "Organization"
+  accountId           Int
+  htmlUrl             String?
+  permissions         Json // last seen permissions snapshot from GitHub
+  events              String[] // subscribed events at last sync
+  repositorySelection String // "all" | "selected"
+  syncedAt            DateTime              @default(now())
+
+  projects Project[]
+
+  @@index([registrationId])
 }
