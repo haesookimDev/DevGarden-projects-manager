@@ -117,6 +117,9 @@ model Project {
   defaultClient        Client?             @relation("ProjectDefaultClient", fields: [defaultClientId], references: [id])
   defaultHarnessId     String?
   defaultHarness       Harness?            @relation("ProjectDefaultHarness", fields: [defaultHarnessId], references: [id])
+  // v0.2 N4: when null, project follows the latest version of defaultHarness
+  // (resolved at dispatch time). When set, runs pin to that specific version.
+  defaultHarnessVersion Int?
   localRoot            String
   worktreePolicy       WorktreePolicy      @default(AUTO_REMOVE_SUCCESS)
   cloneStatus          CloneStatus         @default(NOT_CLONED)
@@ -174,7 +177,11 @@ model Harness {
   defaultForProjects Project[]    @relation("ProjectDefaultHarness")
   presets            RunPreset[]
 
-  @@unique([ownerId, name])
+  // v0.2 N4: every save creates a new version row, so the unique key has to
+  // include version. Run history still resolves by id; lists default to the
+  // latest per (ownerId, name).
+  @@unique([ownerId, name, version])
+  @@index([ownerId, name])
 }
 
 enum RunStatus {
