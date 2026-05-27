@@ -50,3 +50,22 @@ export async function getHarness(id: string): Promise<HarnessDetail> {
   }
   return (await res.json()) as HarnessDetail;
 }
+
+export interface CreateHarnessInput {
+  ownerId: string;
+  name: string;
+  definition: unknown;
+  source?: string;
+}
+
+// Every call creates a new version row (api side bumps the version).
+// The editor uses this for both "new" and "save" — saving the same name
+// twice does not error, it just yields a new version.
+export async function createHarness(input: CreateHarnessInput): Promise<HarnessSummary> {
+  const res = await internalFetch('/internal/harnesses', { method: 'POST', body: input });
+  if (!res.ok) {
+    const text = await res.text().catch(() => '');
+    throw new Error(`createHarness failed: ${res.status} ${text}`);
+  }
+  return (await res.json()) as HarnessSummary;
+}
