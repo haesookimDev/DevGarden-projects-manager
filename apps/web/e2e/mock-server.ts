@@ -277,6 +277,34 @@ function handle(req: IncomingMessage, res: ServerResponse): void {
     return;
   }
 
+  // PATCH /internal/projects/:id/defaults — echo the patch back as the new
+  // defaults shape so the settings page's revalidate + redirect can verify.
+  const projectDefaultsMatch = url.pathname.match(/^\/internal\/projects\/([^/]+)\/defaults$/);
+  if (projectDefaultsMatch && req.method === 'PATCH') {
+    const projectId = projectDefaultsMatch[1]!;
+    readBody(req).then((body) => {
+      let parsed: {
+        defaultHarnessId?: string | null;
+        defaultHarnessVersion?: number | null;
+        defaultClientId?: string | null;
+      } = {};
+      try {
+        parsed = JSON.parse(body) as typeof parsed;
+      } catch {
+        /* ignore */
+      }
+      res.writeHead(200, { 'content-type': 'application/json' }).end(
+        JSON.stringify({
+          id: projectId,
+          defaultHarnessId: parsed.defaultHarnessId ?? null,
+          defaultHarnessVersion: parsed.defaultHarnessVersion ?? null,
+          defaultClientId: parsed.defaultClientId ?? null,
+        }),
+      );
+    });
+    return;
+  }
+
   const projectMatch = url.pathname.match(/^\/internal\/projects\/([^/]+)$/);
   if (projectMatch && req.method === 'GET') {
     const id = projectMatch[1]!;
@@ -303,6 +331,7 @@ function handle(req: IncomingMessage, res: ServerResponse): void {
           name: 'echo',
           version: 1,
         },
+        defaultHarnessVersion: null,
         runCount: 3,
         lastRun: {
           id: 'mock-run-7',
