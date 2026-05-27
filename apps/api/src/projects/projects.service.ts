@@ -1,5 +1,10 @@
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
-import type { Project } from '@prisma/client';
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
+import { CloneStatus, type Project } from '@prisma/client';
 import { GithubAppService } from '../github/github-app.service';
 import { PrismaService } from '../prisma/prisma.service';
 
@@ -13,6 +18,22 @@ export interface CreateProjectInput {
    *  installation without re-resolving by numeric id. */
   installationDbId?: string;
 }
+
+export type CloneStatusUpdate =
+  | { status: 'CLONING' }
+  | { status: 'READY' }
+  | { status: 'FAILED'; error: string }
+  | { status: 'NOT_CLONED' };
+
+// Allowed transitions for Project.cloneStatus. Anything not listed is rejected
+// so a late / out-of-order sidecar report can't move a successful clone back
+// to CLONING or overwrite a FAILED state with another FAILED.
+const CLONE_TRANSITIONS: Record<CloneStatus, CloneStatus[]> = {
+  NOT_CLONED: ['CLONING'],
+  CLONING: ['READY', 'FAILED'],
+  READY: ['CLONING'], // re-clone is allowed
+  FAILED: ['CLONING'], // retry is allowed
+};
 
 @Injectable()
 export class ProjectsService {
@@ -94,6 +115,35 @@ export class ProjectsService {
     ]);
 
     return { project, runCount, lastRun, lastEvent };
+  }
+
+  // Sidecar reports clone progress to the api after PR3 wires the HTTP route.
+  // This method is the state-machine guard: only the transitions in
+  // CLONE_TRANSITIONS are accepted; anything else throws BadRequest so the
+  // caller knows their report was dropped.
+  async updateCloneStatus(id: string, update: CloneStatusUpdate): Promise<Project> {
+    const current = await this.prisma.project.findUnique({
+      where: { id },
+      select: { id: true, cloneStatus: true },
+    });
+    if (!current) throw new NotFoundException(`project ${id} not found`);
+
+    const next = update.status as CloneStatus;
+    const allowed = CLONE_TRANSITIONS[current.cloneStatus];
+    if (!allowed.includes(next)) {
+      throw new BadRequestException(
+        `Invalid clone status transition ${current.cloneStatus} → ${next}`,
+      );
+    }
+
+    return this.prisma.project.update({
+      where: { id },
+      data: {
+        cloneStatus: next,
+        cloneError: update.status === 'FAILED' ? update.error : null,
+        cloneCompletedAt: update.status === 'READY' ? new Date() : null,
+      },
+    });
   }
 }
 

@@ -62,6 +62,7 @@ model Client {
 
   defaultForProjects Project[]    @relation("ProjectDefaultClient")
   runs               HarnessRun[]
+  presets            RunPreset[]
 
   @@index([ownerId])
 }
@@ -90,6 +91,16 @@ enum WorktreePolicy {
   AUTO_REMOVE_ALWAYS
 }
 
+// Tracks the state of the local repo clone that lives on a paired client.
+// NOT_CLONED means we have a Project row but the client has not yet replicated
+// the repo to disk; READY means a working tree exists at `localRoot`.
+enum CloneStatus {
+  NOT_CLONED
+  CLONING
+  READY
+  FAILED
+}
+
 model Project {
   id                   String              @id @default(cuid())
   ownerId              String
@@ -108,15 +119,40 @@ model Project {
   defaultHarness       Harness?            @relation("ProjectDefaultHarness", fields: [defaultHarnessId], references: [id])
   localRoot            String
   worktreePolicy       WorktreePolicy      @default(AUTO_REMOVE_SUCCESS)
+  cloneStatus          CloneStatus         @default(NOT_CLONED)
+  cloneError           String?
+  cloneCompletedAt     DateTime?
   createdAt            DateTime            @default(now())
   updatedAt            DateTime            @updatedAt
 
   todos        HarnessRun[]
   items        TodoItem[]
   githubEvents GithubEvent[]
+  presets      RunPreset[]
 
   @@unique([ownerId, githubRepoId])
   @@index([repoFullName])
+}
+
+// A saved "run this harness on this client with these inputs" combo.
+// Per-project; the one with isDefault=true is the project's auto-trigger
+// (Quick action button on the detail page).
+model RunPreset {
+  id        String   @id @default(cuid())
+  projectId String
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  name      String
+  harnessId String
+  harness   Harness  @relation(fields: [harnessId], references: [id], onDelete: Restrict)
+  clientId  String
+  client    Client   @relation(fields: [clientId], references: [id], onDelete: Restrict)
+  inputs    Json     @default("{}")
+  isDefault Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([projectId, name])
+  @@index([projectId])
 }
 
 // =============================================================================
@@ -136,6 +172,7 @@ model Harness {
 
   runs               HarnessRun[]
   defaultForProjects Project[]    @relation("ProjectDefaultHarness")
+  presets            RunPreset[]
 
   @@unique([ownerId, name])
 }

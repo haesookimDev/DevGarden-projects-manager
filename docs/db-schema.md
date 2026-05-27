@@ -37,11 +37,25 @@ HarnessRun 1───* RunArtifact
 
 - `id`, `ownerId → User.id`
 - `githubInstallationId` (int)
+- `installationDbId → GithubInstallation.id` (nullable)
 - `githubRepoId` (int), `repoFullName` ("owner/name")
 - `defaultClientId → Client.id` (nullable)
 - `defaultHarnessId → Harness.id` (nullable)
 - `localRoot` (string, 클라이언트 측 경로)
 - `worktreePolicy` ('keep' | 'auto-remove-success' | 'auto-remove-always')
+- `cloneStatus` ('not_cloned' | 'cloning' | 'ready' | 'failed') — sidecar 가 보고
+- `cloneError` (string, nullable) — FAILED 일 때만 채워짐
+- `cloneCompletedAt` (datetime, nullable) — READY 진입 시점
+
+### RunPreset (v0.2 N3)
+
+- `id`, `projectId → Project.id` (cascade delete)
+- `name` (string) — `(projectId, name)` unique
+- `harnessId → Harness.id` (restrict)
+- `clientId → Client.id` (restrict)
+- `inputs` (json, default `{}`) — harness 실행 시 inject 되는 입력 값
+- `isDefault` (bool) — project 별 최대 1 개 (service 가 트랜잭션으로 보장)
+- `createdAt`, `updatedAt`
 
 ### Client
 
