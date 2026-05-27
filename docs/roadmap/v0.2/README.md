@@ -36,14 +36,13 @@ v0.2 가 끝나면:
 | N0  | [Design system foundation](./N0-design-system.md)              | shadcn/ui 본격 도입, 테마 / skeleton / empty-state 표준화              | —             | ✅ 완료 (PR #49–#55, 2026-05-22~26) |
 | N1  | [GitHub onboarding overhaul](./N1-github-onboarding.md)        | Manifest flow + BYO + 자동 installation 탐색 + repo picker             | N0 (컴포넌트) | ✅ 완료 (PR #57–#64, 2026-05-26~27) |
 | N2  | [Node sidecar runner](./N2-node-sidecar-runner.md)             | Tauri Rust 가 Node sidecar 를 spawn, harness 실행 webview 밖으로       | —             | ✅ 완료 (PR #66–#73, 2026-05-27)    |
-| N3  | [Project workflow polish](./N3-project-workflow.md)            | Repo 자동 clone + worktree 옵션 + project detail 개편 + run trigger v2 | N1, N2        | ▶ 다음                              |
-| N4  | [Harness editor + templates](./N4-harness-editor.md)           | Web 에서 YAML 편집 + zod 라이브 검증 + 시작 템플릿 카탈로그            | N0            | 대기 (병행 가능)                    |
+| N3  | [Project workflow polish](./N3-project-workflow.md)            | Repo 자동 clone + worktree 옵션 + project detail 개편 + run trigger v2 | N1, N2        | ✅ 완료 (PR #74–#80, 2026-05-27)    |
+| N4  | [Harness editor + templates](./N4-harness-editor.md)           | Web 에서 YAML 편집 + zod 라이브 검증 + 시작 템플릿 카탈로그            | N0            | ▶ 다음 (병행 가능)                  |
 | N5  | [Run controls + notifications](./N5-controls-notifications.md) | Run cancel · retry · notification (web toast / Slack / email)          | N2 (cancel)   | 대기 (N2 의 cancel IPC 추가 필요)   |
-| N6  | [Observability deepening](./N6-observability.md)               | Run search/filter, step gantt, webhook delivery dashboard, cost trends | N0            | 대기 (병행 가능)                    |
+| N6  | [Observability deepening](./N6-observability.md)               | Run search/filter, step gantt, webhook delivery dashboard, cost trends | N0            | ▶ 다음 (병행 가능)                  |
 
-> N0 + N1 + N2 ✅ 완료. 다음은 N3 (project workflow polish) — N1 의 picker + N2 의 sidecar 가 둘 다 갖춰져
-> 자동 clone / worktree / run trigger v2 가 비로소 가능. N4 / N6 은 계속 병행 가능. N5 는 N2 의 cancel IPC
-> 가 우선 (현재 PR5 의 stop_sidecar 는 전체 종료이지 per-run cancel 이 아님).
+> N0 + N1 + N2 + N3 ✅ 완료. 남은 트랙: N4 (harness editor) 와 N6 (observability) 가 병행 가능, N5 는 N2 의
+> per-run cancel IPC 가 우선 (현재 stop_sidecar 는 전체 종료라 per-run cancel 이 아님).
 
 ## 4. Cross-cutting 원칙
 

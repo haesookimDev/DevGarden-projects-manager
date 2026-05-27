@@ -8,11 +8,11 @@
 
 ## Progress snapshot (2026-05-27)
 
-- **머지된 GitHub PR**: 72 개 (PR #1 ~ #72) — **v0.1.0 릴리즈 완료** + **v0.2 N0 (design system foundation) 완료** + **v0.2 N1 (GitHub onboarding overhaul) 완료** + **v0.2 N2 (Node sidecar runner) 완료**
-- **테스트**: api 71 unit + 59 integration + client-runner 31 + web 14 unit + web 33 e2e + harness-core 30 + llm-adapters 10 + client 22 = **270 cases**
+- **머지된 GitHub PR**: 79 개 (PR #1 ~ #79) — **v0.1.0 릴리즈 완료** + **v0.2 N0~N3 완료** (design system / onboarding / sidecar / project workflow)
+- **테스트**: api 71 unit + 94 integration + client-runner 39 + web 18 unit + web 40 e2e + harness-core 30 + llm-adapters 10 + client 22 = **324 cases**
 - **CI**: 5 jobs (Lint · Typecheck · Unit · Integration · E2E) 모두 green + N2 PR7 의 `Tauri build smoke` (push-to-main 만)
 - **운영 정책 도입**: 한 PR 안의 commit 분리(§4), CI 통과 시 자동 머지(§6)
-- **다음 우선순위**: v0.2 ([roadmap/v0.2/README.md](./roadmap/v0.2/README.md)) — N0 + N1 + N2 완료, 다음은 N3 (project workflow polish — N1+N2 만족) 또는 N4 / N6 병행
+- **다음 우선순위**: v0.2 ([roadmap/v0.2/README.md](./roadmap/v0.2/README.md)) — N0~N3 완료, 다음은 N4 (harness editor) 또는 N6 (observability) 병행. N5 는 N2 의 per-run cancel IPC 가 우선.
 
 | Milestone                          | 상태                                         |
 | ---------------------------------- | -------------------------------------------- |
