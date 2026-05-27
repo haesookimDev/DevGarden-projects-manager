@@ -14,6 +14,9 @@ export default tseslint.config(
       '**/playwright-report/**',
       '**/test-results/**',
       '**/src-tauri/target/**',
+      // Sidecar bundle (copied at pnpm prepare:sidecar time, ignored by git
+      // — see .gitignore — but still on disk while devving the client).
+      '**/src-tauri/resources/**',
       '**/*.config.{js,cjs,mjs}',
       // Build / tooling scripts that run on Node — outside the typed app surface.
       '**/scripts/**',
