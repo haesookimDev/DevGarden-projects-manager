@@ -32,16 +32,23 @@ export default async function DashboardPage() {
     <main className="p-8">
       <header className="flex items-center justify-between border-b border-border pb-4">
         <h1 className="text-2xl font-semibold">Dashboard</h1>
-        <form
-          action={async () => {
-            'use server';
-            await signOut({ redirectTo: '/' });
-          }}
-        >
-          <Button type="submit" variant="outline" size="sm">
-            Sign out
+        <div className="flex items-center gap-2">
+          <Button asChild variant="outline" size="sm">
+            <Link href="/dashboard/settings/github" data-testid="dashboard-settings-github-cta">
+              GitHub settings
+            </Link>
           </Button>
-        </form>
+          <form
+            action={async () => {
+              'use server';
+              await signOut({ redirectTo: '/' });
+            }}
+          >
+            <Button type="submit" variant="outline" size="sm">
+              Sign out
+            </Button>
+          </form>
+        </div>
       </header>
 
       <section className="mt-6">

@@ -30,24 +30,31 @@ const REQUIRED_PERMISSIONS: Record<string, 'read' | 'write'> = {
   issues: 'write',
 };
 
-async function refreshAction() {
+// Allowed redirect targets for the refresh action. Locked down so a stray
+// form field can't be used to bounce the user off-site.
+const ALLOWED_REDIRECTS = new Set<string>(['/dashboard/onboarding', '/dashboard/settings/github']);
+
+async function refreshAction(formData: FormData) {
   'use server';
+  const raw = String(formData.get('redirectPath') ?? '/dashboard/onboarding');
+  const base = ALLOWED_REDIRECTS.has(raw) ? raw : '/dashboard/onboarding';
+
   const session = await auth();
   const ownerId = session?.user?.id;
   if (!ownerId) {
-    redirect('/signin?callbackUrl=/dashboard/onboarding');
+    redirect(`/signin?callbackUrl=${encodeURIComponent(base)}`);
   }
   const token = await getGithubAccessToken();
   if (!token) {
-    redirect('/dashboard/onboarding?refresh=missing-token');
+    redirect(`${base}?refresh=missing-token`);
   }
   try {
     await syncInstallationsFromGithub(ownerId, token);
   } catch (e) {
     const msg = e instanceof Error ? e.message : 'unknown';
-    redirect(`/dashboard/onboarding?refresh=${encodeURIComponent(msg)}`);
+    redirect(`${base}?refresh=${encodeURIComponent(msg)}`);
   }
-  redirect('/dashboard/onboarding?refresh=ok');
+  redirect(`${base}?refresh=ok`);
 }
 
 export function InstallationsSection({
@@ -55,11 +62,16 @@ export function InstallationsSection({
   installations,
   refreshError,
   refreshOk,
+  redirectPath = '/dashboard/onboarding',
 }: {
   registration: GithubRegistration;
   installations: GithubInstallation[];
   refreshError?: string | null;
   refreshOk?: boolean;
+  /** Page that owns this section — controls where the refresh action
+   *  redirects back to. Must be in ALLOWED_REDIRECTS or the action falls
+   *  back to /dashboard/onboarding. */
+  redirectPath?: string;
 }) {
   const installNewUrl = registration.appSlug
     ? `https://github.com/apps/${registration.appSlug}/installations/new`
@@ -85,6 +97,7 @@ export function InstallationsSection({
             </Button>
           )}
           <form action={refreshAction}>
+            <input type="hidden" name="redirectPath" value={redirectPath} />
             <Button type="submit" size="sm" data-testid="installations-refresh">
               <RefreshCw className="mr-1 h-3.5 w-3.5" />
               Refresh from GitHub
