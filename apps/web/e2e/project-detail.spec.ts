@@ -14,10 +14,10 @@ test('project detail v2 renders header + quick actions + cards', async ({ page }
   await expect(page.getByTestId('project-detail-name')).toHaveText('mock/repo');
   await expect(page.getByTestId('project-clone-badge-ready')).toBeVisible();
 
-  // Quick actions row is present; the "Run default preset" button is disabled
-  // because the mock returns no presets.
+  // Quick actions row is present. With the mock seeding one preset the
+  // "Run default preset" button is enabled.
   await expect(page.getByTestId('project-quick-actions')).toBeVisible();
-  await expect(page.getByTestId('project-action-run-preset')).toBeDisabled();
+  await expect(page.getByTestId('project-action-run-preset')).toBeEnabled();
   await expect(page.getByTestId('project-action-presets')).toBeVisible();
   await expect(page.getByTestId('project-action-clone-status')).toBeVisible();
 
