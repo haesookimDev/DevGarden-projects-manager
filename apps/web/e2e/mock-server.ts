@@ -244,6 +244,39 @@ function handle(req: IncomingMessage, res: ServerResponse): void {
     return;
   }
 
+  // POST /internal/projects — create. Returns the same project id the rest
+  // of the mock seeds so subsequent clone-status / detail navigations work.
+  if (url.pathname === '/internal/projects' && req.method === 'POST') {
+    readBody(req).then((body) => {
+      let parsed: { repoFullName?: string } = {};
+      try {
+        parsed = JSON.parse(body) as { repoFullName?: string };
+      } catch {
+        /* ignore — return defaults */
+      }
+      res.writeHead(201, { 'content-type': 'application/json' }).end(
+        JSON.stringify({
+          id: 'mock-project-1',
+          repoFullName: parsed.repoFullName ?? 'mock/repo',
+          githubRepoId: 42,
+        }),
+      );
+    });
+    return;
+  }
+
+  // POST /internal/projects/:id/clone — BFF dispatch. Returns 201; the
+  // sidecar's reporting back via clone-status webhook is out of scope for
+  // the mock and not needed for the e2e (the status page renders the
+  // server-rendered snapshot directly).
+  const cloneDispatchMatch = url.pathname.match(/^\/internal\/projects\/([^/]+)\/clone$/);
+  if (cloneDispatchMatch && req.method === 'POST') {
+    readBody(req).then(() => {
+      res.writeHead(201, { 'content-type': 'application/json' }).end('{"ok":true}');
+    });
+    return;
+  }
+
   const projectMatch = url.pathname.match(/^\/internal\/projects\/([^/]+)$/);
   if (projectMatch && req.method === 'GET') {
     const id = projectMatch[1]!;
