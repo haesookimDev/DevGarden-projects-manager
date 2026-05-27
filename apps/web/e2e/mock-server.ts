@@ -428,18 +428,49 @@ function handle(req: IncomingMessage, res: ServerResponse): void {
       res.writeHead(200, { 'content-type': 'application/json' }).end('[]');
       return;
     }
-    res.writeHead(200, { 'content-type': 'application/json' }).end(
-      JSON.stringify([
-        {
-          id: 'mock-harness-1',
-          ownerId: MOCK_DB_USER_ID,
-          name: 'echo',
-          version: 1,
-          createdAt: new Date(Date.now() - 120_000).toISOString(),
-          updatedAt: new Date(Date.now() - 60_000).toISOString(),
-        },
-      ]),
-    );
+    const now = Date.now();
+    const latest = url.searchParams.get('latest') !== 'false';
+    const name = url.searchParams.get('name');
+    // Two versions of "echo" + one version of "fix-issue" so the history
+    // view + the latest-only view differ.
+    const rows = [
+      {
+        id: 'mock-harness-echo-v2',
+        ownerId: MOCK_DB_USER_ID,
+        name: 'echo',
+        version: 2,
+        createdAt: new Date(now - 60_000).toISOString(),
+        updatedAt: new Date(now - 30_000).toISOString(),
+      },
+      {
+        id: 'mock-harness-1',
+        ownerId: MOCK_DB_USER_ID,
+        name: 'echo',
+        version: 1,
+        createdAt: new Date(now - 240_000).toISOString(),
+        updatedAt: new Date(now - 240_000).toISOString(),
+      },
+      {
+        id: 'mock-harness-fix',
+        ownerId: MOCK_DB_USER_ID,
+        name: 'fix-issue',
+        version: 1,
+        createdAt: new Date(now - 120_000).toISOString(),
+        updatedAt: new Date(now - 90_000).toISOString(),
+      },
+    ];
+    let out = rows;
+    if (name) {
+      out = rows.filter((r) => r.name === name);
+    } else if (latest) {
+      const seen = new Set<string>();
+      out = rows.filter((r) => {
+        if (seen.has(r.name)) return false;
+        seen.add(r.name);
+        return true;
+      });
+    }
+    res.writeHead(200, { 'content-type': 'application/json' }).end(JSON.stringify(out));
     return;
   }
 

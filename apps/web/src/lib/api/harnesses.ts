@@ -9,13 +9,29 @@ export interface HarnessSummary {
   updatedAt: string;
 }
 
-export async function listHarnessesByOwner(ownerId: string): Promise<HarnessSummary[]> {
-  const res = await internalFetch(`/internal/harnesses?ownerId=${encodeURIComponent(ownerId)}`, {
-    method: 'GET',
-  });
+export async function listHarnessesByOwner(
+  ownerId: string,
+  opts: { latestOnly?: boolean } = {},
+): Promise<HarnessSummary[]> {
+  const params = new URLSearchParams({ ownerId });
+  if (opts.latestOnly === false) params.set('latest', 'false');
+  const res = await internalFetch(`/internal/harnesses?${params.toString()}`, { method: 'GET' });
   if (!res.ok) {
     const text = await res.text().catch(() => '');
     throw new Error(`listHarnessesByOwner failed: ${res.status} ${text}`);
+  }
+  return (await res.json()) as HarnessSummary[];
+}
+
+export async function listHarnessVersions(
+  ownerId: string,
+  name: string,
+): Promise<HarnessSummary[]> {
+  const params = new URLSearchParams({ ownerId, name });
+  const res = await internalFetch(`/internal/harnesses?${params.toString()}`, { method: 'GET' });
+  if (!res.ok) {
+    const text = await res.text().catch(() => '');
+    throw new Error(`listHarnessVersions failed: ${res.status} ${text}`);
   }
   return (await res.json()) as HarnessSummary[];
 }
