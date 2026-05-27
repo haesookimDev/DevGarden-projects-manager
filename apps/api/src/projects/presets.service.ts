@@ -99,7 +99,9 @@ export class PresetsService {
             ...(patch.name !== undefined ? { name: patch.name } : {}),
             ...(patch.harnessId !== undefined ? { harnessId: patch.harnessId } : {}),
             ...(patch.clientId !== undefined ? { clientId: patch.clientId } : {}),
-            ...(patch.inputs !== undefined ? { inputs: patch.inputs as Prisma.InputJsonValue } : {}),
+            ...(patch.inputs !== undefined
+              ? { inputs: patch.inputs as Prisma.InputJsonValue }
+              : {}),
             ...(patch.isDefault !== undefined ? { isDefault: patch.isDefault } : {}),
           },
         });
@@ -149,9 +151,7 @@ export class PresetsService {
     ]);
     if (!harness) throw new BadRequestException(`harness ${harnessId} not found`);
     if (!project || harness.ownerId !== project.ownerId) {
-      throw new BadRequestException(
-        `harness ${harnessId} does not belong to the project owner`,
-      );
+      throw new BadRequestException(`harness ${harnessId} does not belong to the project owner`);
     }
   }
 
@@ -168,25 +168,15 @@ export class PresetsService {
     ]);
     if (!client) throw new BadRequestException(`client ${clientId} not found`);
     if (!project || client.ownerId !== project.ownerId) {
-      throw new BadRequestException(
-        `client ${clientId} does not belong to the project owner`,
-      );
+      throw new BadRequestException(`client ${clientId} does not belong to the project owner`);
     }
   }
 }
 
 function isUniqueConstraintError(err: unknown): boolean {
-  return (
-    typeof err === 'object' &&
-    err !== null &&
-    (err as { code?: string }).code === 'P2002'
-  );
+  return typeof err === 'object' && err !== null && (err as { code?: string }).code === 'P2002';
 }
 
 function isRecordNotFoundError(err: unknown): boolean {
-  return (
-    typeof err === 'object' &&
-    err !== null &&
-    (err as { code?: string }).code === 'P2025'
-  );
+  return typeof err === 'object' && err !== null && (err as { code?: string }).code === 'P2025';
 }

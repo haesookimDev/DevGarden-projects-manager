@@ -287,9 +287,9 @@ describe('ProjectsService.updateCloneStatus', () => {
   it('NOT_CLONED → READY is rejected (must go through CLONING)', async () => {
     const project = await makeProject('NOT_CLONED');
     const svc = new ProjectsService(prisma as unknown as PrismaService, new FakeGithubApp());
-    await expect(
-      svc.updateCloneStatus(project.id, { status: 'READY' }),
-    ).rejects.toBeInstanceOf(BadRequestException);
+    await expect(svc.updateCloneStatus(project.id, { status: 'READY' })).rejects.toBeInstanceOf(
+      BadRequestException,
+    );
   });
 
   it('READY → FAILED is rejected (out-of-order sidecar report)', async () => {
@@ -302,8 +302,8 @@ describe('ProjectsService.updateCloneStatus', () => {
 
   it('throws NotFoundException when project does not exist', async () => {
     const svc = new ProjectsService(prisma as unknown as PrismaService, new FakeGithubApp());
-    await expect(
-      svc.updateCloneStatus('missing', { status: 'CLONING' }),
-    ).rejects.toBeInstanceOf(NotFoundException);
+    await expect(svc.updateCloneStatus('missing', { status: 'CLONING' })).rejects.toBeInstanceOf(
+      NotFoundException,
+    );
   });
 });
