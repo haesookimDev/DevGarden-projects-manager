@@ -34,6 +34,11 @@ export default async function DashboardPage() {
         <h1 className="text-2xl font-semibold">Dashboard</h1>
         <div className="flex items-center gap-2">
           <Button asChild variant="outline" size="sm">
+            <Link href="/dashboard/harnesses" data-testid="dashboard-harnesses-cta">
+              Harnesses
+            </Link>
+          </Button>
+          <Button asChild variant="outline" size="sm">
             <Link href="/dashboard/settings/github" data-testid="dashboard-settings-github-cta">
               GitHub settings
             </Link>
