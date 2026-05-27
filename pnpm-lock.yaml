@@ -32,6 +32,9 @@ importers:
 
   apps/api:
     dependencies:
+      '@devgarden/harness-core':
+        specifier: workspace:*
+        version: link:../../packages/harness-core
       '@devgarden/shared':
         specifier: workspace:*
         version: link:../../packages/shared
