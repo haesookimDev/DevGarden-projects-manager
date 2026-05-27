@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { PrismaClient, UserRole } from '@prisma/client';
-import { ConflictException, NotFoundException } from '@nestjs/common';
+import type { CloneStatus } from '@prisma/client';
+import { BadRequestException, ConflictException, NotFoundException } from '@nestjs/common';
 import { ProjectsService } from '../../src/projects/projects.service';
 import { PrismaService } from '../../src/prisma/prisma.service';
 import { GithubAppService } from '../../src/github/github-app.service';
@@ -40,6 +41,7 @@ beforeEach(async () => {
   await prisma.runLog.deleteMany();
   await prisma.runStep.deleteMany();
   await prisma.harnessRun.deleteMany();
+  await prisma.runPreset.deleteMany();
   await prisma.githubEvent.deleteMany();
   await prisma.client.deleteMany();
   await prisma.harness.deleteMany();
@@ -212,5 +214,96 @@ describe('ProjectsService.getDetail', () => {
     const fakeApp = new FakeGithubApp();
     const svc = new ProjectsService(prisma as unknown as PrismaService, fakeApp);
     await expect(svc.getDetail('does-not-exist')).rejects.toThrow(/not found/);
+  });
+});
+
+describe('ProjectsService.updateCloneStatus', () => {
+  async function makeProject(status: CloneStatus = 'NOT_CLONED') {
+    const user = await prisma.user.create({
+      data: { githubId: 400 + Math.floor(Math.random() * 1000), login: 'cs', role: UserRole.OWNER },
+    });
+    return prisma.project.create({
+      data: {
+        ownerId: user.id,
+        githubInstallationId: 1,
+        githubRepoId: 10 + Math.floor(Math.random() * 1000),
+        repoFullName: 'cs/repo',
+        localRoot: '/tmp/cs',
+        cloneStatus: status,
+      },
+    });
+  }
+
+  it('NOT_CLONED → CLONING is allowed', async () => {
+    const project = await makeProject('NOT_CLONED');
+    const svc = new ProjectsService(prisma as unknown as PrismaService, new FakeGithubApp());
+    const updated = await svc.updateCloneStatus(project.id, { status: 'CLONING' });
+    expect(updated.cloneStatus).toBe('CLONING');
+  });
+
+  it('CLONING → READY sets cloneCompletedAt and clears cloneError', async () => {
+    const project = await makeProject('CLONING');
+    await prisma.project.update({
+      where: { id: project.id },
+      data: { cloneError: 'stale error' },
+    });
+    const svc = new ProjectsService(prisma as unknown as PrismaService, new FakeGithubApp());
+    const updated = await svc.updateCloneStatus(project.id, { status: 'READY' });
+    expect(updated.cloneStatus).toBe('READY');
+    expect(updated.cloneCompletedAt).toBeInstanceOf(Date);
+    expect(updated.cloneError).toBeNull();
+  });
+
+  it('CLONING → FAILED records the error message', async () => {
+    const project = await makeProject('CLONING');
+    const svc = new ProjectsService(prisma as unknown as PrismaService, new FakeGithubApp());
+    const updated = await svc.updateCloneStatus(project.id, {
+      status: 'FAILED',
+      error: 'token expired',
+    });
+    expect(updated.cloneStatus).toBe('FAILED');
+    expect(updated.cloneError).toBe('token expired');
+  });
+
+  it('READY → CLONING is allowed (re-clone) and clears completedAt', async () => {
+    const project = await makeProject('READY');
+    await prisma.project.update({
+      where: { id: project.id },
+      data: { cloneCompletedAt: new Date('2026-01-01T00:00:00Z') },
+    });
+    const svc = new ProjectsService(prisma as unknown as PrismaService, new FakeGithubApp());
+    const updated = await svc.updateCloneStatus(project.id, { status: 'CLONING' });
+    expect(updated.cloneStatus).toBe('CLONING');
+    expect(updated.cloneCompletedAt).toBeNull();
+  });
+
+  it('FAILED → CLONING is allowed (retry)', async () => {
+    const project = await makeProject('FAILED');
+    const svc = new ProjectsService(prisma as unknown as PrismaService, new FakeGithubApp());
+    const updated = await svc.updateCloneStatus(project.id, { status: 'CLONING' });
+    expect(updated.cloneStatus).toBe('CLONING');
+  });
+
+  it('NOT_CLONED → READY is rejected (must go through CLONING)', async () => {
+    const project = await makeProject('NOT_CLONED');
+    const svc = new ProjectsService(prisma as unknown as PrismaService, new FakeGithubApp());
+    await expect(
+      svc.updateCloneStatus(project.id, { status: 'READY' }),
+    ).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it('READY → FAILED is rejected (out-of-order sidecar report)', async () => {
+    const project = await makeProject('READY');
+    const svc = new ProjectsService(prisma as unknown as PrismaService, new FakeGithubApp());
+    await expect(
+      svc.updateCloneStatus(project.id, { status: 'FAILED', error: 'late' }),
+    ).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it('throws NotFoundException when project does not exist', async () => {
+    const svc = new ProjectsService(prisma as unknown as PrismaService, new FakeGithubApp());
+    await expect(
+      svc.updateCloneStatus('missing', { status: 'CLONING' }),
+    ).rejects.toBeInstanceOf(NotFoundException);
   });
 });
