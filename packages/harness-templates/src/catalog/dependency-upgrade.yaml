@@ -1,0 +1,67 @@
+# title: Dependency upgrade
+# description: Bumps a single dependency, runs tests, and opens a PR if green.
+# tags: deps, github, pr
+
+name: 'dependency-upgrade'
+version: 1
+description: '의존성 하나를 업데이트 → 테스트 → 통과 시 PR'
+
+inputs:
+  - name: packageName
+    type: string
+    required: true
+  - name: targetVersion
+    type: string
+    required: false
+    default: 'latest'
+
+defaults:
+  llm:
+    provider: 'ollama-local'
+    model: 'qwen2.5-coder:14b'
+
+rules:
+  permissions:
+    fs:
+      allow: ['package.json', 'pnpm-lock.yaml', '**/*.ts', '**/*.tsx']
+      deny: ['.env*']
+    process:
+      allow: ['pnpm', 'npm', 'node', 'vitest']
+  policies:
+    - '의존성 업그레이드 외 코드 변경 없음 (test fix 는 예외)'
+
+steps:
+  - id: branch
+    type: tool
+    use: git.createBranch
+    with:
+      name: 'deps/${inputs.packageName}-${inputs.targetVersion}'
+
+  - id: upgrade
+    type: tool
+    use: process.run
+    with:
+      command: 'pnpm up ${inputs.packageName}@${inputs.targetVersion}'
+
+  - id: test
+    type: tool
+    use: process.run
+    with:
+      command: 'pnpm test'
+    onFail: stop
+
+  - id: commit
+    type: tool
+    use: git.commit
+    with:
+      message: 'chore(deps): Bump ${inputs.packageName} to ${inputs.targetVersion}'
+
+  - id: pr
+    type: tool
+    use: github.openPR
+    with:
+      head: '${run.branchName}'
+      title: 'chore(deps): ${inputs.packageName} → ${inputs.targetVersion}'
+      body: |
+        Automated dependency bump of `${inputs.packageName}` to `${inputs.targetVersion}`.
+        Tests pass on this branch.
