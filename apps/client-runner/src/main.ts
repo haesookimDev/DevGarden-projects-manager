@@ -12,10 +12,16 @@
 //      run:log / run:step / run:status back over the socket.
 
 import { createInterface } from 'node:readline';
-import { RUN_EVENTS, type RunStartPayload } from '@devgarden/shared';
+import {
+  CLONE_EVENTS,
+  RUN_EVENTS,
+  type CloneStartPayload,
+  type RunStartPayload,
+} from '@devgarden/shared';
 import { io as defaultIo, type Socket } from 'socket.io-client';
 
 import { parseBootstrap, readFirstLine } from './bootstrap';
+import { cloneProject as defaultCloneProject, type CloneDeps } from './clone';
 import { executeRun as defaultExecuteRun, type RunExecutorSocket } from './run-executor';
 
 const HEARTBEAT_MS = 30_000;
@@ -31,6 +37,10 @@ const stdoutEmitter: Emitter = {
 };
 
 type ExecuteRunFn = (socket: RunExecutorSocket, event: RunStartPayload) => Promise<unknown>;
+type CloneProjectFn = (
+  payload: CloneStartPayload,
+  deps: CloneDeps,
+) => ReturnType<typeof defaultCloneProject>;
 
 export async function runSidecar(
   deps: {
@@ -44,6 +54,8 @@ export async function runSidecar(
     onSocket?: (socket: Socket) => void;
     /** Test seam — production uses the imported executeRun. */
     executeRun?: ExecuteRunFn;
+    /** Test seam — production uses the imported cloneProject. */
+    cloneProject?: CloneProjectFn;
   } = {},
 ): Promise<void> {
   const emitter = deps.emitter ?? stdoutEmitter;
@@ -51,6 +63,7 @@ export async function runSidecar(
   const heartbeatMs = deps.heartbeatMs ?? HEARTBEAT_MS;
   const lines = deps.stdinLines ?? readlineLines();
   const executeRun: ExecuteRunFn = deps.executeRun ?? defaultExecuteRun;
+  const cloneProject: CloneProjectFn = deps.cloneProject ?? defaultCloneProject;
 
   emitter.emit({ type: 'sidecar:hello', pid: process.pid, node: process.version });
 
@@ -109,6 +122,40 @@ export async function runSidecar(
         emitter.emit({
           type: 'sidecar:error',
           runId: payload.runId,
+          message: err instanceof Error ? err.message : String(err),
+        });
+      });
+  });
+
+  socket.on(CLONE_EVENTS.Start, (payload: CloneStartPayload) => {
+    emitter.emit({
+      type: 'sidecar:clone-start',
+      projectId: payload.projectId,
+      repoFullName: payload.repoFullName,
+    });
+    void cloneProject(payload, {
+      apiBaseUrl: bootstrap.apiBaseUrl,
+      jwt: bootstrap.jwt,
+    })
+      .then((result) => {
+        if (result.ok) {
+          emitter.emit({
+            type: 'sidecar:clone-end',
+            projectId: payload.projectId,
+            targetPath: result.targetPath,
+          });
+        } else {
+          emitter.emit({
+            type: 'sidecar:clone-error',
+            projectId: payload.projectId,
+            message: result.error,
+          });
+        }
+      })
+      .catch((err: unknown) => {
+        emitter.emit({
+          type: 'sidecar:clone-error',
+          projectId: payload.projectId,
           message: err instanceof Error ? err.message : String(err),
         });
       });
