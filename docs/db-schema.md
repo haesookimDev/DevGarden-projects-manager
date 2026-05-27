@@ -41,6 +41,7 @@ HarnessRun 1───* RunArtifact
 - `githubRepoId` (int), `repoFullName` ("owner/name")
 - `defaultClientId → Client.id` (nullable)
 - `defaultHarnessId → Harness.id` (nullable)
+- `defaultHarnessVersion` (int, nullable) — null 이면 latest follow, 값이 있으면 그 version 으로 pin
 - `localRoot` (string, 클라이언트 측 경로)
 - `worktreePolicy` ('keep' | 'auto-remove-success' | 'auto-remove-always')
 - `cloneStatus` ('not_cloned' | 'cloning' | 'ready' | 'failed') — sidecar 가 보고
@@ -75,11 +76,12 @@ HarnessRun 1───* RunArtifact
 ### Harness
 
 - `id`, `ownerId`
-- `name`, `version` (int)
+- `name`, `version` (int) — 같은 name 이 여러 version row 로 보존 (v0.2 N4)
 - `definition` (JSONB — 파싱된 IR)
 - `source` (text — 원본 YAML 보존)
 - `createdAt`, `updatedAt`
-- unique: (`ownerId`, `name`)
+- unique: (`ownerId`, `name`, `version`) — 매 save 가 새 version row 생성
+- index: (`ownerId`, `name`) — latest 조회용
 
 ### HarnessRun
 
