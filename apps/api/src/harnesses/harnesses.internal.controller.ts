@@ -16,10 +16,24 @@ import { HarnessesService } from './harnesses.service';
 export class HarnessesInternalController {
   constructor(private readonly harnesses: HarnessesService) {}
 
+  // Listing modes:
+  //   ?ownerId=...              → latest version per (ownerId, name) — the
+  //                               dashboard's list (default behavior).
+  //   ?ownerId=...&latest=false → every version of every harness — history.
+  //   ?ownerId=...&name=...     → every version of a single name, newest first.
   @Get()
-  async list(@Query('ownerId') ownerId: string) {
+  async list(
+    @Query('ownerId') ownerId: string,
+    @Query('name') name: string | undefined,
+    @Query('latest') latestRaw: string | undefined,
+  ) {
     if (!ownerId) throw new BadRequestException('ownerId query is required');
-    const items = await this.harnesses.listByOwner(ownerId);
+    if (name) {
+      const items = await this.harnesses.listVersionsByName(ownerId, name);
+      return items.map(project);
+    }
+    const latestOnly = latestRaw === 'false' ? false : true;
+    const items = await this.harnesses.listByOwner(ownerId, { latestOnly });
     return items.map(project);
   }
 
