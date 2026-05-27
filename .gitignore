@@ -38,6 +38,10 @@ coverage/
 target/
 apps/client/src-tauri/target/
 apps/client/src-tauri/Cargo.lock
+# Copied from apps/client-runner/dist at pnpm prepare:sidecar time.
+# Ignore so the bundle doesn't get committed; CI / tauri build always
+# regenerates it.
+apps/client/src-tauri/resources/runner.js
 
 # --- test artifacts ---
 playwright-report/

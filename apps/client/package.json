@@ -8,8 +8,9 @@
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "tauri": "tauri",
-    "tauri:dev": "tauri dev",
-    "tauri:build": "tauri build",
+    "tauri:dev": "pnpm prepare:sidecar && tauri dev",
+    "tauri:build": "pnpm prepare:sidecar && tauri build",
+    "prepare:sidecar": "pnpm --filter @devgarden/client-runner build && node scripts/copy-runner.mjs",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "test": "vitest run"
