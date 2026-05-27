@@ -44,9 +44,14 @@ export async function createProject(input: CreateProjectInput): Promise<CreatePr
   return (await res.json()) as CreateProjectResult;
 }
 
+export type CloneStatus = 'NOT_CLONED' | 'CLONING' | 'READY' | 'FAILED';
+
 export interface ProjectDetail extends ProjectSummary {
   githubRepoId: number;
   worktreePolicy: string;
+  cloneStatus: CloneStatus;
+  cloneError: string | null;
+  cloneCompletedAt: string | null;
   updatedAt: string;
   defaultClient: { id: string; name: string; status: string } | null;
   defaultHarness: { id: string; name: string; version: number } | null;
@@ -74,4 +79,33 @@ export async function getProject(id: string): Promise<ProjectDetail> {
     throw new Error(`getProject failed: ${res.status} ${text}`);
   }
   return (await res.json()) as ProjectDetail;
+}
+
+export interface DispatchCloneInput {
+  projectId: string;
+  clientId: string;
+  targetPath: string;
+  useWorktrees?: boolean;
+}
+
+// Asks the api to broadcast `client:cloneProject` to the paired sidecar.
+// Returns once the api has flipped cloneStatus to CLONING; the actual clone
+// progresses async and the sidecar reports back via the clone-status
+// webhook. The UI polls Project.cloneStatus to surface progress.
+export async function dispatchClone(input: DispatchCloneInput): Promise<void> {
+  const res = await internalFetch(
+    `/internal/projects/${encodeURIComponent(input.projectId)}/clone`,
+    {
+      method: 'POST',
+      body: {
+        clientId: input.clientId,
+        targetPath: input.targetPath,
+        ...(input.useWorktrees ? { useWorktrees: true } : {}),
+      },
+    },
+  );
+  if (!res.ok) {
+    const text = await res.text().catch(() => '');
+    throw new Error(`dispatchClone failed: ${res.status} ${text}`);
+  }
 }
