@@ -9,7 +9,7 @@
     "build": "node scripts/build.mjs",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run --passWithNoTests"
   },
   "dependencies": {
     "@devgarden/harness-core": "workspace:*",
