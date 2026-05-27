@@ -5,9 +5,10 @@
 // the live yaml + validation state and decides whether the Save button can
 // fire.
 
-import { useState, useTransition } from 'react';
+import { useState, useTransition, useCallback, useRef } from 'react';
 import { Button, Input, Label } from '@devgarden/ui';
 import { Save } from 'lucide-react';
+import { DryRunPanel } from './dry-run-panel';
 import { HarnessEditor, type ValidationResult } from './harness-editor';
 
 export interface EditorPageClientProps {
@@ -31,6 +32,12 @@ export function EditorPageClient({
   const [result, setResult] = useState<ValidationResult>({ kind: 'pending' });
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+
+  // DryRunPanel reads the current yaml on demand (Dry-run button) — keep
+  // it in a ref so the panel doesn't re-render on every keystroke.
+  const yamlRef = useRef(yaml);
+  yamlRef.current = yaml;
+  const getYaml = useCallback(() => yamlRef.current, []);
 
   const canSave =
     result.kind === 'ok' && name.trim().length > 0 && yaml.trim().length > 0 && !pending;
@@ -82,6 +89,8 @@ export function EditorPageClient({
         onYamlChange={setYaml}
         onValidationChange={setResult}
       />
+
+      <DryRunPanel getYaml={getYaml} />
     </form>
   );
 }

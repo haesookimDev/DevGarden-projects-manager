@@ -3,7 +3,9 @@ import { redirect } from 'next/navigation';
 import { parse as parseYaml } from 'yaml';
 import { auth } from '@/auth';
 import { createHarness } from '@/lib/api/harnesses';
+import { getHarnessTemplate } from '@/lib/api/harness-templates';
 import { EditorPageClient } from '../editor-page';
+import { TemplateCatalog } from '../template-catalog';
 
 const STARTER_YAML = `# Replace this with your harness definition.
 name: 'my-harness'
@@ -59,9 +61,26 @@ async function saveAction(formData: FormData) {
 export default async function NewHarnessPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string }>;
+  searchParams: Promise<{ error?: string; template?: string }>;
 }) {
-  const { error } = await searchParams;
+  const { error, template: templateId } = await searchParams;
+
+  // When ?template=<id> is set, seed the editor with that template's yaml
+  // and name. Otherwise show the catalog + blank starter.
+  let initialYaml = STARTER_YAML;
+  let initialName = 'my-harness';
+  let templateError: string | null = null;
+  if (templateId) {
+    try {
+      const template = await getHarnessTemplate(templateId);
+      initialYaml = template.yaml;
+      // Pre-fill the name from the template id but make it operator-editable.
+      initialName = templateId;
+    } catch (e) {
+      templateError = e instanceof Error ? e.message : 'failed to load template';
+    }
+  }
+
   return (
     <main className="p-8">
       <header className="border-b border-border pb-4">
@@ -85,11 +104,24 @@ export default async function NewHarnessPage({
           {decodeURIComponent(error)}
         </p>
       )}
+      {templateError && (
+        <p
+          className="mt-4 rounded-md border border-destructive/50 bg-destructive/10 px-3 py-2 text-sm text-destructive"
+          data-testid="harness-new-template-error"
+        >
+          Template load failed: {templateError}
+        </p>
+      )}
 
       <section className="mt-6">
+        {!templateId && <TemplateCatalog />}
         <EditorPageClient
-          initialYaml={STARTER_YAML}
-          initialName="my-harness"
+          // The editor is uncontrolled w.r.t. initialYaml/initialName, so we
+          // re-key on the template id to force a fresh mount when the
+          // operator picks a different template via the catalog link.
+          key={templateId ?? 'blank'}
+          initialYaml={initialYaml}
+          initialName={initialName}
           saveAction={saveAction}
         />
       </section>

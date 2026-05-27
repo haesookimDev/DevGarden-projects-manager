@@ -431,6 +431,86 @@ function handle(req: IncomingMessage, res: ServerResponse): void {
     return;
   }
 
+  // Harness template catalog (N4 PR4 endpoint).
+  if (url.pathname === '/internal/harness-templates' && req.method === 'GET') {
+    res.writeHead(200, { 'content-type': 'application/json' }).end(
+      JSON.stringify([
+        {
+          id: 'auto-fix-issue',
+          title: 'Auto-fix GitHub issue',
+          description: 'Reads an issue, plans, implements, opens a PR.',
+          tags: ['github', 'llm', 'pr'],
+        },
+        {
+          id: 'pr-review',
+          title: 'PR review summary',
+          description: 'Diffs a PR and posts an LLM review.',
+          tags: ['github', 'llm'],
+        },
+      ]),
+    );
+    return;
+  }
+  const templateGetMatch = url.pathname.match(/^\/internal\/harness-templates\/([^/]+)$/);
+  if (templateGetMatch && req.method === 'GET') {
+    const id = templateGetMatch[1]!;
+    const yamlByName: Record<string, string> = {
+      'auto-fix-issue': `# title: Auto-fix GitHub issue
+name: 'auto-fix-issue'
+version: 1
+steps:
+  - id: read
+    type: tool
+    use: fs.read
+    with: { path: 'README.md' }
+`,
+      'pr-review': `# title: PR review summary
+name: 'pr-review'
+version: 1
+steps:
+  - id: diff
+    type: tool
+    use: git.diff
+`,
+    };
+    const yaml = yamlByName[id];
+    if (!yaml) {
+      res.writeHead(404, { 'content-type': 'application/json' }).end('{"error":"not found"}');
+      return;
+    }
+    res.writeHead(200, { 'content-type': 'application/json' }).end(
+      JSON.stringify({
+        id,
+        title: id,
+        description: 'mock template',
+        tags: ['mock'],
+        yaml,
+      }),
+    );
+    return;
+  }
+
+  // Dry-run endpoint (N4 PR3). Returns an ok shape with two steps so the
+  // editor's preview panel renders something realistic.
+  if (url.pathname === '/internal/harnesses/dry-run' && req.method === 'POST') {
+    readBody(req).then(() => {
+      res.writeHead(201, { 'content-type': 'application/json' }).end(
+        JSON.stringify({
+          ok: true,
+          harness: { name: 'mock', version: 1 },
+          steps: [
+            { stepId: 'one', status: 'success', durationMs: 1 },
+            { stepId: 'two', status: 'success', durationMs: 1 },
+          ],
+          logs: [],
+          llmCalls: [{ stepId: 'two', prompt: 'mock prompt' }],
+          toolCalls: [{ stepId: 'one', tool: 'fs.read', input: { path: 'README.md' } }],
+        }),
+      );
+    });
+    return;
+  }
+
   if (url.pathname === '/internal/harnesses' && req.method === 'POST') {
     readBody(req).then((body) => {
       let parsed: { name?: string } = {};
