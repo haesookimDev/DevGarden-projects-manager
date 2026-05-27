@@ -3,21 +3,41 @@ import { CheckCircle2, Circle, ExternalLink, Github } from 'lucide-react';
 import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle } from '@devgarden/ui';
 
 import { auth } from '@/auth';
-import { getRegistration } from '@/lib/api/github';
+import {
+  getRegistration,
+  listInstallationsFromDb,
+  type GithubInstallation,
+} from '@/lib/api/github';
+import { InstallationsSection } from './installations-section';
 
-export default async function OnboardingPage() {
+interface PageProps {
+  searchParams: Promise<{ refresh?: string }>;
+}
+
+export default async function OnboardingPage({ searchParams }: PageProps) {
   const session = await auth();
   const ownerId = session?.user?.id;
+  const { refresh } = await searchParams;
 
   let registration = null;
+  let installations: GithubInstallation[] = [];
   let loadError: string | null = null;
   if (ownerId) {
     try {
       registration = await getRegistration(ownerId);
+      if (registration) {
+        installations = await listInstallationsFromDb(ownerId);
+      }
     } catch (e) {
       loadError = e instanceof Error ? e.message : 'failed to load registration';
     }
   }
+
+  // refresh query param carries the server-action outcome from
+  // installations-section.tsx. 'ok' is the success path; anything else is
+  // the error message (URL-encoded).
+  const refreshOk = refresh === 'ok';
+  const refreshError = refresh && !refreshOk ? decodeURIComponent(refresh) : null;
 
   return (
     <main className="mx-auto max-w-3xl p-8">
@@ -48,8 +68,14 @@ export default async function OnboardingPage() {
         <Step
           n={2}
           title="조직 / 계정에 설치"
-          done={false}
-          description="설치된 GitHub App 의 권한을 가진 repo 목록을 가져옵니다. (다음 PR 에서 활성화)"
+          done={installations.length > 0}
+          description={
+            installations.length > 0
+              ? `${installations.length}개 계정에 설치됨.`
+              : registration
+                ? 'Installations 섹션에서 GitHub 에 동기화하세요.'
+                : '먼저 App 을 등록해야 합니다.'
+          }
         />
         <Step
           n={3}
@@ -111,30 +137,39 @@ export default async function OnboardingPage() {
       )}
 
       {registration && (
-        <Card className="mt-8" data-testid="onboarding-registered-card">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-base text-emerald-500">
-              <CheckCircle2 className="h-4 w-4" />
-              GitHub App 연결됨
-            </CardTitle>
-            <CardDescription>
-              App ID {registration.appId} · {registration.source.toLowerCase()}
-              {registration.appSlug && ` · slug: ${registration.appSlug}`}
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="flex gap-2">
-            {registration.htmlUrl && (
-              <Button asChild variant="outline" size="sm">
-                <a href={registration.htmlUrl} target="_blank" rel="noreferrer">
-                  Open on GitHub <ExternalLink className="ml-1 h-3.5 w-3.5" />
-                </a>
+        <>
+          <Card className="mt-8" data-testid="onboarding-registered-card">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-base text-emerald-500">
+                <CheckCircle2 className="h-4 w-4" />
+                GitHub App 연결됨
+              </CardTitle>
+              <CardDescription>
+                App ID {registration.appId} · {registration.source.toLowerCase()}
+                {registration.appSlug && ` · slug: ${registration.appSlug}`}
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="flex gap-2">
+              {registration.htmlUrl && (
+                <Button asChild variant="outline" size="sm">
+                  <a href={registration.htmlUrl} target="_blank" rel="noreferrer">
+                    Open on GitHub <ExternalLink className="ml-1 h-3.5 w-3.5" />
+                  </a>
+                </Button>
+              )}
+              <Button asChild size="sm">
+                <Link href="/dashboard">Back to dashboard</Link>
               </Button>
-            )}
-            <Button asChild size="sm">
-              <Link href="/dashboard">Back to dashboard</Link>
-            </Button>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+
+          <InstallationsSection
+            registration={registration}
+            installations={installations}
+            refreshError={refreshError}
+            refreshOk={refreshOk}
+          />
+        </>
       )}
     </main>
   );

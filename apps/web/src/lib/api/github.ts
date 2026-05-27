@@ -80,3 +80,49 @@ export async function createByoRegistration(
   }
   return (await res.json()) as GithubRegistration;
 }
+
+export interface GithubInstallation {
+  id: string;
+  registrationId: string;
+  installationId: number;
+  accountLogin: string;
+  accountType: string;
+  accountId: number;
+  htmlUrl: string | null;
+  permissions: Record<string, string>;
+  events: string[];
+  repositorySelection: string;
+  syncedAt: string;
+}
+
+/**
+ * Cached read from the api's DB. No GitHub call — fast, suitable for SSR.
+ * Returns [] when the owner has no registration yet.
+ */
+export async function listInstallationsFromDb(ownerId: string): Promise<GithubInstallation[]> {
+  const res = await internalFetch(
+    `/internal/github/installations?ownerId=${encodeURIComponent(ownerId)}`,
+    { method: 'GET' },
+  );
+  if (!res.ok) throw new Error(`list installations (DB) failed: ${res.status}`);
+  return (await res.json()) as GithubInstallation[];
+}
+
+/**
+ * Forces a refresh from GitHub via the user's OAuth token. The api filters
+ * by appId and upserts; returns the freshly synced rows.
+ */
+export async function syncInstallationsFromGithub(
+  ownerId: string,
+  userGithubToken: string,
+): Promise<GithubInstallation[]> {
+  const res = await internalFetch(
+    `/internal/github/installations?ownerId=${encodeURIComponent(ownerId)}`,
+    { method: 'GET', headers: { 'x-user-github-token': userGithubToken } },
+  );
+  if (!res.ok) {
+    const body = await res.text();
+    throw new Error(`sync installations failed: ${res.status} ${body}`);
+  }
+  return (await res.json()) as GithubInstallation[];
+}
