@@ -8,6 +8,10 @@ export interface CreateProjectInput {
   installationId: number;
   repoFullName: string; // e.g. "octocat/Hello-World"
   localRoot: string;
+  /** Optional FK to GithubInstallation when the project was created via the
+   *  new repo picker. Lets the picker / settings UI navigate from project to
+   *  installation without re-resolving by numeric id. */
+  installationDbId?: string;
 }
 
 @Injectable()
@@ -50,6 +54,7 @@ export class ProjectsService {
       data: {
         ownerId: input.ownerId,
         githubInstallationId: input.installationId,
+        installationDbId: input.installationDbId ?? null,
         githubRepoId: repoMeta.id,
         repoFullName: repoMeta.full_name,
         localRoot: input.localRoot,

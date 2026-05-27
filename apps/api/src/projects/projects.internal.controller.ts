@@ -95,10 +95,16 @@ function parseCreateBody(body: unknown): CreateProjectInput {
     throw new BadRequestException('localRoot must be a non-empty string');
   }
 
+  const installationDbId =
+    typeof b.installationDbId === 'string' && b.installationDbId.length > 0
+      ? b.installationDbId
+      : undefined;
+
   return {
     ownerId: b.ownerId,
     installationId: b.installationId,
     repoFullName: b.repoFullName,
     localRoot: b.localRoot,
+    ...(installationDbId ? { installationDbId } : {}),
   };
 }
