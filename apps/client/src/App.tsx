@@ -14,6 +14,7 @@ import type { ConnectionStatus } from './lib/client-socket';
 import { pairClient, PairClientError } from './lib/pair-client';
 import { tauriPairingStorage, type PairingRecord } from './lib/pairing-storage';
 import { useClientSocket } from './lib/use-client-socket';
+import { useSidecar, type SidecarStatus } from './lib/sidecar';
 
 const DEFAULT_API_BASE = 'http://localhost:3001';
 
@@ -31,6 +32,7 @@ export default function App() {
 
   const pairing = status.kind === 'paired' ? status.record : undefined;
   const connection = useClientSocket({ apiBaseUrl: pairing?.apiBaseUrl, jwt: pairing?.jwt });
+  const sidecar = useSidecar();
 
   useEffect(() => {
     let cancelled = false;
@@ -38,7 +40,15 @@ export default function App() {
       try {
         const existing = await tauriPairingStorage.load();
         if (cancelled) return;
-        setStatus(existing ? { kind: 'paired', record: existing } : { kind: 'unpaired' });
+        if (existing) {
+          setStatus({ kind: 'paired', record: existing });
+          // Restart the sidecar on app launch when we already have a
+          // pairing — the Rust side doesn't persist child processes
+          // across app restarts.
+          await sidecar.start({ apiBaseUrl: existing.apiBaseUrl, jwt: existing.jwt });
+        } else {
+          setStatus({ kind: 'unpaired' });
+        }
       } catch (e) {
         if (cancelled) return;
         setStatus({ kind: 'error', message: e instanceof Error ? e.message : 'storage error' });
@@ -47,6 +57,8 @@ export default function App() {
     return () => {
       cancelled = true;
     };
+    // sidecar.start is module-level stable (defaultApi.start); the empty
+    // dep array intentionally runs the effect once at mount.
   }, []);
 
   async function handlePair(e: React.FormEvent) {
@@ -59,6 +71,7 @@ export default function App() {
       );
       setStatus({ kind: 'paired', record });
       setToken('');
+      await sidecar.start({ apiBaseUrl: record.apiBaseUrl, jwt: record.jwt });
     } catch (e) {
       const msg =
         e instanceof PairClientError
@@ -71,6 +84,7 @@ export default function App() {
   }
 
   async function handleUnpair() {
+    await sidecar.stop().catch(() => undefined);
     await tauriPairingStorage.clear();
     setStatus({ kind: 'unpaired' });
   }
@@ -105,6 +119,30 @@ export default function App() {
                 Unpair
               </Button>
             </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {status.kind === 'paired' && (
+        <Card className="mt-4" data-testid="sidecar-card">
+          <CardHeader>
+            <CardTitle className="text-base">Sidecar</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-1 text-sm">
+            <SidecarPill status={sidecar.status} />
+            {sidecar.currentRunId && (
+              <p className="text-xs text-muted-foreground">
+                running: <span className="font-mono">{sidecar.currentRunId}</span>
+              </p>
+            )}
+            {sidecar.lastStderr && (
+              <p
+                className="rounded-md border border-amber-500/40 bg-amber-500/10 px-2 py-1 text-xs text-amber-500"
+                data-testid="sidecar-stderr"
+              >
+                stderr: {sidecar.lastStderr}
+              </p>
+            )}
           </CardContent>
         </Card>
       )}
@@ -182,5 +220,42 @@ function pillFor(status: ConnectionStatus): { className: string; label: string }
       };
     case 'error':
       return { className: 'text-destructive', label: `error: ${status.message}` };
+  }
+}
+
+function SidecarPill({ status }: { status: SidecarStatus }) {
+  const { className, label } = sidecarLabel(status);
+  return (
+    <p data-testid="sidecar-pill" className={`text-xs ${className}`}>
+      ● {label}
+    </p>
+  );
+}
+
+function sidecarLabel(status: SidecarStatus): { className: string; label: string } {
+  switch (status.kind) {
+    case 'idle':
+      return { className: 'text-muted-foreground', label: 'idle' };
+    case 'starting':
+      return { className: 'text-amber-500', label: 'starting…' };
+    case 'connecting':
+      return {
+        className: 'text-amber-500',
+        label: `connecting${status.apiBaseUrl ? ` to ${status.apiBaseUrl}` : ''}…`,
+      };
+    case 'running':
+      return {
+        className: 'text-emerald-500',
+        label: `running (since ${status.since.slice(11, 19)})`,
+      };
+    case 'disconnected':
+      return {
+        className: 'text-muted-foreground',
+        label: `disconnected${status.reason ? `: ${status.reason}` : ''}`,
+      };
+    case 'error':
+      return { className: 'text-destructive', label: `error: ${status.message}` };
+    case 'stopped':
+      return { className: 'text-muted-foreground', label: 'stopped' };
   }
 }
