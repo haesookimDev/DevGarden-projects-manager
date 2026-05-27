@@ -6,9 +6,11 @@ import {
   OnGatewayDisconnect,
   SubscribeMessage,
   WebSocketGateway,
+  WebSocketServer,
 } from '@nestjs/websockets';
+import { CLONE_EVENTS, type CloneStartPayload } from '@devgarden/shared';
 import { ClientStatus } from '@prisma/client';
-import type { Socket } from 'socket.io';
+import type { Server, Socket } from 'socket.io';
 import { PrismaService } from '../prisma/prisma.service';
 import { ClientJwtService } from './client-jwt.service';
 
@@ -39,10 +41,21 @@ interface AuthedSocketData {
 export class ClientsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   private readonly logger = new Logger(ClientsGateway.name);
 
+  @WebSocketServer()
+  server!: Server;
+
   constructor(
     private readonly clientJwt: ClientJwtService,
     private readonly prisma: PrismaService,
   ) {}
+
+  // Used by the projects controller when a clone is dispatched from the web
+  // BFF. Emits to the `client:<id>` room that `handleConnection` joins on
+  // successful pairing-JWT verification, so the sidecar's
+  // `socket.on('client:cloneProject', ...)` handler fires.
+  emitCloneStart(clientId: string, payload: CloneStartPayload): void {
+    this.server.to(`client:${clientId}`).emit(CLONE_EVENTS.Start, payload);
+  }
 
   async handleConnection(@ConnectedSocket() socket: Socket): Promise<void> {
     const token = extractToken(socket);
