@@ -27,7 +27,7 @@ import {
   type RunStatusPayload,
   type RunStepPayload,
 } from '@devgarden/shared';
-import { buildToolRegistry, type ToolRegistryOptions } from '../tools/registry';
+import { buildToolRegistry, type ToolRegistryOptions } from './tools/registry';
 
 export interface RunExecutorSocket {
   emit(event: string, payload: unknown): void;
