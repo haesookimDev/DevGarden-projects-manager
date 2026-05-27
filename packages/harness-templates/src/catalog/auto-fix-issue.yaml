@@ -1,0 +1,71 @@
+# title: Auto-fix GitHub issue
+# description: Reads a GitHub issue, plans a fix, implements it, and opens a PR. Loops on test failures.
+# tags: github, llm, pr
+
+name: 'auto-fix-issue'
+version: 1
+description: 'GitHub 이슈 1건을 받아 수정 → 테스트 → PR'
+
+inputs:
+  - name: issueNumber
+    type: number
+    required: true
+  - name: branchPrefix
+    type: string
+    required: false
+    default: 'fix/issue'
+
+defaults:
+  llm:
+    provider: 'ollama-local'
+    model: 'qwen2.5-coder:14b'
+
+rules:
+  permissions:
+    fs:
+      allow: ['**']
+      deny: ['.env*', '**/secrets/**', '**/node_modules/**']
+    process:
+      allow: ['git', 'pnpm', 'vitest', 'npm', 'node']
+  policies:
+    - '테스트가 빨간색이면 중단'
+    - '한 번에 하나의 파일만 수정'
+  hooks:
+    preCommit: 'pnpm vitest --run --reporter=dot'
+
+steps:
+  - id: read-issue
+    type: tool
+    use: github.getIssue
+    with:
+      number: '${inputs.issueNumber}'
+
+  - id: branch
+    type: tool
+    use: git.createBranch
+    with:
+      name: '${inputs.branchPrefix}-${inputs.issueNumber}'
+
+  - id: plan
+    type: llm
+    prompt: |
+      이슈 본문을 읽고 변경 계획을 단계별로 작성.
+      ${steps.read-issue.body}
+
+  - id: implement
+    type: subagent
+    agent: 'code-writer'
+    input: '${steps.plan.output}'
+    loopUntil: '${steps.last.testsPassed} == true'
+    maxIterations: 5
+
+  - id: pr
+    type: tool
+    use: github.openPR
+    with:
+      head: '${run.branchName}'
+      title: 'fix: ${steps.read-issue.title}'
+      body: |
+        Closes #${inputs.issueNumber}
+
+        ${steps.plan.output}

@@ -1,0 +1,64 @@
+# title: Test runner with auto-fix loop
+# description: Runs the project's test command and, on failure, asks the LLM to patch the code and retries.
+# tags: test, ci, llm
+
+name: 'test-runner'
+version: 1
+description: '테스트 실행 → 실패하면 LLM 으로 패치 → 다시 테스트 (max 3 회)'
+
+inputs:
+  - name: testCommand
+    type: string
+    required: false
+    default: 'pnpm test'
+  - name: maxRetries
+    type: number
+    required: false
+    default: 3
+
+defaults:
+  llm:
+    provider: 'ollama-local'
+    model: 'qwen2.5-coder:14b'
+
+rules:
+  permissions:
+    fs:
+      allow: ['**']
+      deny: ['.env*', '**/node_modules/**']
+    process:
+      allow: ['pnpm', 'npm', 'node', 'vitest', 'jest']
+  policies:
+    - '실패 원인을 먼저 분석한 뒤 패치 작성'
+
+steps:
+  - id: first-run
+    type: tool
+    use: process.run
+    with:
+      command: '${inputs.testCommand}'
+    onFail: continue
+
+  - id: retry-loop
+    type: loop
+    while: '${steps.last.exitCode} != 0'
+    maxIterations: '${inputs.maxRetries}'
+    do:
+      - id: analyze
+        type: llm
+        prompt: |
+          다음 테스트 실패 로그를 분석하고 최소한의 패치를 제안.
+          ${steps.first-run.stdout}
+          ${steps.first-run.stderr}
+
+      - id: patch
+        type: subagent
+        agent: 'code-writer'
+        input: '${steps.analyze.output}'
+
+      - id: retest
+        type: tool
+        use: process.run
+        with:
+          command: '${inputs.testCommand}'
+        onFail: continue

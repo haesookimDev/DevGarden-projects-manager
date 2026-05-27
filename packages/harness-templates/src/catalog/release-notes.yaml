@@ -1,0 +1,58 @@
+# title: Release notes from commits
+# description: Collects commits since the last tag, asks the LLM to group them into a CHANGELOG entry, and writes the result.
+# tags: release, llm, changelog
+
+name: 'release-notes'
+version: 1
+description: '최근 태그 이후 커밋을 모아 CHANGELOG 항목으로 정리'
+
+inputs:
+  - name: sinceTag
+    type: string
+    required: false
+    default: 'HEAD~50'
+  - name: releaseLabel
+    type: string
+    required: true
+
+defaults:
+  llm:
+    provider: 'ollama-local'
+    model: 'qwen2.5-coder:14b'
+
+rules:
+  permissions:
+    fs:
+      allow: ['CHANGELOG.md']
+      deny: ['.env*']
+    process:
+      allow: ['git']
+  policies:
+    - '한국어 / 영어 라벨은 사용자 입력과 동일하게 유지'
+    - '카테고리: feat / fix / docs / chore / test / refactor 순서'
+
+steps:
+  - id: log
+    type: tool
+    use: process.run
+    with:
+      command: 'git log --pretty=format:"%s" ${inputs.sinceTag}..HEAD'
+
+  - id: summarize
+    type: llm
+    prompt: |
+      다음 커밋 메시지들을 카테고리별로 묶어 마크다운 CHANGELOG 항목으로 작성하세요.
+      릴리즈 라벨: ${inputs.releaseLabel}
+      ---
+      ${steps.log.stdout}
+
+  - id: write
+    type: tool
+    use: fs.write
+    with:
+      path: 'CHANGELOG.md'
+      content: |
+        ## ${inputs.releaseLabel}
+
+        ${steps.summarize.output}
+      mode: 'prepend'
