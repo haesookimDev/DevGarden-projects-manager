@@ -106,4 +106,59 @@ describe('runSidecar', () => {
       message: 'boom',
     });
   });
+
+  it('dispatches run:start to executeRun and announces start + end on stdout', async () => {
+    const events: Array<Record<string, unknown>> = [];
+    const mock = makeMockSocket();
+    const executeRun = vi.fn().mockResolvedValue({ status: 'SUCCESS' });
+
+    await runSidecar({
+      emitter: { emit: (e) => events.push(e) },
+      io: vi.fn().mockReturnValue(mock.socket) as never,
+      stdinLines: singleLine(JSON.stringify({ apiBaseUrl: 'http://api.local', jwt: 'tkn' })),
+      executeRun,
+    });
+
+    const payload = {
+      runId: 'run_1',
+      harness: { name: 'noop', version: 1, steps: [] },
+      inputs: {},
+      workingDir: '/tmp/work',
+    };
+    mock.handlers.get('run:start')?.(payload);
+    // executeRun runs async — flush the microtask queue.
+    await vi.waitFor(() => expect(executeRun).toHaveBeenCalledTimes(1));
+    await vi.waitFor(() =>
+      expect(events.some((e) => e.type === 'sidecar:run-end' && e.runId === 'run_1')).toBe(true),
+    );
+    expect(executeRun).toHaveBeenCalledWith(mock.socket, payload);
+    expect(events.some((e) => e.type === 'sidecar:run-start' && e.runId === 'run_1')).toBe(true);
+  });
+
+  it('reports an executeRun rejection as sidecar:error with the runId', async () => {
+    const events: Array<Record<string, unknown>> = [];
+    const mock = makeMockSocket();
+    const executeRun = vi.fn().mockRejectedValue(new Error('boom'));
+
+    await runSidecar({
+      emitter: { emit: (e) => events.push(e) },
+      io: vi.fn().mockReturnValue(mock.socket) as never,
+      stdinLines: singleLine(JSON.stringify({ apiBaseUrl: 'http://api.local', jwt: 'tkn' })),
+      executeRun,
+    });
+
+    mock.handlers.get('run:start')?.({
+      runId: 'run_2',
+      harness: {},
+      inputs: {},
+      workingDir: '/tmp/work',
+    });
+    await vi.waitFor(() =>
+      expect(
+        events.some(
+          (e) => e.type === 'sidecar:error' && e.runId === 'run_2' && e.message === 'boom',
+        ),
+      ).toBe(true),
+    );
+  });
 });

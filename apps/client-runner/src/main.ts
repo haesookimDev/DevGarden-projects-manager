@@ -7,14 +7,16 @@
 //      send `heartbeat` every 30 s so the api keeps the row ONLINE.
 //   4. Mirror connection state to stdout as `sidecar:status` events so the
 //      Rust host can surface it to the webview.
-//
-// `run:start` handling lands in N2 PR4 — this PR is the bootstrap +
-// heartbeat skeleton only. The sidecar otherwise stays idle.
+//   5. When the api dispatches `run:start`, call executeRun (the same
+//      harness engine the v0.1 webview attempted to use) and let it stream
+//      run:log / run:step / run:status back over the socket.
 
 import { createInterface } from 'node:readline';
+import { RUN_EVENTS, type RunStartPayload } from '@devgarden/shared';
 import { io as defaultIo, type Socket } from 'socket.io-client';
 
 import { parseBootstrap, readFirstLine } from './bootstrap';
+import { executeRun as defaultExecuteRun, type RunExecutorSocket } from './run-executor';
 
 const HEARTBEAT_MS = 30_000;
 
@@ -28,6 +30,8 @@ const stdoutEmitter: Emitter = {
   },
 };
 
+type ExecuteRunFn = (socket: RunExecutorSocket, event: RunStartPayload) => Promise<unknown>;
+
 export async function runSidecar(
   deps: {
     emitter?: Emitter;
@@ -38,12 +42,15 @@ export async function runSidecar(
      *  call site leaves this undefined and the socket lifecycle is owned
      *  by this module. */
     onSocket?: (socket: Socket) => void;
+    /** Test seam — production uses the imported executeRun. */
+    executeRun?: ExecuteRunFn;
   } = {},
 ): Promise<void> {
   const emitter = deps.emitter ?? stdoutEmitter;
   const ioFn = deps.io ?? defaultIo;
   const heartbeatMs = deps.heartbeatMs ?? HEARTBEAT_MS;
   const lines = deps.stdinLines ?? readlineLines();
+  const executeRun: ExecuteRunFn = deps.executeRun ?? defaultExecuteRun;
 
   emitter.emit({ type: 'sidecar:hello', pid: process.pid, node: process.version });
 
@@ -86,6 +93,25 @@ export async function runSidecar(
 
   socket.on('connect_error', (err: Error) => {
     emitter.emit({ type: 'sidecar:status', status: 'error', message: err.message });
+  });
+
+  socket.on(RUN_EVENTS.Start, (payload: RunStartPayload) => {
+    emitter.emit({ type: 'sidecar:run-start', runId: payload.runId });
+    // executeRun is async + self-reporting through socket events; the
+    // sidecar's only job here is to start it and announce the outcome on
+    // stdout for the Rust host's log. Anything unexpected becomes a
+    // sidecar:error event so the host can flag it to the webview.
+    void executeRun(socket, payload)
+      .then(() => {
+        emitter.emit({ type: 'sidecar:run-end', runId: payload.runId });
+      })
+      .catch((err: unknown) => {
+        emitter.emit({
+          type: 'sidecar:error',
+          runId: payload.runId,
+          message: err instanceof Error ? err.message : String(err),
+        });
+      });
   });
 
   const shutdown = (signal: string) => {
