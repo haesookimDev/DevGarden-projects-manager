@@ -5,13 +5,15 @@ import { Github } from 'lucide-react';
 
 import { auth } from '@/auth';
 import { EmptyState } from '@/components/empty-state';
+import { listClientsByOwner, type ClientSummary } from '@/lib/api/clients';
 import {
   listInstallationsFromDb,
   listReposForInstallation,
   type GithubInstallation,
   type GithubRepo,
 } from '@/lib/api/github';
-import { createProject } from '@/lib/api/projects';
+import { createProject, dispatchClone } from '@/lib/api/projects';
+import { CloneOnCreateSection } from './clone-on-create';
 import { InstallationSwitcher } from './installation-switcher';
 import { RepoPicker } from './repo-picker';
 
@@ -29,6 +31,9 @@ async function createProjectAction(formData: FormData) {
   const installationIdRaw = String(formData.get('installationId') ?? '').trim();
   const installationDbId = String(formData.get('installationDbId') ?? '').trim();
   const localRoot = String(formData.get('localRoot') ?? '').trim();
+  const cloneOnCreate = formData.get('cloneOnCreate') === 'on';
+  const useWorktrees = formData.get('useWorktrees') === 'on';
+  const cloneClientId = String(formData.get('cloneClientId') ?? '').trim();
 
   if (!repoFullName || !installationIdRaw || !installationDbId || !localRoot) {
     redirect('/dashboard/projects/new?error=missing-fields');
@@ -43,18 +48,40 @@ async function createProjectAction(formData: FormData) {
   if (!localRoot.startsWith('/')) {
     redirect('/dashboard/projects/new?error=local-root-must-be-absolute');
   }
+  if (cloneOnCreate && !cloneClientId) {
+    redirect('/dashboard/projects/new?error=clone-client-required');
+  }
 
+  let projectId: string;
   try {
-    await createProject({
+    const created = await createProject({
       ownerId,
       installationId,
       installationDbId,
       repoFullName,
       localRoot,
     });
+    projectId = created.id;
   } catch (e) {
     const msg = e instanceof Error ? e.message : 'unknown';
     redirect(`/dashboard/projects/new?error=${encodeURIComponent(msg)}`);
+  }
+
+  if (cloneOnCreate) {
+    try {
+      await dispatchClone({
+        projectId,
+        clientId: cloneClientId,
+        targetPath: localRoot,
+        useWorktrees,
+      });
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'unknown';
+      // Project row exists — point the user at the clone-status page so they
+      // can retry from there without re-entering the create form.
+      redirect(`/dashboard/projects/${projectId}/clone-status?error=${encodeURIComponent(msg)}`);
+    }
+    redirect(`/dashboard/projects/${projectId}/clone-status`);
   }
   redirect('/dashboard');
 }
@@ -70,11 +97,19 @@ export default async function NewProjectPage({
 
   let installations: GithubInstallation[] = [];
   let installationsError: string | null = null;
+  let clients: ClientSummary[] = [];
   if (ownerId) {
     try {
       installations = await listInstallationsFromDb(ownerId);
     } catch (e) {
       installationsError = e instanceof Error ? e.message : 'failed to load installations';
+    }
+    try {
+      clients = await listClientsByOwner(ownerId);
+    } catch {
+      // Non-fatal — clone-on-create just stays disabled when we can't list
+      // paired clients. Surfacing this is overkill for the create form.
+      clients = [];
     }
   }
 
@@ -170,6 +205,8 @@ export default async function NewProjectPage({
           )}
 
           <RepoPicker repos={repos} defaultWorkspaceRoot={DEFAULT_WORKSPACE_ROOT} />
+
+          <CloneOnCreateSection clients={clients} />
 
           <Button type="submit" data-testid="project-new-submit">
             Create
