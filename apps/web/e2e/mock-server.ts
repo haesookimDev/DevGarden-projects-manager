@@ -136,6 +136,39 @@ function handle(req: IncomingMessage, res: ServerResponse): void {
     return;
   }
 
+  const installationReposMatch = url.pathname.match(
+    /^\/internal\/github\/installations\/([^/]+)\/repos$/,
+  );
+  if (installationReposMatch && req.method === 'GET') {
+    if (!onboardingRegistered) {
+      res.writeHead(200, { 'content-type': 'application/json' }).end('[]');
+      return;
+    }
+    res.writeHead(200, { 'content-type': 'application/json' }).end(
+      JSON.stringify([
+        {
+          id: 1,
+          name: 'demo-repo',
+          fullName: 'mock-octocat/demo-repo',
+          private: false,
+          fork: false,
+          defaultBranch: 'main',
+          htmlUrl: 'https://github.com/mock-octocat/demo-repo',
+        },
+        {
+          id: 2,
+          name: 'internal-tools',
+          fullName: 'mock-octocat/internal-tools',
+          private: true,
+          fork: false,
+          defaultBranch: 'main',
+          htmlUrl: 'https://github.com/mock-octocat/internal-tools',
+        },
+      ]),
+    );
+    return;
+  }
+
   // --- GitHub OAuth mock ---
 
   if (url.pathname === '/login/oauth/authorize' && req.method === 'GET') {

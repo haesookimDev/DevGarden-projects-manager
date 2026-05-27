@@ -12,10 +12,19 @@ test('authenticated user reaches dashboard with profile info', async ({ page }) 
   await expect(page.getByText(String(DEFAULT_AUTHED_USER.githubId))).toBeVisible();
 });
 
-test('authenticated user can open the new project form', async ({ page }) => {
+test('authenticated user can open the new project form (no installations yet)', async ({
+  page,
+}) => {
+  // Without any GitHub App installations the form short-circuits to the
+  // "go to onboarding" CTA — the picker UI itself is exercised in
+  // project-picker.spec.ts under the onboarding-registered toggle.
   await page.goto('/dashboard/projects/new');
   await expect(page.getByRole('heading', { name: /add project/i })).toBeVisible();
-  await expect(page.getByPlaceholder(/octocat\/Hello-World/i)).toBeVisible();
+  await expect(page.getByTestId('project-new-no-installation')).toBeVisible();
+  await expect(page.getByTestId('project-new-onboarding-cta')).toHaveAttribute(
+    'href',
+    '/dashboard/onboarding',
+  );
 });
 
 test('dashboard renders client list from api with ONLINE/OFFLINE pills', async ({ page }) => {
