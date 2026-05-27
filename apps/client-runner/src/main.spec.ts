@@ -161,4 +161,65 @@ describe('runSidecar', () => {
       ).toBe(true),
     );
   });
+
+  it('dispatches client:cloneProject to cloneProject and surfaces start + end', async () => {
+    const events: Array<Record<string, unknown>> = [];
+    const mock = makeMockSocket();
+    const cloneProject = vi.fn().mockResolvedValue({ ok: true, targetPath: '/tmp/proj' } as const);
+
+    await runSidecar({
+      emitter: { emit: (e) => events.push(e) },
+      io: vi.fn().mockReturnValue(mock.socket) as never,
+      stdinLines: singleLine(JSON.stringify({ apiBaseUrl: 'http://api.local', jwt: 'tkn' })),
+      cloneProject,
+    });
+
+    mock.handlers.get('client:cloneProject')?.({
+      projectId: 'p1',
+      installationId: 1,
+      repoFullName: 'octocat/Hello-World',
+      targetPath: '/tmp/proj',
+    });
+
+    await vi.waitFor(() => expect(cloneProject).toHaveBeenCalledTimes(1));
+    expect(cloneProject).toHaveBeenCalledWith(
+      expect.objectContaining({ projectId: 'p1', targetPath: '/tmp/proj' }),
+      expect.objectContaining({ apiBaseUrl: 'http://api.local', jwt: 'tkn' }),
+    );
+    expect(events.some((e) => e.type === 'sidecar:clone-start' && e.projectId === 'p1')).toBe(true);
+    await vi.waitFor(() =>
+      expect(events.some((e) => e.type === 'sidecar:clone-end' && e.projectId === 'p1')).toBe(true),
+    );
+  });
+
+  it('surfaces a cloneProject failure as sidecar:clone-error with the projectId', async () => {
+    const events: Array<Record<string, unknown>> = [];
+    const mock = makeMockSocket();
+    const cloneProject = vi.fn().mockResolvedValue({ ok: false, error: 'target exists' } as const);
+
+    await runSidecar({
+      emitter: { emit: (e) => events.push(e) },
+      io: vi.fn().mockReturnValue(mock.socket) as never,
+      stdinLines: singleLine(JSON.stringify({ apiBaseUrl: 'http://api.local', jwt: 'tkn' })),
+      cloneProject,
+    });
+
+    mock.handlers.get('client:cloneProject')?.({
+      projectId: 'p2',
+      installationId: 1,
+      repoFullName: 'octocat/Nope',
+      targetPath: '/tmp/p2',
+    });
+
+    await vi.waitFor(() =>
+      expect(
+        events.some(
+          (e) =>
+            e.type === 'sidecar:clone-error' &&
+            e.projectId === 'p2' &&
+            e.message === 'target exists',
+        ),
+      ).toBe(true),
+    );
+  });
 });
