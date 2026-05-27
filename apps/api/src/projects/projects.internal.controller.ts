@@ -2,19 +2,30 @@ import {
   BadRequestException,
   Body,
   Controller,
+  ForbiddenException,
   Get,
+  Logger,
+  NotFoundException,
   Param,
   Post,
   Query,
   UseGuards,
 } from '@nestjs/common';
 import { InternalAuthGuard } from '../auth/internal-auth.guard';
+import { ClientsGateway } from '../clients/clients.gateway';
+import { PrismaService } from '../prisma/prisma.service';
 import { ProjectsService, type CreateProjectInput } from './projects.service';
 
 @Controller('internal/projects')
 @UseGuards(InternalAuthGuard)
 export class ProjectsInternalController {
-  constructor(private readonly projects: ProjectsService) {}
+  private readonly logger = new Logger(ProjectsInternalController.name);
+
+  constructor(
+    private readonly projects: ProjectsService,
+    private readonly prisma: PrismaService,
+    private readonly clientsGateway: ClientsGateway,
+  ) {}
 
   @Get()
   async list(@Query('ownerId') ownerId: string) {
@@ -40,6 +51,9 @@ export class ProjectsInternalController {
       githubRepoId: p.githubRepoId,
       localRoot: p.localRoot,
       worktreePolicy: p.worktreePolicy,
+      cloneStatus: p.cloneStatus,
+      cloneError: p.cloneError,
+      cloneCompletedAt: p.cloneCompletedAt?.toISOString() ?? null,
       createdAt: p.createdAt.toISOString(),
       updatedAt: p.updatedAt.toISOString(),
       defaultClient: p.defaultClient,
@@ -62,6 +76,65 @@ export class ProjectsInternalController {
           }
         : null,
     };
+  }
+
+  // Web BFF → api: kick off a clone on the paired client. The api flips the
+  // project's cloneStatus to CLONING and broadcasts client:cloneProject to
+  // the matching `client:<id>` socket room. The sidecar's IPC handler
+  // (apps/client-runner/src/clone.ts) takes it from there and reports back
+  // via /internal/projects/:id/clone-status.
+  @Post(':id/clone')
+  async dispatchClone(@Param('id') id: string, @Body() body: unknown) {
+    if (typeof body !== 'object' || body === null) {
+      throw new BadRequestException('Body must be a JSON object');
+    }
+    const b = body as Record<string, unknown>;
+    if (typeof b.clientId !== 'string' || !b.clientId) {
+      throw new BadRequestException('clientId must be a non-empty string');
+    }
+    if (typeof b.targetPath !== 'string' || !b.targetPath) {
+      throw new BadRequestException('targetPath must be a non-empty string');
+    }
+    const useWorktrees = b.useWorktrees === true;
+
+    const project = await this.prisma.project.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        ownerId: true,
+        repoFullName: true,
+        githubInstallationId: true,
+      },
+    });
+    if (!project) throw new NotFoundException(`project ${id} not found`);
+
+    const client = await this.prisma.client.findUnique({
+      where: { id: b.clientId },
+      select: { id: true, ownerId: true },
+    });
+    if (!client) throw new NotFoundException(`client ${b.clientId} not found`);
+    if (client.ownerId !== project.ownerId) {
+      throw new ForbiddenException('client does not belong to the project owner');
+    }
+
+    // Update Project.localRoot so future status reads + run dispatches use
+    // the operator's chosen path. The state-machine guard handles the
+    // NOT_CLONED → CLONING (or READY → CLONING for re-clone) transition.
+    await this.prisma.project.update({
+      where: { id },
+      data: { localRoot: b.targetPath },
+    });
+    await this.projects.updateCloneStatus(id, { status: 'CLONING' });
+
+    this.clientsGateway.emitCloneStart(client.id, {
+      projectId: project.id,
+      installationId: project.githubInstallationId,
+      repoFullName: project.repoFullName,
+      targetPath: b.targetPath,
+      useWorktrees,
+    });
+    this.logger.log(`dispatched clone for project ${id} to client ${client.id}`);
+    return { ok: true };
   }
 
   @Post()

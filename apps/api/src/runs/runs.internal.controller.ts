@@ -4,6 +4,7 @@ import {
   Controller,
   Get,
   Logger,
+  NotFoundException,
   Param,
   Post,
   Query,
@@ -11,6 +12,7 @@ import {
 } from '@nestjs/common';
 import { RunStatus } from '@prisma/client';
 import { InternalAuthGuard } from '../auth/internal-auth.guard';
+import { PresetsService } from '../projects/presets.service';
 import { RunsGateway } from './runs.gateway';
 import { RunsService } from './runs.service';
 
@@ -22,6 +24,7 @@ export class RunsInternalController {
   constructor(
     private readonly runs: RunsService,
     private readonly gateway: RunsGateway,
+    private readonly presets: PresetsService,
   ) {}
 
   @Post()
@@ -104,6 +107,51 @@ export class RunsInternalController {
     return this.runs.statsByOwner(ownerId, {
       sinceHours: Number.isFinite(parsed) ? parsed : undefined,
     });
+  }
+
+  // Trigger a run from a saved RunPreset. The preset supplies harness +
+  // client + inputs; the caller supplies `triggeredByUserId` (BFF maps
+  // session → user). Returns the same shape as POST /internal/runs so the
+  // web BFF can reuse its existing run-detail link.
+  @Post('from-preset/:presetId')
+  async createFromPreset(@Param('presetId') presetId: string, @Body() body: unknown) {
+    if (typeof body !== 'object' || body === null) {
+      throw new BadRequestException('Body must be a JSON object');
+    }
+    const b = body as Record<string, unknown>;
+    const triggeredByUserId = requireString(b, 'triggeredByUserId');
+    const workingDir = typeof b.workingDir === 'string' ? b.workingDir : undefined;
+
+    let preset;
+    try {
+      preset = await this.presets.getById(presetId);
+    } catch (err) {
+      if (err instanceof NotFoundException) throw err;
+      throw err;
+    }
+
+    const run = await this.runs.createRun({
+      harnessId: preset.harnessId,
+      projectId: preset.projectId,
+      clientId: preset.clientId,
+      triggeredByUserId,
+      workingDir,
+    });
+
+    try {
+      const harness = await this.runs.getHarnessDefinition(preset.harnessId);
+      this.gateway.emitRunStart(preset.clientId, {
+        runId: run.id,
+        harness,
+        inputs: (preset.inputs ?? {}) as Record<string, unknown>,
+        workingDir,
+      });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      this.logger.error(`preset run ${run.id} dispatch failed: ${msg}`);
+    }
+
+    return projectRun(run);
   }
 
   @Get(':id')

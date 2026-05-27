@@ -8,6 +8,7 @@ import { Test } from '@nestjs/testing';
 import { PrismaClient, UserRole } from '@prisma/client';
 import request from 'supertest';
 import { PrismaModule } from '../../src/prisma/prisma.module';
+import { PresetsService } from '../../src/projects/presets.service';
 import { RunsGateway } from '../../src/runs/runs.gateway';
 import { RunsInternalController } from '../../src/runs/runs.internal.controller';
 import { RunsService } from '../../src/runs/runs.service';
@@ -24,7 +25,7 @@ beforeAll(async () => {
   const moduleRef = await Test.createTestingModule({
     imports: [PrismaModule],
     controllers: [RunsInternalController],
-    providers: [RunsService, { provide: RunsGateway, useValue: { emitRunStart } }],
+    providers: [RunsService, PresetsService, { provide: RunsGateway, useValue: { emitRunStart } }],
   }).compile();
 
   app = moduleRef.createNestApplication();
