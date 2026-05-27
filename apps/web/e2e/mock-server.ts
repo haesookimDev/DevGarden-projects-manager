@@ -26,6 +26,12 @@ const MOCK_CODE = 'mock-auth-code';
 // `fullyParallel: false` in playwright.config.ts keeps this safe.
 let emptyFixtures = false;
 
+// Onboarding-registered toggle. Off by default: /internal/github/registrations
+// 404s and /installations returns []. On: returns a stub registration row and
+// one matching installation, so the onboarding screen can be e2e'd in its
+// post-registration state.
+let onboardingRegistered = false;
+
 export async function startMockServer(port = 0): Promise<MockServerHandle> {
   const server = createServer((req, res) => handle(req, res));
   await new Promise<void>((resolve) => server.listen(port, '127.0.0.1', resolve));
@@ -59,6 +65,74 @@ function handle(req: IncomingMessage, res: ServerResponse): void {
         res.writeHead(400).end('invalid body');
       }
     });
+    return;
+  }
+
+  if (url.pathname === '/mock/set-onboarding-registered' && req.method === 'POST') {
+    readBody(req).then((raw) => {
+      try {
+        const body = JSON.parse(raw || '{}') as { value?: boolean };
+        onboardingRegistered = Boolean(body.value);
+        res
+          .writeHead(200, { 'content-type': 'application/json' })
+          .end(JSON.stringify({ onboardingRegistered }));
+      } catch {
+        res.writeHead(400).end('invalid body');
+      }
+    });
+    return;
+  }
+
+  // --- N1 GitHub onboarding stubs ---
+
+  if (url.pathname === '/internal/github/registrations' && req.method === 'GET') {
+    if (!onboardingRegistered) {
+      res.writeHead(404, { 'content-type': 'application/json' }).end('{"message":"not found"}');
+      return;
+    }
+    res.writeHead(200, { 'content-type': 'application/json' }).end(
+      JSON.stringify({
+        id: 'mock-reg-1',
+        ownerId: MOCK_DB_USER_ID,
+        source: 'BYO',
+        appId: 12345,
+        appSlug: 'mock-app',
+        clientId: null,
+        htmlUrl: 'https://github.com/apps/mock-app',
+        createdAt: new Date(Date.now() - 60_000).toISOString(),
+        updatedAt: new Date(Date.now() - 60_000).toISOString(),
+      }),
+    );
+    return;
+  }
+
+  if (url.pathname === '/internal/github/installations' && req.method === 'GET') {
+    if (!onboardingRegistered) {
+      res.writeHead(200, { 'content-type': 'application/json' }).end('[]');
+      return;
+    }
+    res.writeHead(200, { 'content-type': 'application/json' }).end(
+      JSON.stringify([
+        {
+          id: 'mock-inst-1',
+          registrationId: 'mock-reg-1',
+          installationId: 9001,
+          accountLogin: 'mock-octocat',
+          accountType: 'User',
+          accountId: 1,
+          htmlUrl: 'https://github.com/settings/installations/9001',
+          permissions: {
+            contents: 'write',
+            metadata: 'read',
+            pull_requests: 'write',
+            issues: 'write',
+          },
+          events: ['pull_request', 'issues'],
+          repositorySelection: 'selected',
+          syncedAt: new Date().toISOString(),
+        },
+      ]),
+    );
     return;
   }
 
