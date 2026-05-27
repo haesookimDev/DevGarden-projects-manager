@@ -398,16 +398,24 @@ function handle(req: IncomingMessage, res: ServerResponse): void {
     return;
   }
 
-  // Individual harness fetch — used by the v2 detail page's harness preview.
+  // Individual harness fetch — used by the v2 detail page's harness preview
+  // and the editor at /dashboard/harnesses/[id]. The id determines which
+  // (name, version) pair we return so the editor + version sidebar render
+  // consistent data with the GET /internal/harnesses?name= response.
   const harnessGetMatch = url.pathname.match(/^\/internal\/harnesses\/([^/]+)$/);
   if (harnessGetMatch && req.method === 'GET') {
     const id = harnessGetMatch[1]!;
+    const versionFor: Record<string, number> = {
+      'mock-harness-1': 1,
+      'mock-harness-echo-v2': 2,
+    };
+    const version = versionFor[id] ?? 1;
     res.writeHead(200, { 'content-type': 'application/json' }).end(
       JSON.stringify({
         id,
         ownerId: MOCK_DB_USER_ID,
         name: 'echo',
-        version: 1,
+        version,
         createdAt: new Date(Date.now() - 120_000).toISOString(),
         updatedAt: new Date(Date.now() - 60_000).toISOString(),
         definition: {
@@ -420,6 +428,29 @@ function handle(req: IncomingMessage, res: ServerResponse): void {
         },
       }),
     );
+    return;
+  }
+
+  if (url.pathname === '/internal/harnesses' && req.method === 'POST') {
+    readBody(req).then((body) => {
+      let parsed: { name?: string } = {};
+      try {
+        parsed = JSON.parse(body) as { name?: string };
+      } catch {
+        /* ignore */
+      }
+      const now = Date.now();
+      res.writeHead(201, { 'content-type': 'application/json' }).end(
+        JSON.stringify({
+          id: 'mock-harness-saved',
+          ownerId: MOCK_DB_USER_ID,
+          name: parsed.name ?? 'unnamed',
+          version: 1,
+          createdAt: new Date(now).toISOString(),
+          updatedAt: new Date(now).toISOString(),
+        }),
+      );
+    });
     return;
   }
 
