@@ -288,11 +288,80 @@ function handle(req: IncomingMessage, res: ServerResponse): void {
     return;
   }
 
-  // Project-scoped preset list — empty by default; tests that need data can
-  // override by POSTing to /mock/set-* hooks (none defined yet for presets).
+  // Project-scoped preset list. Empty under emptyFixtures, otherwise returns
+  // one default preset so the presets page renders a populated list.
   const presetsListMatch = url.pathname.match(/^\/internal\/projects\/([^/]+)\/presets$/);
   if (presetsListMatch && req.method === 'GET') {
-    res.writeHead(200, { 'content-type': 'application/json' }).end('[]');
+    if (emptyFixtures) {
+      res.writeHead(200, { 'content-type': 'application/json' }).end('[]');
+      return;
+    }
+    const projectId = presetsListMatch[1]!;
+    const now = Date.now();
+    res.writeHead(200, { 'content-type': 'application/json' }).end(
+      JSON.stringify([
+        {
+          id: 'mock-preset-1',
+          projectId,
+          name: 'default-run',
+          harnessId: 'mock-harness-1',
+          clientId: 'mock-client-1',
+          inputs: { branch: 'main' },
+          isDefault: true,
+          createdAt: new Date(now - 60_000).toISOString(),
+          updatedAt: new Date(now - 60_000).toISOString(),
+        },
+      ]),
+    );
+    return;
+  }
+
+  if (presetsListMatch && req.method === 'POST') {
+    const projectId = presetsListMatch[1]!;
+    readBody(req).then(() => {
+      const now = Date.now();
+      res.writeHead(201, { 'content-type': 'application/json' }).end(
+        JSON.stringify({
+          id: 'mock-preset-new',
+          projectId,
+          name: 'new-preset',
+          harnessId: 'mock-harness-1',
+          clientId: 'mock-client-1',
+          inputs: {},
+          isDefault: false,
+          createdAt: new Date(now).toISOString(),
+          updatedAt: new Date(now).toISOString(),
+        }),
+      );
+    });
+    return;
+  }
+
+  const presetByIdMatch = url.pathname.match(/^\/internal\/presets\/([^/]+)$/);
+  if (presetByIdMatch && req.method === 'DELETE') {
+    res.writeHead(204).end();
+    return;
+  }
+
+  const fromPresetMatch = url.pathname.match(/^\/internal\/runs\/from-preset\/([^/]+)$/);
+  if (fromPresetMatch && req.method === 'POST') {
+    readBody(req).then(() => {
+      const now = Date.now();
+      res.writeHead(201, { 'content-type': 'application/json' }).end(
+        JSON.stringify({
+          id: 'mock-run-from-preset',
+          harnessId: 'mock-harness-1',
+          projectId: 'mock-project-1',
+          clientId: 'mock-client-1',
+          triggeredByUserId: MOCK_DB_USER_ID,
+          status: 'QUEUED',
+          branchName: null,
+          workingDir: null,
+          startedAt: new Date(now).toISOString(),
+          finishedAt: null,
+        }),
+      );
+    });
     return;
   }
 

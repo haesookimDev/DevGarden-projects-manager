@@ -35,13 +35,18 @@ async function runDefaultPresetAction(formData: FormData) {
   if (!target) {
     redirect(`/dashboard/projects/${projectId}/presets?error=no-preset`);
   }
+  let runId: string | null = null;
+  let runErr: string | null = null;
   try {
     const run = await triggerPresetRun(target.id, userId);
-    redirect(`/dashboard/runs/${run.id}`);
+    runId = run.id;
   } catch (e) {
-    const msg = e instanceof Error ? e.message : 'unknown';
-    redirect(`/dashboard/projects/${projectId}?error=${encodeURIComponent(msg)}`);
+    runErr = e instanceof Error ? e.message : 'unknown';
   }
+  if (runErr) {
+    redirect(`/dashboard/projects/${projectId}?error=${encodeURIComponent(runErr)}`);
+  }
+  redirect(`/dashboard/runs/${runId}`);
 }
 
 export default async function ProjectDetailPage({
