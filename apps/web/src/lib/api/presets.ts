@@ -31,10 +31,9 @@ export interface UpdatePresetInput {
 }
 
 export async function listPresetsByProject(projectId: string): Promise<PresetRow[]> {
-  const res = await internalFetch(
-    `/internal/projects/${encodeURIComponent(projectId)}/presets`,
-    { method: 'GET' },
-  );
+  const res = await internalFetch(`/internal/projects/${encodeURIComponent(projectId)}/presets`, {
+    method: 'GET',
+  });
   if (!res.ok) {
     const text = await res.text().catch(() => '');
     throw new Error(`listPresetsByProject failed: ${res.status} ${text}`);
@@ -44,10 +43,10 @@ export async function listPresetsByProject(projectId: string): Promise<PresetRow
 
 export async function createPreset(input: CreatePresetInput): Promise<PresetRow> {
   const { projectId, ...body } = input;
-  const res = await internalFetch(
-    `/internal/projects/${encodeURIComponent(projectId)}/presets`,
-    { method: 'POST', body },
-  );
+  const res = await internalFetch(`/internal/projects/${encodeURIComponent(projectId)}/presets`, {
+    method: 'POST',
+    body,
+  });
   if (!res.ok) {
     const text = await res.text().catch(() => '');
     throw new Error(`createPreset failed: ${res.status} ${text}`);
