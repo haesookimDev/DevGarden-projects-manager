@@ -1,0 +1,25 @@
+{
+  "name": "@devgarden/client-runner",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Node sidecar that the Tauri client spawns to actually run harnesses (fs/process/git/llm) outside the webview sandbox.",
+  "main": "./src/main.ts",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests"
+  },
+  "dependencies": {
+    "@devgarden/harness-core": "workspace:*",
+    "@devgarden/shared": "workspace:*",
+    "socket.io-client": "^4.8.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "esbuild": "^0.24.0",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
+  }
+}
