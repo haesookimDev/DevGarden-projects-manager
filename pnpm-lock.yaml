@@ -35,6 +35,9 @@ importers:
       '@devgarden/harness-core':
         specifier: workspace:*
         version: link:../../packages/harness-core
+      '@devgarden/harness-templates':
+        specifier: workspace:*
+        version: link:../../packages/harness-templates
       '@devgarden/shared':
         specifier: workspace:*
         version: link:../../packages/shared
