@@ -8,11 +8,11 @@
 
 ## Progress snapshot (2026-05-27)
 
-- **머지된 GitHub PR**: 64 개 (PR #1 ~ #64) — **v0.1.0 릴리즈 완료** + **v0.2 N0 (design system foundation) 완료** + **v0.2 N1 (GitHub onboarding overhaul) 완료**
-- **테스트**: api unit 41 + crypto/envelope 7 + github-registrations 6 + github-manifest 6 + manifest-builder 5 + manifest-state 3 + github-installations 3 + web unit 14 + client unit 28 + harness-core 30 + llm-adapters 10 + api integration 59 + web e2e 33 = **245 cases**
-- **CI**: 5 jobs (Lint · Typecheck · Unit · Integration · E2E) 모두 green
+- **머지된 GitHub PR**: 72 개 (PR #1 ~ #72) — **v0.1.0 릴리즈 완료** + **v0.2 N0 (design system foundation) 완료** + **v0.2 N1 (GitHub onboarding overhaul) 완료** + **v0.2 N2 (Node sidecar runner) 완료**
+- **테스트**: api 71 unit + 59 integration + client-runner 31 + web 14 unit + web 33 e2e + harness-core 30 + llm-adapters 10 + client 22 = **270 cases**
+- **CI**: 5 jobs (Lint · Typecheck · Unit · Integration · E2E) 모두 green + N2 PR7 의 `Tauri build smoke` (push-to-main 만)
 - **운영 정책 도입**: 한 PR 안의 commit 분리(§4), CI 통과 시 자동 머지(§6)
-- **다음 우선순위**: v0.2 ([roadmap/v0.2/README.md](./roadmap/v0.2/README.md)) — N0 + N1 완료, 다음은 N2 (Node sidecar runner) 또는 N4 / N6 병행
+- **다음 우선순위**: v0.2 ([roadmap/v0.2/README.md](./roadmap/v0.2/README.md)) — N0 + N1 + N2 완료, 다음은 N3 (project workflow polish — N1+N2 만족) 또는 N4 / N6 병행
 
 | Milestone                          | 상태                                         |
 | ---------------------------------- | -------------------------------------------- |

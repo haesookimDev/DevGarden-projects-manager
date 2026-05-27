@@ -1,0 +1,114 @@
+# Tauri build smoke — exercises the full `pnpm tauri build` path that the
+# regular CI workflow skips. Catches Rust-side regressions in
+# apps/client/src-tauri/ that lint/typecheck/unit/e2e can't see.
+#
+# Trigger policy (deliberately narrow to stay cheap):
+#   - push to main only (post-merge sanity check)
+#   - manual dispatch from the Actions tab (debugging)
+#
+# Not on pull_request — the matrix below pulls a Rust toolchain + GTK +
+# webkit2gtk on Linux, which adds ~5 minutes per run. CI's regular jobs
+# (Lint / Typecheck / Unit / Integration / E2E) keep PR feedback fast; this
+# job is the "did Rust still compile" guardrail that runs after merge.
+
+name: Tauri build smoke
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'apps/client/**'
+      - 'apps/client-runner/**'
+      - 'packages/**'
+      - '.github/workflows/tauri-build-smoke.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: tauri-build-smoke-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  smoke:
+    name: tauri build (${{ matrix.platform.label }})
+    runs-on: ${{ matrix.platform.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        platform:
+          # Two platforms chosen for v0.2: the macOS arm64 dev machine + a
+          # linux x64 baseline. Windows is intentionally deferred until a
+          # contributor reports needing it; adding it triples the run
+          # minutes without changing the signal much for the current
+          # single-developer setup.
+          - { os: macos-14, label: macOS arm64 }
+          - { os: ubuntu-latest, label: linux x64 }
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: Install dependencies (linux)
+        if: runner.os == 'Linux'
+        # Tauri's webview on Linux wraps webkit2gtk; the build won't link
+        # without these headers. javascriptcoregtk + libsoup come along
+        # for free as transitive deps. List sourced from the Tauri v2 docs.
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            libappindicator3-dev \
+            librsvg2-dev \
+            patchelf
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.platform.os == 'macos-14' && 'aarch64-apple-darwin' || 'x86_64-unknown-linux-gnu' }}
+
+      - name: Cache cargo registry + target
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            apps/client/src-tauri/target
+          # Cache key includes Cargo.toml so a dep bump invalidates cleanly.
+          key: ${{ runner.os }}-tauri-${{ hashFiles('apps/client/src-tauri/Cargo.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-tauri-
+
+      - name: Install pnpm dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build sidecar bundle + copy into resources
+        # `pnpm tauri:build` chains this, but running it explicitly lets us
+        # spot whether a failure happened on the JS side vs the Rust side.
+        run: pnpm --filter @devgarden/client prepare:sidecar
+
+      - name: Tauri build (debug)
+        # --debug skips signing + DMG generation, both of which need
+        # certificates we don't have in CI. The point is "does cargo build
+        # the binary and bundle the resource"; full release artifacts
+        # land alongside v0.2.0 tagging.
+        run: pnpm --filter @devgarden/client tauri build --debug
+
+      - name: Upload Tauri build artifacts
+        # Best-effort upload so a future debugging session can grab the
+        # actual binary. continue-on-error so a missing artifact dir from
+        # a partial failure doesn't mask the underlying error.
+        if: success()
+        uses: actions/upload-artifact@v4
+        continue-on-error: true
+        with:
+          name: tauri-debug-${{ matrix.platform.os }}
+          path: |
+            apps/client/src-tauri/target/debug/bundle/**
+            apps/client/src-tauri/target/debug/DevGarden*
+          if-no-files-found: warn
+          retention-days: 7
