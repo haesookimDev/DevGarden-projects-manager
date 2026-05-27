@@ -27,8 +27,7 @@ git --version
 
 ### 1.3 GitHub App 설정 (한 번만)
 
-DevGarden 은 두 종류의 GitHub 자격증명을 사용한다 — **OAuth App** (사용자 로그인) 과 **GitHub App** (저장소
-접근 + webhook). 보통 같은 도메인에서 두 개를 따로 등록한다.
+DevGarden 은 두 종류의 GitHub 자격증명을 사용한다 — **OAuth App** (사용자 로그인) 과 **GitHub App** (저장소 접근 + webhook). v0.2 부터 GitHub App 자격증명은 `.env` 에 직접 넣지 않고 첫 로그인 후 `/dashboard/onboarding` 에서 등록한다.
 
 1. **OAuth App** 생성 — [https://github.com/settings/developers](https://github.com/settings/developers) → "New OAuth App"
    - Application name: `DevGarden (myhost)`
@@ -36,15 +35,18 @@ DevGarden 은 두 종류의 GitHub 자격증명을 사용한다 — **OAuth App*
    - Authorization callback URL: `https://devgarden.example.com/api/auth/callback/github`
    - 발급된 Client ID / Secret 을 받아 `.env` 의 `GITHUB_OAUTH_CLIENT_ID` / `GITHUB_OAUTH_CLIENT_SECRET` 에 채운다.
 
-2. **GitHub App** 생성 — [https://github.com/settings/apps](https://github.com/settings/apps) → "New GitHub App"
-   - Homepage URL: 위와 동일
-   - Webhook
-     - **공개 호스트인 경우**: Active 체크 + URL `https://devgarden.example.com/webhooks/github` + Webhook secret 을 `openssl rand -base64 32` 로 생성해서 `.env` 의 `GITHUB_WEBHOOK_SECRET` 에 동일하게 넣음.
-     - **로컬 dogfood (`localhost`)**: GitHub 가 `localhost` / 사설 IP 를 거부한다. 두 가지 선택지 — (a) Active 체크 해제 후 빈 URL 로 저장 (issue → TodoItem 자동 sync 와 push/PR audit 만 비활성, OAuth / Octokit / harness 실행은 정상), 또는 (b) `cloudflared tunnel --url http://localhost:3001` 같은 터널로 public URL 받아서 webhook URL 로 등록.
+2. **GitHub App** 등록 — 두 가지 경로 중 하나. 첫 로그인 후 `/dashboard/onboarding` 화면에서 선택한다.
+   - **Manifest 경로 (권장, 공개 호스트)** — `/dashboard/onboarding` → "Create GitHub App" → GitHub 가 manifest 를 받아 App 을 자동 생성하고 webhook secret / PEM 까지 발급. callback 으로 돌아오면 DevGarden 이 envelope-encrypted 로 DB 저장. `.env` 에 `PUBLIC_BASE_URL=https://devgarden.example.com` 가 필요 (GitHub 가 `localhost` callback 을 거부).
+   - **BYO 경로 (localhost / 이미 App 이 있는 경우)** — `/dashboard/onboarding` → "I already have an App" → App ID 와 private key (PEM) 를 form 에 붙여넣기. webhook secret / OAuth client 는 선택. GitHub 의 `apps.getAuthenticated` 로 즉시 검증 후 DB 저장.
+   - **Legacy env 경로 (v0.1 사용자)** — `GITHUB_APP_ID` / `GITHUB_APP_PRIVATE_KEY` / `GITHUB_WEBHOOK_SECRET` 를 `.env` 에 넣으면 동작은 하지만 boot 시 deprecation warning 이 찍힌다. 다음 minor 에서 제거 예정. 위 두 경로 중 하나로 이전 권장.
+
+   생성된 App 의 권한 / 이벤트 설정은 세 경로 모두 동일:
+   - Webhook URL: `https://devgarden.example.com/webhooks/github` (manifest 가 자동 등록). 로컬 dogfood 면 (a) Active 해제 후 빈 URL — issue→TodoItem 자동 sync 와 push/PR audit 만 비활성, OAuth / Octokit / harness 실행은 정상 — 또는 (b) `cloudflared tunnel --url http://localhost:3001` 같은 터널로 public URL 받아서 webhook URL 로 등록.
+   - Webhook secret: manifest 경로면 GitHub 가 자동 발급. BYO / legacy 경로면 `openssl rand -base64 32` 로 직접 생성.
 
    #### Permissions
 
-   DevGarden api 가 실제로 호출하는 GitHub API 는 두 개 (`repos.get`, `pulls.create`). 거기에 webhook subscribe 가 요구하는 read 권한을 더한 매트릭스:
+   DevGarden api 가 실제로 호출하는 GitHub API 는 두 개 (`repos.get`, `pulls.create`). 거기에 webhook subscribe 가 요구하는 read 권한을 더한 매트릭스 (manifest 경로의 기본 권한 set 과 동일):
 
    | Permission (App 설정 페이지) | 권장 access | 왜 / 안 주면 무엇이 깨지나                                                                                                                                |
    | ---------------------------- | ----------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -80,23 +82,18 @@ DevGarden 은 두 종류의 GitHub 자격증명을 사용한다 — **OAuth App*
 
    > 권한을 나중에 변경하면 `https://github.com/settings/installations/{ID}` 페이지 상단에 노란 배너 → "Accept new permissions" 를 눌러야 새 권한이 활성화된다. 권한 변경은 api 재시작 불필요 (다음 token fetch 때 자동 반영).
 
-3. **Installation ID 확인** — 프로젝트 등록 폼에서 입력해야 함. 위 (2) 마지막 단계의 install 직후 주소창에 보이는 숫자가 곧 ID:
+3. **Installation 동기화** — Manifest / BYO 경로 모두 등록 후 `/dashboard/onboarding` 의 "Refresh from GitHub" 버튼이 사용자 OAuth token 으로 `apps.listInstallationsForAuthenticatedUser` 를 호출해서 본인의 App installation 목록을 DB 로 가져온다. `/dashboard/projects/new` 의 picker 가 이 목록을 source 로 사용 — 더 이상 installation ID 를 수동 입력할 필요가 없다. 권한 부족 (Pull requests Write 미부여 등) 은 onboarding / settings 화면에서 amber 배지로 표시.
 
-   ```
-   https://github.com/settings/installations/12345678
-                                             ^^^^^^^^
-   ```
+   Legacy env 경로에서는 picker 가 비어있다 — `/dashboard/onboarding` 에서 manifest 또는 BYO 로 한 번 재등록해야 picker 가 채워진다. 등록 전에는 v0.1 처럼 numeric installation ID 를 별도 경로로 알아내야 하지만, v0.2 신규 사용자는 이 경로를 거치지 않는다.
 
-   놓쳤다면 `https://github.com/settings/installations` (조직이면 `/organizations/{org}/settings/installations`) → DevGarden App 의 "Configure" 클릭 → 다시 URL 끝의 숫자.
-
-> `GITHUB_APP_PRIVATE_KEY` 는 세 가지 포맷 모두 허용 (서버가 normalize):
+> **Legacy env path 의 `GITHUB_APP_PRIVATE_KEY` 포맷** (v0.1 사용자가 이전 전까지만 유효) 은 세 가지 모두 허용:
 >
 > - **base64 인코딩 PEM (권장)** — escape 이슈 없음:
 >   `base64 -i devgarden.pem | tr -d '\n'` (macOS) 또는 `base64 -w0 devgarden.pem` (linux) 의 출력을 그대로 `.env` 에 붙여넣기.
 > - 다중행 PEM — 큰따옴표로 감싸서 `GITHUB_APP_PRIVATE_KEY="-----BEGIN ...\n...\n-----END ..."`.
 > - 한 줄 + 리터럴 `\n` — `GITHUB_APP_PRIVATE_KEY="-----BEGIN ...\\nMI...\\n-----END ..."`.
 >
-> 운영용은 compose override 의 `secrets:` 로 파일 마운트하는 게 가장 안전 (env 평문 노출 회피).
+> Manifest / BYO 경로에서는 PEM 이 DB 에 envelope-encrypted 로 저장되므로 위 가공이 필요 없다.
 
 ## 2. 첫 배포
 
@@ -115,18 +112,19 @@ cp .env.example .env
 
 `.env` 에서 채워야 할 값들:
 
-| 키                                                  | 생성 방법 / 출처                                                                                     |
-| --------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
-| `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB` | 임의 (변경 권장; 외부 노출되지 않지만 백업 파일에 사용자명 포함).                                    |
-| `AUTH_SECRET`                                       | `openssl rand -base64 32`                                                                            |
-| `ENCRYPTION_KEY`                                    | `openssl rand -base64 32`                                                                            |
-| `INTERNAL_API_SECRET`                               | `openssl rand -base64 32`                                                                            |
-| `GITHUB_OAUTH_CLIENT_ID` / `_SECRET`                | OAuth App 발급값 (§1.3).                                                                             |
-| `GITHUB_APP_ID`, `GITHUB_APP_PRIVATE_KEY`           | GitHub App 발급값 (§1.3).                                                                            |
-| `GITHUB_WEBHOOK_SECRET`                             | GitHub App Webhook secret 과 **동일** 값.                                                            |
-| `OWNER_GITHUB_LOGINS`                               | 로그인 허용할 GitHub login. 콤마 구분.                                                               |
-| `AUTH_URL`                                          | 브라우저로 접근하는 **web** 주소 (예: `http://localhost:3000`). OAuth callback redirect_uri 의 base. |
-| `NEXT_PUBLIC_API_URL`                               | 브라우저가 접근하는 api 주소. 보통 `https://devgarden.example.com`.                                  |
+| 키                                                  | 생성 방법 / 출처                                                                                                                |
+| --------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB` | 임의 (변경 권장; 외부 노출되지 않지만 백업 파일에 사용자명 포함).                                                               |
+| `AUTH_SECRET`                                       | `openssl rand -base64 32`                                                                                                       |
+| `ENCRYPTION_KEY`                                    | `openssl rand -base64 32`                                                                                                       |
+| `INTERNAL_API_SECRET`                               | `openssl rand -base64 32`                                                                                                       |
+| `GITHUB_OAUTH_CLIENT_ID` / `_SECRET`                | OAuth App 발급값 (§1.3).                                                                                                        |
+| `GITHUB_APP_ID`, `GITHUB_APP_PRIVATE_KEY`           | **Legacy v0.1 경로만 사용.** v0.2 신규 설정은 `/dashboard/onboarding` 에서. 환경에 남겨두면 boot 시 deprecation warning.        |
+| `GITHUB_WEBHOOK_SECRET`                             | 동일 — legacy 경로일 때만.                                                                                                      |
+| `PUBLIC_BASE_URL`                                   | Manifest 경로 사용 시 필수 (`https://devgarden.example.com`). GitHub 가 callback / hook URL 로 사용. BYO 경로만 쓰면 비워도 됨. |
+| `OWNER_GITHUB_LOGINS`                               | 로그인 허용할 GitHub login. 콤마 구분.                                                                                          |
+| `AUTH_URL`                                          | 브라우저로 접근하는 **web** 주소 (예: `http://localhost:3000`). OAuth callback redirect_uri 의 base.                            |
+| `NEXT_PUBLIC_API_URL`                               | 브라우저가 접근하는 api 주소. 보통 `https://devgarden.example.com`.                                                             |
 
 > ⚠ OAuth App 의 "Authorization callback URL" 은 **`${AUTH_URL}/api/auth/callback/github`** 와 정확히 일치해야 한다. 안 그러면 로그인 후 GitHub 가 `redirect_uri_mismatch` 로 거절한다. 로컬 테스트라면 OAuth App 의 callback URL 을 `http://localhost:3000/api/auth/callback/github` 로 등록.
 

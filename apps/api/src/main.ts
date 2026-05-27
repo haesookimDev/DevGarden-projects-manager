@@ -30,6 +30,24 @@ async function bootstrap() {
   const port = Number(process.env.PORT) || 3001;
   await app.listen(port);
   console.warn(`[api] listening on http://localhost:${port}`);
+  warnIfLegacyGithubEnv();
+}
+
+function warnIfLegacyGithubEnv(): void {
+  const set = ['GITHUB_APP_ID', 'GITHUB_APP_PRIVATE_KEY', 'GITHUB_WEBHOOK_SECRET'].filter(
+    (k) => typeof process.env[k] === 'string' && process.env[k] !== '',
+  );
+  if (set.length === 0) return;
+  // One-time WARN at boot to nudge existing self-hosters onto the new
+  // /dashboard/onboarding flow added in v0.2 N1. The env path stays alive
+  // for at least one more minor; this message is purely advisory.
+  console.warn(
+    `[api] DEPRECATED: ${set.join(', ')} env var(s) set. ` +
+      `v0.2 introduces the /dashboard/onboarding flow (manifest or BYO) which ` +
+      `stores App credentials envelope-encrypted in the DB. The env-driven path ` +
+      `still works in this release but will be removed in a future minor. ` +
+      `Migrate via /dashboard/onboarding when convenient.`,
+  );
 }
 
 function parseAllowedOrigins(raw: string | undefined): Set<string> {
