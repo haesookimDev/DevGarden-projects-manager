@@ -108,6 +108,39 @@ export async function listInstallationsFromDb(ownerId: string): Promise<GithubIn
   return (await res.json()) as GithubInstallation[];
 }
 
+export interface GithubRepo {
+  id: number;
+  name: string;
+  fullName: string;
+  private: boolean;
+  fork: boolean;
+  defaultBranch: string | null;
+  htmlUrl: string;
+}
+
+/**
+ * Lists repos the installation can reach. Server-side (uses App JWT inside
+ * the api). The picker page calls this once per selected installation.
+ */
+export async function listReposForInstallation(
+  installationDbId: string,
+  opts: { q?: string; type?: string } = {},
+): Promise<GithubRepo[]> {
+  const params = new URLSearchParams();
+  if (opts.q) params.set('q', opts.q);
+  if (opts.type) params.set('type', opts.type);
+  const qs = params.toString();
+  const path =
+    `/internal/github/installations/${encodeURIComponent(installationDbId)}/repos` +
+    (qs ? `?${qs}` : '');
+  const res = await internalFetch(path, { method: 'GET' });
+  if (!res.ok) {
+    const text = await res.text().catch(() => '');
+    throw new Error(`list repos failed: ${res.status} ${text}`);
+  }
+  return (await res.json()) as GithubRepo[];
+}
+
 /**
  * Forces a refresh from GitHub via the user's OAuth token. The api filters
  * by appId and upserts; returns the freshly synced rows.

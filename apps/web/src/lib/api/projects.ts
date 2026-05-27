@@ -13,6 +13,9 @@ export interface CreateProjectInput {
   installationId: number;
   repoFullName: string;
   localRoot: string;
+  /** Optional FK to GithubInstallation when the project was created via the
+   *  new repo picker. The api copies this onto Project.installationDbId. */
+  installationDbId?: string;
 }
 
 export async function listProjectsByOwner(ownerId: string): Promise<ProjectSummary[]> {
