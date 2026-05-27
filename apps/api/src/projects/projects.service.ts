@@ -145,6 +145,75 @@ export class ProjectsService {
       },
     });
   }
+
+  // Settings UI on /dashboard/projects/[id]/settings posts here. All three
+  // fields are independent; we use `null` to mean "unset", `undefined` to
+  // mean "don't touch". Cross-owner references (harness, client) are
+  // rejected so a forged request can't link a project to someone else's row.
+  async updateDefaults(
+    id: string,
+    patch: {
+      defaultHarnessId?: string | null;
+      defaultHarnessVersion?: number | null;
+      defaultClientId?: string | null;
+    },
+  ): Promise<Project> {
+    const project = await this.prisma.project.findUnique({
+      where: { id },
+      select: { id: true, ownerId: true },
+    });
+    if (!project) throw new NotFoundException(`project ${id} not found`);
+
+    if (patch.defaultHarnessId !== undefined && patch.defaultHarnessId !== null) {
+      const harness = await this.prisma.harness.findUnique({
+        where: { id: patch.defaultHarnessId },
+        select: { ownerId: true },
+      });
+      if (!harness) {
+        throw new BadRequestException(`harness ${patch.defaultHarnessId} not found`);
+      }
+      if (harness.ownerId !== project.ownerId) {
+        throw new BadRequestException(
+          `harness ${patch.defaultHarnessId} does not belong to the project owner`,
+        );
+      }
+    }
+    if (patch.defaultClientId !== undefined && patch.defaultClientId !== null) {
+      const client = await this.prisma.client.findUnique({
+        where: { id: patch.defaultClientId },
+        select: { ownerId: true },
+      });
+      if (!client) {
+        throw new BadRequestException(`client ${patch.defaultClientId} not found`);
+      }
+      if (client.ownerId !== project.ownerId) {
+        throw new BadRequestException(
+          `client ${patch.defaultClientId} does not belong to the project owner`,
+        );
+      }
+    }
+    // Version must be a positive integer or null.
+    if (
+      patch.defaultHarnessVersion !== undefined &&
+      patch.defaultHarnessVersion !== null &&
+      (!Number.isInteger(patch.defaultHarnessVersion) || patch.defaultHarnessVersion < 1)
+    ) {
+      throw new BadRequestException('defaultHarnessVersion must be a positive integer or null');
+    }
+
+    return this.prisma.project.update({
+      where: { id },
+      data: {
+        ...(patch.defaultHarnessId !== undefined
+          ? { defaultHarnessId: patch.defaultHarnessId }
+          : {}),
+        ...(patch.defaultHarnessVersion !== undefined
+          ? { defaultHarnessVersion: patch.defaultHarnessVersion }
+          : {}),
+        ...(patch.defaultClientId !== undefined ? { defaultClientId: patch.defaultClientId } : {}),
+      },
+    });
+  }
 }
 
 export interface ProjectDetail {
