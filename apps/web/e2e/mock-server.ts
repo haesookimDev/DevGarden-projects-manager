@@ -255,6 +255,9 @@ function handle(req: IncomingMessage, res: ServerResponse): void {
         githubRepoId: 42,
         localRoot: '/tmp/mock',
         worktreePolicy: 'AUTO_REMOVE_SUCCESS',
+        cloneStatus: 'READY',
+        cloneError: null,
+        cloneCompletedAt: new Date(Date.now() - 5 * 60_000).toISOString(),
         createdAt: new Date(Date.now() - 600_000).toISOString(),
         updatedAt: new Date(Date.now() - 60_000).toISOString(),
         defaultClient: {
@@ -279,6 +282,39 @@ function handle(req: IncomingMessage, res: ServerResponse): void {
           eventType: 'push',
           action: null,
           receivedAt: new Date(Date.now() - 30_000).toISOString(),
+        },
+      }),
+    );
+    return;
+  }
+
+  // Project-scoped preset list — empty by default; tests that need data can
+  // override by POSTing to /mock/set-* hooks (none defined yet for presets).
+  const presetsListMatch = url.pathname.match(/^\/internal\/projects\/([^/]+)\/presets$/);
+  if (presetsListMatch && req.method === 'GET') {
+    res.writeHead(200, { 'content-type': 'application/json' }).end('[]');
+    return;
+  }
+
+  // Individual harness fetch — used by the v2 detail page's harness preview.
+  const harnessGetMatch = url.pathname.match(/^\/internal\/harnesses\/([^/]+)$/);
+  if (harnessGetMatch && req.method === 'GET') {
+    const id = harnessGetMatch[1]!;
+    res.writeHead(200, { 'content-type': 'application/json' }).end(
+      JSON.stringify({
+        id,
+        ownerId: MOCK_DB_USER_ID,
+        name: 'echo',
+        version: 1,
+        createdAt: new Date(Date.now() - 120_000).toISOString(),
+        updatedAt: new Date(Date.now() - 60_000).toISOString(),
+        definition: {
+          name: 'echo',
+          version: 1,
+          steps: [
+            { id: 'step-read', type: 'tool', use: 'fs.read', with: { path: 'README.md' } },
+            { id: 'step-write', type: 'tool', use: 'fs.write', with: { path: 'a.txt' } },
+          ],
         },
       }),
     );
@@ -436,6 +472,35 @@ function handle(req: IncomingMessage, res: ServerResponse): void {
         avgCostUsd: 0.00585,
         terminalCount: 4,
       }),
+    );
+    return;
+  }
+
+  if (
+    url.pathname === '/internal/runs' &&
+    req.method === 'GET' &&
+    url.searchParams.has('projectId')
+  ) {
+    if (emptyFixtures) {
+      res.writeHead(200, { 'content-type': 'application/json' }).end('[]');
+      return;
+    }
+    const now = Date.now();
+    res.writeHead(200, { 'content-type': 'application/json' }).end(
+      JSON.stringify([
+        {
+          id: 'mock-run-7',
+          harnessId: 'mock-harness-1',
+          projectId: 'mock-project-1',
+          clientId: 'mock-client-1',
+          triggeredByUserId: MOCK_DB_USER_ID,
+          status: 'SUCCESS',
+          branchName: 'feat/mock',
+          workingDir: null,
+          startedAt: new Date(now - 120_000).toISOString(),
+          finishedAt: new Date(now - 60_000).toISOString(),
+        },
+      ]),
     );
     return;
   }
