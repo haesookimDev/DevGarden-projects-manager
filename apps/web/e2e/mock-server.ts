@@ -833,6 +833,57 @@ steps:
     return;
   }
 
+  // Cost trend (N6 insights). Returns a small daily series + breakdowns.
+  if (url.pathname === '/internal/stats/cost-trend' && req.method === 'GET') {
+    if (emptyFixtures) {
+      res.writeHead(200, { 'content-type': 'application/json' }).end(
+        JSON.stringify({
+          days: 30,
+          since: new Date(Date.now() - 30 * 86_400_000).toISOString(),
+          daily: [],
+          byProject: [],
+          byHarness: [],
+          totalCost: 0,
+          totalTokens: 0,
+        }),
+      );
+      return;
+    }
+    const days = Number(url.searchParams.get('days') ?? '30');
+    res.writeHead(200, { 'content-type': 'application/json' }).end(
+      JSON.stringify({
+        days,
+        since: new Date(Date.now() - days * 86_400_000).toISOString(),
+        daily: [
+          { day: '2026-05-26', cost: 0.012, tokens: 1200, runs: 2 },
+          { day: '2026-05-27', cost: 0.034, tokens: 3400, runs: 3 },
+        ],
+        byProject: [
+          {
+            projectId: 'mock-project-1',
+            repoFullName: 'mock/repo',
+            cost: 0.04,
+            tokens: 4000,
+            runs: 4,
+          },
+          {
+            projectId: 'mock-project-2',
+            repoFullName: 'mock/other',
+            cost: 0.006,
+            tokens: 600,
+            runs: 1,
+          },
+        ],
+        byHarness: [
+          { harnessId: 'mock-harness-1', name: 'echo', cost: 0.046, tokens: 4600, runs: 5 },
+        ],
+        totalCost: 0.046,
+        totalTokens: 4600,
+      }),
+    );
+    return;
+  }
+
   if (url.pathname === '/internal/runs/stats' && req.method === 'GET') {
     if (emptyFixtures) {
       res.writeHead(200, { 'content-type': 'application/json' }).end(
