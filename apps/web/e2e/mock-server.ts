@@ -939,6 +939,40 @@ steps:
     return;
   }
 
+  // Run timeline (N6) — must precede the /internal/runs/:id match below.
+  const timelineMatch = url.pathname.match(/^\/internal\/runs\/([^/]+)\/timeline$/);
+  if (timelineMatch && req.method === 'GET') {
+    const id = timelineMatch[1]!;
+    res.writeHead(200, { 'content-type': 'application/json' }).end(
+      JSON.stringify({
+        runId: id,
+        startedAt: new Date(Date.now() - 10_000).toISOString(),
+        finishedAt: new Date().toISOString(),
+        totalMs: 10_000,
+        longestStepIndex: 1,
+        steps: [
+          {
+            stepIndex: 0,
+            stepId: 'read',
+            kind: 'TOOL',
+            status: 'SUCCESS',
+            startOffsetMs: 0,
+            durationMs: 2000,
+          },
+          {
+            stepIndex: 1,
+            stepId: 'think',
+            kind: 'LLM',
+            status: 'SUCCESS',
+            startOffsetMs: 2000,
+            durationMs: 7000,
+          },
+        ],
+      }),
+    );
+    return;
+  }
+
   const runMatch = url.pathname.match(/^\/internal\/runs\/([^/]+)$/);
   if (runMatch && req.method === 'GET') {
     const id = runMatch[1]!;
