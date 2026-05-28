@@ -833,6 +833,54 @@ steps:
     return;
   }
 
+  // Owner budget (N6). status route checked before the bare :ownerId match.
+  const budgetStatusMatch = url.pathname.match(/^\/internal\/owner-budget\/([^/]+)\/status$/);
+  if (budgetStatusMatch && req.method === 'GET') {
+    res.writeHead(200, { 'content-type': 'application/json' }).end(
+      JSON.stringify({
+        threshold: 'warn',
+        spendUsd: 85,
+        limitUsd: 100,
+        warnAt: 80,
+        since: new Date(Date.now() - 10 * 86_400_000).toISOString(),
+      }),
+    );
+    return;
+  }
+  const budgetMatch = url.pathname.match(/^\/internal\/owner-budget\/([^/]+)$/);
+  if (budgetMatch && req.method === 'GET') {
+    res.writeHead(200, { 'content-type': 'application/json' }).end(
+      JSON.stringify({
+        ownerId: budgetMatch[1],
+        monthlyUsdLimit: 100,
+        warnAt: 80,
+        resetDay: 1,
+        updatedAt: new Date(Date.now() - 86_400_000).toISOString(),
+      }),
+    );
+    return;
+  }
+  if (budgetMatch && req.method === 'PUT') {
+    readBody(req).then((body) => {
+      let parsed: { monthlyUsdLimit?: number | null; warnAt?: number; resetDay?: number } = {};
+      try {
+        parsed = JSON.parse(body) as typeof parsed;
+      } catch {
+        /* ignore */
+      }
+      res.writeHead(200, { 'content-type': 'application/json' }).end(
+        JSON.stringify({
+          ownerId: budgetMatch[1],
+          monthlyUsdLimit: parsed.monthlyUsdLimit ?? null,
+          warnAt: parsed.warnAt ?? 80,
+          resetDay: parsed.resetDay ?? 1,
+          updatedAt: new Date().toISOString(),
+        }),
+      );
+    });
+    return;
+  }
+
   // Cost trend (N6 insights). Returns a small daily series + breakdowns.
   if (url.pathname === '/internal/stats/cost-trend' && req.method === 'GET') {
     if (emptyFixtures) {
