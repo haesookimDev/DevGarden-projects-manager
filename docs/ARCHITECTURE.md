@@ -142,6 +142,10 @@ GET  /internal/github/events           → webhook audit 목록 (N6)
                                 ?projectId & type & since & pageSize
 GET  /internal/github/events/:id       → 단일 이벤트 + payload
 POST /internal/github/events/:id/redeliver → App JWT 로 GitHub redelivery 호출
+
+GET  /internal/stats/cost-trend        → 일별 cost/token + project/harness break-down (N6)
+                                ?ownerId & days(≤90) → { daily[], byProject[],
+                                byHarness[], totalCost, totalTokens }
 ```
 
 - `RunsGateway` 는 `ClientsGateway` 와 같은 `/clients` 네임스페이스를 공유한다. 인증/heartbeat 는 `ClientsGateway` 가 담당하고, run 관련 이벤트만 `RunsGateway` 가 처리. `socket.data.clientId` 는 `ClientsGateway.handleConnection` 단계에서 채워지므로 `RunsGateway` 핸들러는 그 값을 가드 조건으로 사용.
