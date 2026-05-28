@@ -109,6 +109,50 @@ export class RunsInternalController {
     });
   }
 
+  // Filtered + paginated search over an owner's runs. Powers the
+  // /dashboard/runs filter sidebar (N6). All filters optional, ANDed.
+  // NOTE: registered before @Get(':id') so "search" isn't swallowed as an id.
+  @Get('search')
+  async search(
+    @Query('ownerId') ownerId: string | undefined,
+    @Query('projectId') projectId: string | undefined,
+    @Query('harnessId') harnessId: string | undefined,
+    @Query('clientId') clientId: string | undefined,
+    @Query('triggeredByUserId') triggeredByUserId: string | undefined,
+    @Query('status') status: string | undefined,
+    @Query('since') since: string | undefined,
+    @Query('until') until: string | undefined,
+    @Query('q') q: string | undefined,
+    @Query('page') page: string | undefined,
+    @Query('pageSize') pageSize: string | undefined,
+  ) {
+    if (!ownerId) throw new BadRequestException('ownerId query is required');
+    const result = await this.runs.searchByOwner({
+      ownerId,
+      ...(projectId ? { projectId } : {}),
+      ...(harnessId ? { harnessId } : {}),
+      ...(clientId ? { clientId } : {}),
+      ...(triggeredByUserId ? { triggeredByUserId } : {}),
+      ...(status ? { status: parseRunStatus(status)! } : {}),
+      ...(since ? { since: parseDate(since, 'since') } : {}),
+      ...(until ? { until: parseDate(until, 'until') } : {}),
+      ...(q ? { q } : {}),
+      ...(page ? { page: parsePositiveInt(page, 'page') } : {}),
+      ...(pageSize ? { pageSize: parsePositiveInt(pageSize, 'pageSize') } : {}),
+    });
+    return {
+      page: result.page,
+      pageSize: result.pageSize,
+      total: result.total,
+      items: result.items.map((r) => ({
+        ...projectRun(r),
+        repoFullName: r.project.repoFullName,
+        harnessName: r.harness.name,
+        harnessVersion: r.harness.version,
+      })),
+    };
+  }
+
   // Trigger a run from a saved RunPreset. The preset supplies harness +
   // client + inputs; the caller supplies `triggeredByUserId` (BFF maps
   // session → user). Returns the same shape as POST /internal/runs so the
@@ -192,6 +236,22 @@ function parseRunStatus(s: string | undefined): RunStatus | undefined {
   if (!s) return undefined;
   if (s in RunStatus) return RunStatus[s as keyof typeof RunStatus];
   throw new BadRequestException(`invalid status "${s}"`);
+}
+
+function parseDate(s: string, key: string): Date {
+  const d = new Date(s);
+  if (Number.isNaN(d.getTime())) {
+    throw new BadRequestException(`${key} must be an ISO date string`);
+  }
+  return d;
+}
+
+function parsePositiveInt(s: string, key: string): number {
+  const n = Number(s);
+  if (!Number.isInteger(n) || n < 1) {
+    throw new BadRequestException(`${key} must be a positive integer`);
+  }
+  return n;
 }
 
 interface RunRow {

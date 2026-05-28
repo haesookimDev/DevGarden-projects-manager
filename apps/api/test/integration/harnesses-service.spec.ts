@@ -14,6 +14,15 @@ afterAll(async () => {
 });
 
 beforeEach(async () => {
+  // HarnessRun.harnessId is onDelete: Restrict, so any runs left behind by a
+  // prior spec file (the suite runs serially against one shared Postgres)
+  // would block harness.deleteMany. Clear the run chain first.
+  await prisma.runLog.deleteMany();
+  await prisma.runStep.deleteMany();
+  await prisma.harnessRun.deleteMany();
+  await prisma.runPreset.deleteMany();
+  await prisma.client.deleteMany();
+  await prisma.project.deleteMany();
   await prisma.harness.deleteMany();
   await prisma.user.deleteMany();
 });
