@@ -106,6 +106,65 @@ function handle(req: IncomingMessage, res: ServerResponse): void {
     return;
   }
 
+  // Webhook events audit (N6). List + single (with payload) + redeliver.
+  if (url.pathname === '/internal/github/events' && req.method === 'GET') {
+    if (emptyFixtures) {
+      res.writeHead(200, { 'content-type': 'application/json' }).end('[]');
+      return;
+    }
+    const now = Date.now();
+    const type = url.searchParams.get('type');
+    const all = [
+      {
+        id: 'mock-event-1',
+        deliveryId: 'guid-push-1',
+        eventType: 'push',
+        action: null,
+        repoFullName: 'mock/repo',
+        projectId: 'mock-project-1',
+        receivedAt: new Date(now - 30_000).toISOString(),
+      },
+      {
+        id: 'mock-event-2',
+        deliveryId: 'guid-issues-1',
+        eventType: 'issues',
+        action: 'opened',
+        repoFullName: 'mock/repo',
+        projectId: 'mock-project-1',
+        receivedAt: new Date(now - 90_000).toISOString(),
+      },
+    ];
+    const items = type ? all.filter((e) => e.eventType === type) : all;
+    res.writeHead(200, { 'content-type': 'application/json' }).end(JSON.stringify(items));
+    return;
+  }
+  const eventByIdMatch = url.pathname.match(/^\/internal\/github\/events\/([^/]+)$/);
+  if (eventByIdMatch && req.method === 'GET') {
+    const id = eventByIdMatch[1]!;
+    res.writeHead(200, { 'content-type': 'application/json' }).end(
+      JSON.stringify({
+        id,
+        deliveryId: 'guid-push-1',
+        eventType: 'push',
+        action: null,
+        repoFullName: 'mock/repo',
+        projectId: 'mock-project-1',
+        receivedAt: new Date(Date.now() - 30_000).toISOString(),
+        payload: { ref: 'refs/heads/main', commits: [{ id: 'abc123' }] },
+      }),
+    );
+    return;
+  }
+  const redeliverMatch = url.pathname.match(/^\/internal\/github\/events\/([^/]+)\/redeliver$/);
+  if (redeliverMatch && req.method === 'POST') {
+    readBody(req).then(() => {
+      res
+        .writeHead(200, { 'content-type': 'application/json' })
+        .end(JSON.stringify({ ok: true, deliveryId: 9001 }));
+    });
+    return;
+  }
+
   if (url.pathname === '/internal/github/installations' && req.method === 'GET') {
     if (!onboardingRegistered) {
       res.writeHead(200, { 'content-type': 'application/json' }).end('[]');
