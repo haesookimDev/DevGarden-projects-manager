@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Card, CardContent } from '@devgarden/ui';
 import type { RunDetail, RunLogRow, RunStepRow } from '@/lib/api/runs';
+import { TimelineTab } from './timeline-tab';
 
 const POLL_INTERVAL_MS = 5_000;
 
@@ -28,10 +29,13 @@ type RunStatusEventPayload = {
   status: RunDetail['status'];
 };
 
+type Tab = 'detail' | 'timeline';
+
 export function RunView({ initial }: { initial: RunDetail }) {
   const [run, setRun] = useState<RunDetail>(initial);
   const [error, setError] = useState<string | null>(null);
   const [liveConnected, setLiveConnected] = useState(false);
+  const [tab, setTab] = useState<Tab>('detail');
   // Monotonic counter so SSE-appended rows have stable React keys without
   // colliding with persisted DB ids.
   const liveSeqRef = useRef(0);
@@ -150,57 +154,111 @@ export function RunView({ initial }: { initial: RunDetail }) {
         )}
       </section>
 
-      <section className="mt-6">
-        <h2 className="text-lg font-semibold">Steps ({run.steps.length})</h2>
-        {run.steps.length === 0 && (
-          <p className="mt-2 text-sm text-muted-foreground">아직 실행된 step 이 없습니다.</p>
-        )}
-        {run.steps.length > 0 && (
-          <Card className="mt-2 overflow-hidden p-0">
-            <CardContent className="p-0">
-              <ul data-testid="run-steps" className="divide-y divide-border">
-                {run.steps.map((s) => (
-                  <li key={s.id} className="px-4 py-3">
-                    <div className="flex items-center justify-between">
-                      <p className="font-mono text-sm">
-                        #{s.stepIndex} {s.stepId} ({s.kind.toLowerCase()})
-                      </p>
-                      <StatusPill status={s.status as RunDetail['status']} />
-                    </div>
-                    {s.error && <p className="mt-1 text-xs text-destructive">{s.error}</p>}
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      {s.durationMs !== null ? `${s.durationMs} ms` : 'running…'}
-                    </p>
-                  </li>
-                ))}
-              </ul>
-            </CardContent>
-          </Card>
-        )}
-      </section>
+      <nav className="mt-6 flex gap-1 border-b border-border" data-testid="run-tabs">
+        <TabButton
+          active={tab === 'detail'}
+          onClick={() => setTab('detail')}
+          testId="run-tab-detail"
+        >
+          Steps &amp; logs
+        </TabButton>
+        <TabButton
+          active={tab === 'timeline'}
+          onClick={() => setTab('timeline')}
+          testId="run-tab-timeline"
+        >
+          Timeline
+        </TabButton>
+      </nav>
 
-      <section className="mt-6">
-        <h2 className="text-lg font-semibold">Logs ({run.logs.length})</h2>
-        {run.logs.length === 0 && (
-          <p className="mt-2 text-sm text-muted-foreground">로그가 아직 없습니다.</p>
-        )}
-        {run.logs.length > 0 && (
-          <pre
-            data-testid="run-logs"
-            className="mt-2 max-h-96 overflow-auto rounded-md border border-border bg-muted/40 p-3 font-mono text-xs"
-          >
-            {run.logs.map((l) => (
-              <div key={l.id}>
-                <span className="text-muted-foreground">
-                  [{new Date(l.ts).toLocaleTimeString()}] {l.level.padEnd(5)} {l.source}
-                </span>{' '}
-                {l.message}
-              </div>
-            ))}
-          </pre>
-        )}
-      </section>
+      {tab === 'timeline' ? (
+        <section className="mt-6">
+          <TimelineTab runId={run.id} />
+        </section>
+      ) : (
+        <>
+          <section className="mt-6">
+            <h2 className="text-lg font-semibold">Steps ({run.steps.length})</h2>
+            {run.steps.length === 0 && (
+              <p className="mt-2 text-sm text-muted-foreground">아직 실행된 step 이 없습니다.</p>
+            )}
+            {run.steps.length > 0 && (
+              <Card className="mt-2 overflow-hidden p-0">
+                <CardContent className="p-0">
+                  <ul data-testid="run-steps" className="divide-y divide-border">
+                    {run.steps.map((s) => (
+                      <li key={s.id} className="px-4 py-3">
+                        <div className="flex items-center justify-between">
+                          <p className="font-mono text-sm">
+                            #{s.stepIndex} {s.stepId} ({s.kind.toLowerCase()})
+                          </p>
+                          <StatusPill status={s.status as RunDetail['status']} />
+                        </div>
+                        {s.error && <p className="mt-1 text-xs text-destructive">{s.error}</p>}
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          {s.durationMs !== null ? `${s.durationMs} ms` : 'running…'}
+                        </p>
+                      </li>
+                    ))}
+                  </ul>
+                </CardContent>
+              </Card>
+            )}
+          </section>
+
+          <section className="mt-6">
+            <h2 className="text-lg font-semibold">Logs ({run.logs.length})</h2>
+            {run.logs.length === 0 && (
+              <p className="mt-2 text-sm text-muted-foreground">로그가 아직 없습니다.</p>
+            )}
+            {run.logs.length > 0 && (
+              <pre
+                data-testid="run-logs"
+                className="mt-2 max-h-96 overflow-auto rounded-md border border-border bg-muted/40 p-3 font-mono text-xs"
+              >
+                {run.logs.map((l) => (
+                  <div key={l.id}>
+                    <span className="text-muted-foreground">
+                      [{new Date(l.ts).toLocaleTimeString()}] {l.level.padEnd(5)} {l.source}
+                    </span>{' '}
+                    {l.message}
+                  </div>
+                ))}
+              </pre>
+            )}
+          </section>
+        </>
+      )}
     </main>
+  );
+}
+
+function TabButton({
+  active,
+  onClick,
+  testId,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  testId: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      data-testid={testId}
+      data-active={active ? '1' : '0'}
+      className={
+        'border-b-2 px-3 py-2 text-sm transition-colors ' +
+        (active
+          ? 'border-foreground font-medium'
+          : 'border-transparent text-muted-foreground hover:text-foreground')
+      }
+    >
+      {children}
+    </button>
   );
 }
 
