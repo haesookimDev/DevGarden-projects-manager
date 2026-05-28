@@ -249,6 +249,106 @@ export class RunsService {
   }
 
   /**
+   * Cost + token trend for an owner over the last `days` days (max 90).
+   *
+   * Postgres can't group Prisma queries by truncated day, so the daily series
+   * is a raw `date_trunc('day', ...)` aggregate. Token totals come from
+   * `(tokenUsage->>'total')::numeric` — the harness runner writes
+   * `{ input, output, total }` per run. Decimal/numeric columns arrive as
+   * strings, so everything is `Number()`-coerced for transport. The per-
+   * project / per-harness breakdowns are window totals (not daily) for the
+   * insights page's tabs.
+   */
+  async costTrendByOwner(ownerId: string, opts: { days?: number } = {}): Promise<CostTrend> {
+    const days = clamp(opts.days ?? 30, 1, 90);
+    const since = new Date(Date.now() - days * 86_400_000);
+
+    const dailyRows = await this.prisma.$queryRaw<
+      Array<{ day: Date; cost: string | null; tokens: string | null; runs: bigint }>
+    >`
+      SELECT date_trunc('day', r."startedAt") AS day,
+             COALESCE(SUM(r."costUsd"), 0) AS cost,
+             COALESCE(SUM((r."tokenUsage"->>'total')::numeric), 0) AS tokens,
+             COUNT(*) AS runs
+      FROM "HarnessRun" r
+      JOIN "Project" p ON p.id = r."projectId"
+      WHERE p."ownerId" = ${ownerId} AND r."startedAt" >= ${since}
+      GROUP BY day
+      ORDER BY day ASC
+    `;
+
+    const byProjectRows = await this.prisma.$queryRaw<
+      Array<{
+        projectId: string;
+        repoFullName: string;
+        cost: string | null;
+        tokens: string | null;
+        runs: bigint;
+      }>
+    >`
+      SELECT p.id AS "projectId", p."repoFullName" AS "repoFullName",
+             COALESCE(SUM(r."costUsd"), 0) AS cost,
+             COALESCE(SUM((r."tokenUsage"->>'total')::numeric), 0) AS tokens,
+             COUNT(*) AS runs
+      FROM "HarnessRun" r
+      JOIN "Project" p ON p.id = r."projectId"
+      WHERE p."ownerId" = ${ownerId} AND r."startedAt" >= ${since}
+      GROUP BY p.id, p."repoFullName"
+      ORDER BY cost DESC
+    `;
+
+    const byHarnessRows = await this.prisma.$queryRaw<
+      Array<{
+        harnessId: string;
+        name: string;
+        cost: string | null;
+        tokens: string | null;
+        runs: bigint;
+      }>
+    >`
+      SELECT h.id AS "harnessId", h.name AS name,
+             COALESCE(SUM(r."costUsd"), 0) AS cost,
+             COALESCE(SUM((r."tokenUsage"->>'total')::numeric), 0) AS tokens,
+             COUNT(*) AS runs
+      FROM "HarnessRun" r
+      JOIN "Project" p ON p.id = r."projectId"
+      JOIN "Harness" h ON h.id = r."harnessId"
+      WHERE p."ownerId" = ${ownerId} AND r."startedAt" >= ${since}
+      GROUP BY h.id, h.name
+      ORDER BY cost DESC
+    `;
+
+    const daily = dailyRows.map((row) => ({
+      day: row.day.toISOString().slice(0, 10),
+      cost: Number(row.cost ?? 0),
+      tokens: Number(row.tokens ?? 0),
+      runs: Number(row.runs),
+    }));
+
+    return {
+      days,
+      since: since.toISOString(),
+      daily,
+      byProject: byProjectRows.map((r) => ({
+        projectId: r.projectId,
+        repoFullName: r.repoFullName,
+        cost: Number(r.cost ?? 0),
+        tokens: Number(r.tokens ?? 0),
+        runs: Number(r.runs),
+      })),
+      byHarness: byHarnessRows.map((r) => ({
+        harnessId: r.harnessId,
+        name: r.name,
+        cost: Number(r.cost ?? 0),
+        tokens: Number(r.tokens ?? 0),
+        runs: Number(r.runs),
+      })),
+      totalCost: daily.reduce((acc, d) => acc + d.cost, 0),
+      totalTokens: daily.reduce((acc, d) => acc + d.tokens, 0),
+    };
+  }
+
+  /**
    * Aggregate stats for an owner's runs, optionally bounded to `sinceHours`
    * back. Cost is summed from the `costUsd` column (Decimal → string at the
    * Prisma layer, converted to number here for transport).
@@ -304,6 +404,39 @@ export interface OwnerRunStats {
   totalCostUsd: number;
   avgCostUsd: number | null;
   terminalCount: number;
+}
+
+export interface CostTrendDay {
+  day: string; // YYYY-MM-DD
+  cost: number;
+  tokens: number;
+  runs: number;
+}
+
+export interface CostTrendBreakdownProject {
+  projectId: string;
+  repoFullName: string;
+  cost: number;
+  tokens: number;
+  runs: number;
+}
+
+export interface CostTrendBreakdownHarness {
+  harnessId: string;
+  name: string;
+  cost: number;
+  tokens: number;
+  runs: number;
+}
+
+export interface CostTrend {
+  days: number;
+  since: string;
+  daily: CostTrendDay[];
+  byProject: CostTrendBreakdownProject[];
+  byHarness: CostTrendBreakdownHarness[];
+  totalCost: number;
+  totalTokens: number;
 }
 
 export interface RunTimelineStep {
