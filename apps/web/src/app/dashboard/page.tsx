@@ -44,6 +44,11 @@ export default async function DashboardPage() {
             </Link>
           </Button>
           <Button asChild variant="outline" size="sm">
+            <Link href="/dashboard/insights" data-testid="dashboard-insights-cta">
+              Insights
+            </Link>
+          </Button>
+          <Button asChild variant="outline" size="sm">
             <Link href="/dashboard/settings/github" data-testid="dashboard-settings-github-cta">
               GitHub settings
             </Link>
