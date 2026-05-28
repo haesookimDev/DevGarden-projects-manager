@@ -3,25 +3,63 @@ import { PlayCircle } from 'lucide-react';
 import { Card, CardContent } from '@devgarden/ui';
 import { auth } from '@/auth';
 import { EmptyState } from '@/components/empty-state';
-import { getRunsStats, listRunsByOwner, type RunHistoryRow, type RunsStats } from '@/lib/api/runs';
+import { listProjectsByOwner, type ProjectSummary } from '@/lib/api/projects';
+import {
+  getRunsStats,
+  searchRuns,
+  type RunSearchResult,
+  type RunStatus,
+  type RunsStats,
+} from '@/lib/api/runs';
+import { RunsFilterSidebar } from './runs-filter-sidebar';
+import { RunsPagination } from './runs-pagination';
 
-export default async function RunsHistoryPage() {
-  const session = await auth();
+const PAGE_SIZE = 25;
+const VALID_STATUS = new Set(['QUEUED', 'RUNNING', 'SUCCESS', 'FAILED', 'CANCELLED']);
+
+export default async function RunsHistoryPage({
+  searchParams,
+}: {
+  searchParams: Promise<{
+    status?: string;
+    projectId?: string;
+    q?: string;
+    since?: string;
+    until?: string;
+    page?: string;
+  }>;
+}) {
+  const [sp, session] = await Promise.all([searchParams, auth()]);
   const ownerId = session?.user?.id;
 
-  let runs: RunHistoryRow[] = [];
+  const page = sp.page && Number(sp.page) > 0 ? Math.floor(Number(sp.page)) : 1;
+  const status = sp.status && VALID_STATUS.has(sp.status) ? (sp.status as RunStatus) : undefined;
+
+  let result: RunSearchResult | null = null;
   let stats: RunsStats | null = null;
+  let projects: ProjectSummary[] = [];
   let error: string | null = null;
   if (ownerId) {
     try {
-      [runs, stats] = await Promise.all([
-        listRunsByOwner(ownerId, { limit: 50 }),
+      [result, stats, projects] = await Promise.all([
+        searchRuns(ownerId, {
+          ...(status ? { status } : {}),
+          ...(sp.projectId ? { projectId: sp.projectId } : {}),
+          ...(sp.q ? { q: sp.q } : {}),
+          ...(sp.since ? { since: sp.since } : {}),
+          ...(sp.until ? { until: sp.until } : {}),
+          page,
+          pageSize: PAGE_SIZE,
+        }),
         getRunsStats(ownerId, { sinceHours: 24 * 7 }),
+        listProjectsByOwner(ownerId),
       ]);
     } catch (e) {
       error = e instanceof Error ? e.message : 'failed to load runs history';
     }
   }
+
+  const items = result?.items ?? [];
 
   return (
     <main className="p-8">
@@ -33,7 +71,7 @@ export default async function RunsHistoryPage() {
         </p>
         <h1 className="mt-2 text-2xl font-semibold">Runs history</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          최근 50개 실행 + 지난 7일 통계. 더 좁히려면 status 필터를 추가할 예정.
+          status / project / date / 검색으로 좁히고, URL 을 공유하면 같은 필터가 재현됩니다.
         </p>
       </header>
 
@@ -45,59 +83,69 @@ export default async function RunsHistoryPage() {
 
       {stats && <StatsGrid stats={stats} />}
 
-      <section className="mt-8">
-        <h2 className="text-lg font-semibold">Recent runs ({runs.length})</h2>
-        {runs.length === 0 && (
-          <EmptyState
-            className="mt-3"
-            icon={PlayCircle}
-            title="실행된 run 이 없습니다"
-            description="대시보드의 “New run” 또는 프로젝트 상세의 “Trigger a new run” 으로 첫 실행을 시작하세요."
-            action={
-              <Link
-                href="/dashboard/runs/new"
-                className="text-sm font-medium underline-offset-4 hover:underline"
-                data-testid="runs-empty-new-cta"
-              >
-                Trigger a new run →
-              </Link>
-            }
-            testId="runs-empty"
-          />
-        )}
-        {runs.length > 0 && (
-          <Card className="mt-3 overflow-hidden p-0">
-            <CardContent className="p-0">
-              <ul data-testid="runs-history-list" className="divide-y divide-border">
-                {runs.map((r) => (
-                  <li key={r.id}>
-                    <Link
-                      href={`/dashboard/runs/${r.id}`}
-                      data-testid="runs-history-row"
-                      className="flex items-center justify-between px-4 py-3 transition-colors hover:bg-accent"
-                    >
-                      <div>
-                        <p className="font-mono text-sm">{r.id.slice(0, 12)}</p>
-                        <p className="mt-1 text-xs text-muted-foreground">
-                          {r.repoFullName} · started {new Date(r.startedAt).toLocaleString()}
-                          {r.finishedAt && (
-                            <>
-                              {' · '}
-                              {formatDuration(
-                                new Date(r.finishedAt).getTime() - new Date(r.startedAt).getTime(),
-                              )}
-                            </>
-                          )}
-                        </p>
-                      </div>
-                      <StatusPill status={r.status} />
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </CardContent>
-          </Card>
-        )}
+      <section className="mt-8 grid grid-cols-1 gap-6 lg:grid-cols-[260px_1fr]">
+        <RunsFilterSidebar
+          projects={projects.map((p) => ({ id: p.id, repoFullName: p.repoFullName }))}
+        />
+
+        <div className="space-y-3">
+          {result && (
+            <RunsPagination page={result.page} pageSize={result.pageSize} total={result.total} />
+          )}
+
+          {items.length === 0 ? (
+            <EmptyState
+              className="mt-3"
+              icon={PlayCircle}
+              title="일치하는 run 이 없습니다"
+              description="필터를 비우거나 다른 조건으로 검색하세요. 아직 실행이 없다면 “New run” 으로 시작하세요."
+              action={
+                <Link
+                  href="/dashboard/runs/new"
+                  className="text-sm font-medium underline-offset-4 hover:underline"
+                  data-testid="runs-empty-new-cta"
+                >
+                  Trigger a new run →
+                </Link>
+              }
+              testId="runs-empty"
+            />
+          ) : (
+            <Card className="overflow-hidden p-0">
+              <CardContent className="p-0">
+                <ul data-testid="runs-history-list" className="divide-y divide-border">
+                  {items.map((r) => (
+                    <li key={r.id}>
+                      <Link
+                        href={`/dashboard/runs/${r.id}`}
+                        data-testid="runs-history-row"
+                        className="flex items-center justify-between px-4 py-3 transition-colors hover:bg-accent"
+                      >
+                        <div>
+                          <p className="font-mono text-sm">{r.id.slice(0, 12)}</p>
+                          <p className="mt-1 text-xs text-muted-foreground">
+                            {r.repoFullName} · {r.harnessName} v{r.harnessVersion} · started{' '}
+                            {new Date(r.startedAt).toLocaleString()}
+                            {r.finishedAt && (
+                              <>
+                                {' · '}
+                                {formatDuration(
+                                  new Date(r.finishedAt).getTime() -
+                                    new Date(r.startedAt).getTime(),
+                                )}
+                              </>
+                            )}
+                          </p>
+                        </div>
+                        <StatusPill status={r.status} />
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </CardContent>
+            </Card>
+          )}
+        </div>
       </section>
     </main>
   );
