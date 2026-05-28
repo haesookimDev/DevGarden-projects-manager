@@ -42,7 +42,7 @@ test('runs history shows EmptyState with a "Trigger a new run" CTA', async ({ pa
   await page.goto('/dashboard/runs');
   const empty = page.getByTestId('runs-empty');
   await expect(empty).toBeVisible();
-  await expect(empty).toContainText('실행된 run 이 없습니다');
+  await expect(empty).toContainText('일치하는 run 이 없습니다');
   const cta = page.getByTestId('runs-empty-new-cta');
   await expect(cta).toBeVisible();
   await expect(cta).toHaveAttribute('href', '/dashboard/runs/new');
