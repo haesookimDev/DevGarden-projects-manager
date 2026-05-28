@@ -10,6 +10,8 @@ import { PrismaClient, UserRole } from '@prisma/client';
 import { io as ioClient, type Socket as ClientSocket } from 'socket.io-client';
 import { ClientJwtService } from '../../src/clients/client-jwt.service';
 import { ClientsGateway } from '../../src/clients/clients.gateway';
+import { BudgetMonitorService } from '../../src/budget/budget-monitor.service';
+import { BudgetService } from '../../src/budget/budget.service';
 import { GithubPrService } from '../../src/github/github-pr.service';
 import { PrismaModule } from '../../src/prisma/prisma.module';
 import { RunsGateway } from '../../src/runs/runs.gateway';
@@ -35,6 +37,8 @@ beforeAll(async () => {
       ClientsGateway,
       RunsGateway,
       RunsService,
+      BudgetService,
+      BudgetMonitorService,
       // GithubPrService is only invoked by the github:openPR handler — these
       // tests never trigger that path, so a stub keeps the DI graph happy
       // without bringing the GitHub App env vars into scope.
