@@ -198,6 +198,14 @@ export class RunsInternalController {
     return projectRun(run);
   }
 
+  // Gantt timeline for a run's steps (N6). Registered before @Get(':id')
+  // would be ambiguous, but ':id/timeline' is a distinct path so order
+  // doesn't matter here.
+  @Get(':id/timeline')
+  async timeline(@Param('id') id: string) {
+    return this.runs.getTimeline(id);
+  }
+
   @Get(':id')
   async get(@Param('id') id: string) {
     const run = await this.runs.getRun(id);
