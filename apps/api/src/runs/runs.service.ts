@@ -137,6 +137,60 @@ export class RunsService {
   }
 
   /**
+   * Paginated, filtered search over an owner's runs. Every filter is
+   * optional and ANDed together; the result carries the page slice plus the
+   * total match count so the UI can render "X–Y of N" + pagination. The
+   * search powers /dashboard/runs's filter sidebar (N6).
+   */
+  async searchByOwner(input: RunSearchInput): Promise<RunSearchResult> {
+    const page = Math.max(1, Math.floor(input.page ?? 1));
+    const pageSize = clamp(input.pageSize ?? 25, 1, 100);
+
+    const where: Prisma.HarnessRunWhereInput = {
+      project: { ownerId: input.ownerId },
+      ...(input.projectId ? { projectId: input.projectId } : {}),
+      ...(input.harnessId ? { harnessId: input.harnessId } : {}),
+      ...(input.clientId ? { clientId: input.clientId } : {}),
+      ...(input.triggeredByUserId ? { triggeredByUserId: input.triggeredByUserId } : {}),
+      ...(input.status ? { status: input.status } : {}),
+      ...(input.since || input.until
+        ? {
+            startedAt: {
+              ...(input.since ? { gte: input.since } : {}),
+              ...(input.until ? { lte: input.until } : {}),
+            },
+          }
+        : {}),
+      // Free-text `q` matches the run id prefix or the branch name. Run ids
+      // are cuids so a prefix match is the common "I have a partial id" case.
+      ...(input.q
+        ? {
+            OR: [
+              { id: { startsWith: input.q } },
+              { branchName: { contains: input.q, mode: 'insensitive' } },
+            ],
+          }
+        : {}),
+    };
+
+    const [total, items] = await Promise.all([
+      this.prisma.harnessRun.count({ where }),
+      this.prisma.harnessRun.findMany({
+        where,
+        orderBy: { startedAt: 'desc' },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+        include: {
+          project: { select: { id: true, repoFullName: true } },
+          harness: { select: { id: true, name: true, version: true } },
+        },
+      }),
+    ]);
+
+    return { page, pageSize, total, items };
+  }
+
+  /**
    * Aggregate stats for an owner's runs, optionally bounded to `sinceHours`
    * back. Cost is summed from the `costUsd` column (Decimal → string at the
    * Prisma layer, converted to number here for transport).
@@ -192,6 +246,33 @@ export interface OwnerRunStats {
   totalCostUsd: number;
   avgCostUsd: number | null;
   terminalCount: number;
+}
+
+export interface RunSearchInput {
+  ownerId: string;
+  projectId?: string;
+  harnessId?: string;
+  clientId?: string;
+  triggeredByUserId?: string;
+  status?: RunStatus;
+  since?: Date;
+  until?: Date;
+  /** Free-text: run id prefix or branch name substring. */
+  q?: string;
+  page?: number;
+  pageSize?: number;
+}
+
+export interface RunSearchResult {
+  page: number;
+  pageSize: number;
+  total: number;
+  items: Array<
+    HarnessRun & {
+      project: { id: string; repoFullName: string };
+      harness: { id: string; name: string; version: number };
+    }
+  >;
 }
 
 function clamp(n: number, min: number, max: number): number {

@@ -216,7 +216,9 @@ model HarnessRun {
 
   @@index([projectId, startedAt(sort: Desc)])
   @@index([harnessId])
+  @@index([harnessId, startedAt(sort: Desc)]) // N6 runs search: harness filter + recency
   @@index([clientId])
+  @@index([startedAt(sort: Desc)]) // N6 runs search: owner-wide recency scan
 }
 
 enum StepKind {
