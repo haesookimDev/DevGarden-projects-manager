@@ -720,6 +720,60 @@ steps:
     return;
   }
 
+  // Runs search (N6). Honors the status filter so the e2e can assert the
+  // filtered result; q narrows to a single row. Pagination echoes page back.
+  if (url.pathname === '/internal/runs/search' && req.method === 'GET') {
+    if (emptyFixtures) {
+      res
+        .writeHead(200, { 'content-type': 'application/json' })
+        .end(JSON.stringify({ page: 1, pageSize: 25, total: 0, items: [] }));
+      return;
+    }
+    const now = Date.now();
+    const all = [
+      {
+        id: 'mock-run-7',
+        harnessId: 'mock-harness-1',
+        projectId: 'mock-project-1',
+        clientId: 'mock-client-1',
+        triggeredByUserId: MOCK_DB_USER_ID,
+        status: 'SUCCESS',
+        branchName: 'feat/login',
+        workingDir: null,
+        startedAt: new Date(now - 120_000).toISOString(),
+        finishedAt: new Date(now - 60_000).toISOString(),
+        repoFullName: 'mock/repo',
+        harnessName: 'echo',
+        harnessVersion: 1,
+      },
+      {
+        id: 'mock-run-6',
+        harnessId: 'mock-harness-1',
+        projectId: 'mock-project-1',
+        clientId: 'mock-client-1',
+        triggeredByUserId: MOCK_DB_USER_ID,
+        status: 'FAILED',
+        branchName: null,
+        workingDir: null,
+        startedAt: new Date(now - 600_000).toISOString(),
+        finishedAt: new Date(now - 580_000).toISOString(),
+        repoFullName: 'mock/repo',
+        harnessName: 'echo',
+        harnessVersion: 1,
+      },
+    ];
+    const status = url.searchParams.get('status');
+    const q = url.searchParams.get('q');
+    let items = all;
+    if (status) items = items.filter((r) => r.status === status);
+    if (q) items = items.filter((r) => r.id.startsWith(q) || (r.branchName ?? '').includes(q));
+    const page = Number(url.searchParams.get('page') ?? '1');
+    res
+      .writeHead(200, { 'content-type': 'application/json' })
+      .end(JSON.stringify({ page, pageSize: 25, total: items.length, items }));
+    return;
+  }
+
   if (url.pathname === '/internal/runs/stats' && req.method === 'GET') {
     if (emptyFixtures) {
       res.writeHead(200, { 'content-type': 'application/json' }).end(
