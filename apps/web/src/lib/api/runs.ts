@@ -97,6 +97,55 @@ export async function listRunsByOwner(
   return (await res.json()) as RunHistoryRow[];
 }
 
+export interface RunSearchRow extends RunSummary {
+  repoFullName: string;
+  harnessName: string;
+  harnessVersion: number;
+}
+
+export interface RunSearchResult {
+  page: number;
+  pageSize: number;
+  total: number;
+  items: RunSearchRow[];
+}
+
+export interface RunSearchFilters {
+  projectId?: string;
+  harnessId?: string;
+  clientId?: string;
+  triggeredByUserId?: string;
+  status?: RunStatus;
+  since?: string;
+  until?: string;
+  q?: string;
+  page?: number;
+  pageSize?: number;
+}
+
+export async function searchRuns(
+  ownerId: string,
+  filters: RunSearchFilters = {},
+): Promise<RunSearchResult> {
+  const params = new URLSearchParams({ ownerId });
+  if (filters.projectId) params.set('projectId', filters.projectId);
+  if (filters.harnessId) params.set('harnessId', filters.harnessId);
+  if (filters.clientId) params.set('clientId', filters.clientId);
+  if (filters.triggeredByUserId) params.set('triggeredByUserId', filters.triggeredByUserId);
+  if (filters.status) params.set('status', filters.status);
+  if (filters.since) params.set('since', filters.since);
+  if (filters.until) params.set('until', filters.until);
+  if (filters.q) params.set('q', filters.q);
+  if (filters.page) params.set('page', String(filters.page));
+  if (filters.pageSize) params.set('pageSize', String(filters.pageSize));
+  const res = await internalFetch(`/internal/runs/search?${params.toString()}`, { method: 'GET' });
+  if (!res.ok) {
+    const text = await res.text().catch(() => '');
+    throw new Error(`searchRuns failed: ${res.status} ${text}`);
+  }
+  return (await res.json()) as RunSearchResult;
+}
+
 export interface RunsStats {
   sinceHours: number;
   total: number;
