@@ -55,6 +55,7 @@ export interface ProjectDetail extends ProjectSummary {
   updatedAt: string;
   defaultClient: { id: string; name: string; status: string } | null;
   defaultHarness: { id: string; name: string; version: number } | null;
+  defaultHarnessVersion: number | null;
   runCount: number;
   lastRun: {
     id: string;
@@ -79,6 +80,39 @@ export async function getProject(id: string): Promise<ProjectDetail> {
     throw new Error(`getProject failed: ${res.status} ${text}`);
   }
   return (await res.json()) as ProjectDetail;
+}
+
+export interface UpdateProjectDefaultsInput {
+  defaultHarnessId?: string | null;
+  defaultHarnessVersion?: number | null;
+  defaultClientId?: string | null;
+}
+
+// PATCH the project's default harness / client / pinned version. Pass null
+// to unset a field; omit a field to leave it unchanged.
+export async function updateProjectDefaults(
+  projectId: string,
+  patch: UpdateProjectDefaultsInput,
+): Promise<{
+  id: string;
+  defaultHarnessId: string | null;
+  defaultHarnessVersion: number | null;
+  defaultClientId: string | null;
+}> {
+  const res = await internalFetch(`/internal/projects/${encodeURIComponent(projectId)}/defaults`, {
+    method: 'PATCH',
+    body: patch,
+  });
+  if (!res.ok) {
+    const text = await res.text().catch(() => '');
+    throw new Error(`updateProjectDefaults failed: ${res.status} ${text}`);
+  }
+  return (await res.json()) as {
+    id: string;
+    defaultHarnessId: string | null;
+    defaultHarnessVersion: number | null;
+    defaultClientId: string | null;
+  };
 }
 
 export interface DispatchCloneInput {

@@ -141,6 +141,12 @@ export default async function ProjectDetailPage({
             Clone status
           </Link>
         </Button>
+        <Button asChild size="sm" variant="outline" data-testid="project-action-settings">
+          <Link href={`/dashboard/projects/${project.id}/settings`}>
+            <Settings className="mr-1.5 h-3.5 w-3.5" />
+            Settings
+          </Link>
+        </Button>
       </section>
 
       <section className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-2">

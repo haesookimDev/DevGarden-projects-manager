@@ -7,6 +7,7 @@ import {
   Logger,
   NotFoundException,
   Param,
+  Patch,
   Post,
   Query,
   UseGuards,
@@ -58,6 +59,7 @@ export class ProjectsInternalController {
       updatedAt: p.updatedAt.toISOString(),
       defaultClient: p.defaultClient,
       defaultHarness: p.defaultHarness,
+      defaultHarnessVersion: p.defaultHarnessVersion,
       runCount: detail.runCount,
       lastRun: detail.lastRun
         ? {
@@ -145,6 +147,49 @@ export class ProjectsInternalController {
       id: project.id,
       repoFullName: project.repoFullName,
       githubRepoId: project.githubRepoId,
+    };
+  }
+
+  // Settings UI on /dashboard/projects/[id]/settings posts here. All three
+  // fields are independent; null = unset, undefined = unchanged. Cross-owner
+  // references are rejected by the service.
+  @Patch(':id/defaults')
+  async updateDefaults(@Param('id') id: string, @Body() body: unknown) {
+    if (typeof body !== 'object' || body === null) {
+      throw new BadRequestException('Body must be a JSON object');
+    }
+    const b = body as Record<string, unknown>;
+    const patch: {
+      defaultHarnessId?: string | null;
+      defaultHarnessVersion?: number | null;
+      defaultClientId?: string | null;
+    } = {};
+
+    if ('defaultHarnessId' in b) {
+      const v = b.defaultHarnessId;
+      if (v === null) patch.defaultHarnessId = null;
+      else if (typeof v === 'string' && v.length > 0) patch.defaultHarnessId = v;
+      else throw new BadRequestException('defaultHarnessId must be a non-empty string or null');
+    }
+    if ('defaultHarnessVersion' in b) {
+      const v = b.defaultHarnessVersion;
+      if (v === null) patch.defaultHarnessVersion = null;
+      else if (typeof v === 'number') patch.defaultHarnessVersion = v;
+      else throw new BadRequestException('defaultHarnessVersion must be a number or null');
+    }
+    if ('defaultClientId' in b) {
+      const v = b.defaultClientId;
+      if (v === null) patch.defaultClientId = null;
+      else if (typeof v === 'string' && v.length > 0) patch.defaultClientId = v;
+      else throw new BadRequestException('defaultClientId must be a non-empty string or null');
+    }
+
+    const project = await this.projects.updateDefaults(id, patch);
+    return {
+      id: project.id,
+      defaultHarnessId: project.defaultHarnessId,
+      defaultHarnessVersion: project.defaultHarnessVersion,
+      defaultClientId: project.defaultClientId,
     };
   }
 }
