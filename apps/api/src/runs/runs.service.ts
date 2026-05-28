@@ -112,6 +112,64 @@ export class RunsService {
     return run;
   }
 
+  // Gantt data for a run's steps. RunStep stores `createdAt` (when the step
+  // result was recorded, i.e. when it finished) + `durationMs`, so each step's
+  // window is [createdAt - durationMs, createdAt]. We express both bounds as
+  // millisecond offsets from the run's startedAt so the chart axis is a simple
+  // 0..totalMs range. The longest step is flagged for highlighting.
+  async getTimeline(runId: string): Promise<RunTimeline> {
+    const run = await this.prisma.harnessRun.findUnique({
+      where: { id: runId },
+      select: { id: true, startedAt: true, finishedAt: true },
+    });
+    if (!run) throw new NotFoundException(`run ${runId} not found`);
+
+    const steps = await this.prisma.runStep.findMany({
+      where: { runId },
+      orderBy: { stepIndex: 'asc' },
+      select: {
+        stepIndex: true,
+        stepId: true,
+        kind: true,
+        status: true,
+        durationMs: true,
+        createdAt: true,
+      },
+    });
+
+    const runStartMs = run.startedAt.getTime();
+    const end = run.finishedAt?.getTime() ?? Date.now();
+
+    let longestPos = -1;
+    let longestDuration = -1;
+    const bars = steps.map((s, i) => {
+      const duration = s.durationMs ?? 0;
+      const finishOffset = Math.max(0, s.createdAt.getTime() - runStartMs);
+      const startOffset = Math.max(0, finishOffset - duration);
+      if (duration > longestDuration) {
+        longestDuration = duration;
+        longestPos = i;
+      }
+      return {
+        stepIndex: s.stepIndex,
+        stepId: s.stepId,
+        kind: s.kind,
+        status: s.status,
+        startOffsetMs: startOffset,
+        durationMs: duration,
+      };
+    });
+
+    return {
+      runId: run.id,
+      startedAt: run.startedAt.toISOString(),
+      finishedAt: run.finishedAt?.toISOString() ?? null,
+      totalMs: Math.max(0, end - runStartMs),
+      longestStepIndex: longestPos >= 0 ? bars[longestPos]!.stepIndex : null,
+      steps: bars,
+    };
+  }
+
   listByProject(projectId: string): Promise<HarnessRun[]> {
     return this.prisma.harnessRun.findMany({
       where: { projectId },
@@ -246,6 +304,24 @@ export interface OwnerRunStats {
   totalCostUsd: number;
   avgCostUsd: number | null;
   terminalCount: number;
+}
+
+export interface RunTimelineStep {
+  stepIndex: number;
+  stepId: string;
+  kind: StepKind;
+  status: StepStatus;
+  startOffsetMs: number;
+  durationMs: number;
+}
+
+export interface RunTimeline {
+  runId: string;
+  startedAt: string;
+  finishedAt: string | null;
+  totalMs: number;
+  longestStepIndex: number | null;
+  steps: RunTimelineStep[];
 }
 
 export interface RunSearchInput {
