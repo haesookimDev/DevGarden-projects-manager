@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { BudgetModule } from './budget/budget.module';
 import { ClientsModule } from './clients/clients.module';
 import { GithubModule } from './github/github.module';
 import { HarnessesModule } from './harnesses/harnesses.module';
@@ -21,6 +22,7 @@ import { WebhooksModule } from './webhooks/webhooks.module';
     RunsModule,
     TodosModule,
     WebhooksModule,
+    BudgetModule,
   ],
   controllers: [HealthController],
 })
