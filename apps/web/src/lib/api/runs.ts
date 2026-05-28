@@ -59,6 +59,35 @@ export async function listRunsByProject(projectId: string): Promise<RunSummary[]
   return (await res.json()) as RunSummary[];
 }
 
+export interface RunTimelineStep {
+  stepIndex: number;
+  stepId: string;
+  kind: string;
+  status: string;
+  startOffsetMs: number;
+  durationMs: number;
+}
+
+export interface RunTimeline {
+  runId: string;
+  startedAt: string;
+  finishedAt: string | null;
+  totalMs: number;
+  longestStepIndex: number | null;
+  steps: RunTimelineStep[];
+}
+
+export async function getRunTimeline(id: string): Promise<RunTimeline> {
+  const res = await internalFetch(`/internal/runs/${encodeURIComponent(id)}/timeline`, {
+    method: 'GET',
+  });
+  if (!res.ok) {
+    const text = await res.text().catch(() => '');
+    throw new Error(`getRunTimeline failed: ${res.status} ${text}`);
+  }
+  return (await res.json()) as RunTimeline;
+}
+
 export interface CreateRunInput {
   harnessId: string;
   projectId: string;
