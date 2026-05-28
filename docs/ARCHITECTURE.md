@@ -130,6 +130,10 @@ RunsGateway (apps/api/src/runs/runs.gateway.ts)
 
 GET /internal/runs/:id        → 단일 run + steps + logs (최근 500)
 GET /internal/runs?projectId  → 프로젝트별 최근 50 runs
+GET /internal/runs/search     → owner 필터 + 페이지네이션 검색 (N6)
+                                ?ownerId & projectId & harnessId & clientId &
+                                triggeredByUserId & status & since & until & q &
+                                page & pageSize → { page, pageSize, total, items[] }
 ```
 
 - `RunsGateway` 는 `ClientsGateway` 와 같은 `/clients` 네임스페이스를 공유한다. 인증/heartbeat 는 `ClientsGateway` 가 담당하고, run 관련 이벤트만 `RunsGateway` 가 처리. `socket.data.clientId` 는 `ClientsGateway.handleConnection` 단계에서 채워지므로 `RunsGateway` 핸들러는 그 값을 가드 조건으로 사용.
