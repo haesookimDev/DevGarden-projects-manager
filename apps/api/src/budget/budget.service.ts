@@ -59,9 +59,7 @@ export class BudgetService {
         ...(input.resetDay !== undefined ? { resetDay: input.resetDay } : {}),
       },
       update: {
-        ...(input.monthlyUsdLimit !== undefined
-          ? { monthlyUsdLimit: input.monthlyUsdLimit }
-          : {}),
+        ...(input.monthlyUsdLimit !== undefined ? { monthlyUsdLimit: input.monthlyUsdLimit } : {}),
         ...(input.warnAt !== undefined ? { warnAt: input.warnAt } : {}),
         ...(input.resetDay !== undefined ? { resetDay: input.resetDay } : {}),
       },

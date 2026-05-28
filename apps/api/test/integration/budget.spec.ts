@@ -5,10 +5,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vites
 import { BadRequestException } from '@nestjs/common';
 import { PrismaClient, RunStatus, UserRole } from '@prisma/client';
 import { BudgetService } from '../../src/budget/budget.service';
-import {
-  BudgetMonitorService,
-  type BudgetNotifier,
-} from '../../src/budget/budget-monitor.service';
+import { BudgetMonitorService, type BudgetNotifier } from '../../src/budget/budget-monitor.service';
 import { PrismaService } from '../../src/prisma/prisma.service';
 
 const prisma = new PrismaClient();
@@ -34,7 +31,11 @@ beforeEach(async () => {
 
 async function seedOwnerWithSpend(spend: number) {
   const owner = await prisma.user.create({
-    data: { githubId: 9400 + Math.floor(Math.random() * 1000), login: 'b-owner', role: UserRole.OWNER },
+    data: {
+      githubId: 9400 + Math.floor(Math.random() * 1000),
+      login: 'b-owner',
+      role: UserRole.OWNER,
+    },
   });
   const project = await prisma.project.create({
     data: {
