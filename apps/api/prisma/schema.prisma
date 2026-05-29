@@ -34,9 +34,47 @@ model User {
   harnesses             Harness[]
   llmProviders          LlmProvider[]
   pairings              ClientPairing[]
-  triggeredRuns         HarnessRun[]           @relation("RunTriggeredBy")
+  triggeredRuns         HarnessRun[]              @relation("RunTriggeredBy")
   githubAppRegistration GithubAppRegistration?
   budget                OwnerBudget?
+  notificationSettings  UserNotificationSettings?
+  notifications         Notification[]
+}
+
+// Per-user notification preferences (v0.2 N5). Channels (web toast / Slack /
+// email) plus per-run-status triggers, with optional per-project overrides.
+// slackWebhookUrl is envelope-encrypted (set in the Slack channel PR).
+model UserNotificationSettings {
+  id              String   @id @default(cuid())
+  userId          String   @unique
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  webToast        Boolean  @default(true)
+  slackWebhookUrl Bytes?
+  emailEnabled    Boolean  @default(false)
+  emailAddress    String?
+  // { success, failed, cancelled } — which terminal statuses notify.
+  triggers        Json     @default("{\"success\": false, \"failed\": true, \"cancelled\": false}")
+  // { [projectId]: { success?, failed?, cancelled? } } overrides.
+  perProject      Json     @default("{}")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+// A delivered web-toast notification (v0.2 N5). The WebToast channel persists
+// one row; the web client reads / streams these and shows a toast. Slack and
+// email channels (later PRs) send out-of-band and do not write here.
+model Notification {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  kind      String
+  title     String
+  body      String?
+  runId     String?
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId, createdAt(sort: Desc)])
 }
 
 // Per-owner monthly spend cap (v0.2 N6). When monthlyUsdLimit is set, the
