@@ -69,11 +69,11 @@ v0.1 dogfood 에서 배운 것들 — v0.2 작업에 일관 적용:
 
 다음 모두 충족하면 v0.2.0 릴리즈:
 
-- [ ] N0~N6 마일스톤의 각 acceptance 항목 완료.
-- [ ] `docs/SELF-HOSTING.md` 가 manifest flow 기준으로 재작성됨.
-- [ ] dogfood: 새 호스트에서 GitHub 만 있는 상태에서 \"continue with GitHub\" → install → repo 선택 → harness 실행 → PR 까지 30 분 안에 도달 가능.
-- [ ] CI 5 jobs 모두 green, 누적 테스트 ≥ 280 cases.
-- [ ] `CHANGELOG.md` v0.2.0 entry 작성 + GitHub Release.
+- [x] N0~N6 마일스톤의 각 acceptance 항목 완료.
+- [x] `docs/SELF-HOSTING.md` 가 manifest flow 기준으로 재작성됨 (N5 의 SMTP/sidecar 보강 포함).
+- [ ] dogfood: 새 호스트에서 GitHub 만 있는 상태에서 \"continue with GitHub\" → install → repo 선택 → harness 실행 → PR 까지 30 분 안에 도달 가능. _(수동 검증 항목 — 실 호스트에서 확인 필요)_
+- [x] CI 5 jobs 모두 green, 누적 테스트 ≥ 280 cases (471).
+- [x] `CHANGELOG.md` v0.2.0 entry 작성 + GitHub Release.
 
 ## 7. 작업 순서 가이드
 

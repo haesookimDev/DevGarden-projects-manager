@@ -3,6 +3,59 @@
 본 프로젝트의 모든 주요 변경 사항을 기록한다. [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 형식을
 느슨하게 따르며 — semver 적용. 자세한 PR 단위 작업 이력은 [`docs/ROADMAP.md`](docs/ROADMAP.md).
 
+## [v0.2.0] — 2026-05-29
+
+### 매일 쓸 만한 수준으로
+
+v0.1 의 "한 번 끝까지 도는 MVP" 를 운영자가 실제로 매일 쓰는 도구로 끌어올렸다. GitHub onboarding 마찰을
+두 번 클릭으로 줄이고, 데스크탑 client 가 webview 밖에서 실제로 harness 를 실행하며, run 을 멈추고 다시
+돌리고 알림을 받을 수 있다. 7개 마일스톤 (N0~N6).
+
+### Added
+
+- **N0 — 디자인 시스템** — shadcn/ui 본격 도입, light/dark/system 테마 토글 (persist), Skeleton /
+  EmptyState 표준 컴포넌트로 대시보드 전반 일관화.
+- **N1 — GitHub onboarding 개편** — `/dashboard/onboarding` 에서 **Manifest flow** (GitHub 가 App 자동
+  생성 + PEM/secret 발급 → callback → envelope-encrypted DB 저장) 또는 **BYO** (App ID + PEM 직접 입력)
+  선택. 사용자 OAuth token 으로 installation 자동 탐색 → `/dashboard/projects/new` 의 repo picker 가
+  numeric ID 수동 입력을 대체. legacy env 경로는 deprecation warning 과 함께 유지.
+- **N2 — Node sidecar runner** — Tauri Rust 가 번들 Node sidecar 를 spawn (stdio), harness 실행이
+  webview 밖으로. repo clone + fs/process/git 도구 + `github.openPR` 를 sidecar 가 수행.
+- **N3 — Project workflow** — repo 자동 clone (worktree policy: keep / auto-remove-success/always) +
+  clone 상태 추적, project detail 개편, RunPreset 기반 run trigger v2 (저장된 harness+client+inputs).
+- **N4 — Harness editor + 템플릿** — web 에서 Monaco YAML 편집 + zod 라이브 검증 + dry-run, 시작 템플릿
+  카탈로그, harness 버전 보존 (`(ownerId,name,version)`).
+- **N5 — Run controls + 알림** — 진행 중 run **cancel** (api `run:cancel` → sidecar 가 AbortSignal 로
+  현재 step 프로세스에 SIGTERM→5s→SIGKILL) + **retry** (실패/취소 run 을 같은 inputs 로 재실행,
+  `retryOfRunId` link). 사용자별 알림 설정 (trigger 별 on/off + per-project override) +
+  `NotificationService` 가 **web toast** (SSE 실시간) / **Slack** (incoming webhook, encrypted,
+  5s timeout·3 retries) / **email** (nodemailer SMTP) 채널로 fan-out. N6 budget 경고도 동일 채널 사용.
+- **N6 — Observability 심화** — runs search/filter + pagination, step Gantt timeline, webhook delivery
+  대시보드 (payload preview + redeliver), cost/token trend 차트, per-owner 월 budget 한도 + 경고 임계치.
+
+### Changed
+
+- `HarnessRun` 에 `inputs` (retry replay 용) · `retryOfRunId` · `cancelRequestedAt`/`cancelledAt`/
+  `cancelReason` 추가. 새 모델: `OwnerBudget`, `UserNotificationSettings`, `Notification`,
+  `GithubAppRegistration`, `GithubInstallation`, `RunPreset`.
+- 알림 SSE 는 단일 api 프로세스 기준 in-process 스트림 (다중 인스턴스 공유 버스는 v0.3+).
+
+### Stats
+
+- **PR 머지**: 62 (PR #47 ~ #108) — 누적 108
+- **테스트**: api 79 unit + 177 integration · client-runner 43 · web 18 unit + 80 e2e · harness-core 32 ·
+  harness-templates 10 · llm-adapters 10 · client 22 = **471 cases** (누적)
+- **CI**: lint / typecheck / unit / integration / e2e 5 jobs 모두 green + nightly Tauri build smoke
+
+### Known Limitations (v0.3+ 백로그)
+
+- **알림 SSE 다중 인스턴스** — 현재 in-process 스트림이라 api 를 여러 대 띄우면 다른 인스턴스에 붙은
+  브라우저는 toast 를 놓친다. Redis pub/sub 등 공유 버스 필요.
+- **per-project 알림 override UI** — 모델/서비스는 지원하지만 settings 화면엔 글로벌 trigger 만. grid UI 는 백로그.
+- **Tauri Rust 로 tools 전면 재구현** — N2 sidecar 는 코드 재사용 (Node). Rust port 는 v0.3+.
+- **하네스 노드 UI (drag-drop)** / 다중 클라이언트 라우팅·큐잉 / 멀티 LLM provider routing / signed installers /
+  클라이언트 JWT keychain 저장 / i18n · mobile / team multi-user.
+
 ## [v0.1.0] — 2026-05-22
 
 ### 첫 self-hosted MVP
@@ -40,4 +93,5 @@ GitHub issue 자동 미러 → 자동 PR 생성 → 백업/복구 — 이 끝에
 - **Signed installers (Mac/Win/Linux)** — Apple / Microsoft 인증서 발급이 환경 의존적이라 백로그.
 - **하네스 노드 UI (drag-drop)** / 다중 클라이언트 라우팅 · 큐잉 / 멀티 LLM provider routing / 클라이언트 JWT OS keychain 저장.
 
+[v0.2.0]: https://github.com/haesookimDev/DevGarden-projects-manager/releases/tag/v0.2.0
 [v0.1.0]: https://github.com/haesookimDev/DevGarden-projects-manager/releases/tag/v0.1.0

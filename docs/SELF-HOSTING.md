@@ -112,19 +112,20 @@ cp .env.example .env
 
 `.env` 에서 채워야 할 값들:
 
-| 키                                                  | 생성 방법 / 출처                                                                                                                |
-| --------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
-| `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB` | 임의 (변경 권장; 외부 노출되지 않지만 백업 파일에 사용자명 포함).                                                               |
-| `AUTH_SECRET`                                       | `openssl rand -base64 32`                                                                                                       |
-| `ENCRYPTION_KEY`                                    | `openssl rand -base64 32`                                                                                                       |
-| `INTERNAL_API_SECRET`                               | `openssl rand -base64 32`                                                                                                       |
-| `GITHUB_OAUTH_CLIENT_ID` / `_SECRET`                | OAuth App 발급값 (§1.3).                                                                                                        |
-| `GITHUB_APP_ID`, `GITHUB_APP_PRIVATE_KEY`           | **Legacy v0.1 경로만 사용.** v0.2 신규 설정은 `/dashboard/onboarding` 에서. 환경에 남겨두면 boot 시 deprecation warning.        |
-| `GITHUB_WEBHOOK_SECRET`                             | 동일 — legacy 경로일 때만.                                                                                                      |
-| `PUBLIC_BASE_URL`                                   | Manifest 경로 사용 시 필수 (`https://devgarden.example.com`). GitHub 가 callback / hook URL 로 사용. BYO 경로만 쓰면 비워도 됨. |
-| `OWNER_GITHUB_LOGINS`                               | 로그인 허용할 GitHub login. 콤마 구분.                                                                                          |
-| `AUTH_URL`                                          | 브라우저로 접근하는 **web** 주소 (예: `http://localhost:3000`). OAuth callback redirect_uri 의 base.                            |
-| `NEXT_PUBLIC_API_URL`                               | 브라우저가 접근하는 api 주소. 보통 `https://devgarden.example.com`.                                                             |
+| 키                                                  | 생성 방법 / 출처                                                                                                                                                                                               |
+| --------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB` | 임의 (변경 권장; 외부 노출되지 않지만 백업 파일에 사용자명 포함).                                                                                                                                              |
+| `AUTH_SECRET`                                       | `openssl rand -base64 32`                                                                                                                                                                                      |
+| `ENCRYPTION_KEY`                                    | `openssl rand -base64 32`                                                                                                                                                                                      |
+| `INTERNAL_API_SECRET`                               | `openssl rand -base64 32`                                                                                                                                                                                      |
+| `GITHUB_OAUTH_CLIENT_ID` / `_SECRET`                | OAuth App 발급값 (§1.3).                                                                                                                                                                                       |
+| `GITHUB_APP_ID`, `GITHUB_APP_PRIVATE_KEY`           | **Legacy v0.1 경로만 사용.** v0.2 신규 설정은 `/dashboard/onboarding` 에서. 환경에 남겨두면 boot 시 deprecation warning.                                                                                       |
+| `GITHUB_WEBHOOK_SECRET`                             | 동일 — legacy 경로일 때만.                                                                                                                                                                                     |
+| `PUBLIC_BASE_URL`                                   | Manifest 경로 사용 시 필수 (`https://devgarden.example.com`). GitHub 가 callback / hook URL 로 사용. BYO 경로만 쓰면 비워도 됨.                                                                                |
+| `OWNER_GITHUB_LOGINS`                               | 로그인 허용할 GitHub login. 콤마 구분.                                                                                                                                                                         |
+| `AUTH_URL`                                          | 브라우저로 접근하는 **web** 주소 (예: `http://localhost:3000`). OAuth callback redirect_uri 의 base.                                                                                                           |
+| `NEXT_PUBLIC_API_URL`                               | 브라우저가 접근하는 api 주소. 보통 `https://devgarden.example.com`.                                                                                                                                            |
+| `SMTP_HOST` / `_PORT` / `_USER` / `_PASS` / `_FROM` | (선택, v0.2 N5) email 알림 채널용 SMTP relay. `SMTP_HOST` 가 비면 email 발송 비활성 (web toast / Slack 은 정상). Slack 은 별도 env 없이 사용자별 webhook URL 을 `/dashboard/settings/notifications` 에서 등록. |
 
 > ⚠ OAuth App 의 "Authorization callback URL" 은 **`${AUTH_URL}/api/auth/callback/github`** 와 정확히 일치해야 한다. 안 그러면 로그인 후 GitHub 가 `redirect_uri_mismatch` 로 거절한다. 로컬 테스트라면 OAuth App 의 callback URL 을 `http://localhost:3000/api/auth/callback/github` 로 등록.
 
@@ -154,6 +155,11 @@ docker compose -f infra/docker-compose.yml ps
 3. 클라이언트 앱 열기 → API base URL + 페어링 토큰 입력 → "Pair this client".
 4. 페어링되면 토큰은 자동으로 OS-local store 에 저장된다 (현재는 `tauri-plugin-store` plain JSON;
    keychain 전환은 v0.2 백로그).
+
+> v0.2 (N2) 부터 클라이언트는 페어링만 하는 게 아니라 **실제로 harness 를 실행**한다 — Tauri Rust 가
+> 번들된 Node sidecar 를 spawn 하고, sidecar 가 repo clone · fs/process/git 도구 · PR 생성을
+> 수행한다. 별도 Node 설치는 필요 없다 (sidecar 가 클라이언트 빌드에 포함). 진행 중 run 은 대시보드의
+> run detail 에서 **Cancel** 할 수 있고, sidecar 가 현재 step 프로세스를 종료한다 (N5).
 
 ## 4. 백업 / 복구
 
