@@ -3,6 +3,7 @@ import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import type { Notification, Prisma } from '@prisma/client';
 import { decryptEnvelopeUtf8, encryptEnvelope } from '../crypto/envelope';
 import { PrismaService } from '../prisma/prisma.service';
+import { EmailChannel } from './email.channel';
 import { SlackWebhookChannel } from './slack-webhook.channel';
 
 // Which terminal run statuses notify. Defaults: only failures, to avoid spam.
@@ -64,6 +65,7 @@ export class NotificationService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly slack: SlackWebhookChannel,
+    private readonly email: EmailChannel,
   ) {}
 
   async getSettings(userId: string): Promise<NotificationSettingsView> {
@@ -205,9 +207,15 @@ export class NotificationService {
   }
 
   // Dispatch one notification to every channel the user has enabled: the web
-  // toast (DB row) and, when a Slack webhook URL is configured, Slack.
+  // toast (DB row), Slack (when a webhook URL is configured), and email (when
+  // enabled with an address + SMTP configured).
   private async deliverAll(
-    settings: { webToast: boolean; slackWebhookUrl: Uint8Array | null } | null,
+    settings: {
+      webToast: boolean;
+      slackWebhookUrl: Uint8Array | null;
+      emailEnabled: boolean;
+      emailAddress: string | null;
+    } | null,
     userId: string,
     n: { kind: string; title: string; body?: string; runId?: string },
   ): Promise<void> {
@@ -217,6 +225,10 @@ export class NotificationService {
     const slackUrl = decryptSlackUrl(settings?.slackWebhookUrl ?? null);
     if (slackUrl) {
       await this.slack.send(slackUrl, { text: n.body ? `${n.title} — ${n.body}` : n.title });
+    }
+    if (settings?.emailEnabled && settings.emailAddress) {
+      const lines = [n.body ?? '', n.runId ? `Run: ${n.runId}` : ''].filter(Boolean);
+      await this.email.send(settings.emailAddress, n.title, lines.join('\n\n') || n.title);
     }
   }
 
