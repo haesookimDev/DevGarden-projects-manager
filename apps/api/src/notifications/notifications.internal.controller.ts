@@ -44,6 +44,13 @@ export class NotificationsInternalController {
         throw new BadRequestException('webToast must be a boolean');
       patch.webToast = b.webToast;
     }
+    if ('slackWebhookUrl' in b) {
+      const v = b.slackWebhookUrl;
+      if (v !== null && typeof v !== 'string') {
+        throw new BadRequestException('slackWebhookUrl must be a string or null');
+      }
+      patch.slackWebhookUrl = v;
+    }
     if ('emailEnabled' in b) {
       if (typeof b.emailEnabled !== 'boolean') {
         throw new BadRequestException('emailEnabled must be a boolean');

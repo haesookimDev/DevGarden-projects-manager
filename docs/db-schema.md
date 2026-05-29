@@ -85,7 +85,7 @@ HarnessRun 1───* RunArtifact
 
 - `id`, `userId` (unique, → User.id, cascade) — 1:1 with User
 - `webToast` (bool, default true) — web 토스트 채널 on/off
-- `slackWebhookUrl` (bytea, nullable) — envelope-encrypted (Slack 채널 PR 에서 set)
+- `slackWebhookUrl` (bytea, nullable) — envelope-encrypted incoming-webhook URL. 설정 시 Slack 채널로도 발송 (UI 엔 last 6 chars 만 마스킹 노출)
 - `emailEnabled` (bool, default false), `emailAddress` (string, nullable)
 - `triggers` (json, default `{success:false, failed:true, cancelled:false}`) — terminal status 별 알림 여부
 - `perProject` (json, default `{}`) — `{ [projectId]: { success?/failed?/cancelled? } }` override

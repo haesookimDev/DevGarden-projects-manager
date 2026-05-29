@@ -901,6 +901,10 @@ steps:
         /* ignore */
       }
       const base = defaultNotifSettings(notifSettingsMatch[1]!);
+      const slackUrl =
+        typeof parsed.slackWebhookUrl === 'string' && parsed.slackWebhookUrl
+          ? parsed.slackWebhookUrl
+          : null;
       res.writeHead(200, { 'content-type': 'application/json' }).end(
         JSON.stringify({
           ...base,
@@ -911,6 +915,7 @@ steps:
           ...('emailAddress' in parsed
             ? { emailAddress: (parsed.emailAddress as string | null) || null }
             : {}),
+          ...(slackUrl ? { slackConfigured: true, slackHint: `…${slackUrl.slice(-6)}` } : {}),
           triggers: { ...base.triggers, ...((parsed.triggers as object) ?? {}) },
           updatedAt: new Date().toISOString(),
         }),
@@ -1272,6 +1277,7 @@ function defaultNotifSettings(userId: string) {
     userId,
     webToast: true,
     slackConfigured: false,
+    slackHint: null as string | null,
     emailEnabled: false,
     emailAddress: null as string | null,
     triggers: { success: false, failed: true, cancelled: false },

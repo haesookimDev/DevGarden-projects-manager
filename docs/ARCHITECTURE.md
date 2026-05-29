@@ -154,8 +154,9 @@ PUT  /internal/users/:id/notification-settings → upsert (webToast/email/trigge
 GET  /internal/users/:id/notifications          → web-toast inbox
 POST /internal/users/:id/notifications/test     → 테스트 토스트 1건 발송
   NotificationService: 터미널 run 의 status 를 owner 설정(per-project override 포함)
-  대로 채널에 fan-out. 현재 WebToast(=Notification row) 만, Slack/email 은 후속 PR.
-  N6 의 budget warn/exceeded 도 BUDGET_NOTIFIER 바인딩으로 WebToast 발송.
+  대로 채널에 fan-out. WebToast(=Notification row) + Slack(incoming webhook,
+  5s timeout·3 retries). email 은 후속 PR. slackWebhookUrl 은 envelope-encrypted.
+  N6 의 budget warn/exceeded 도 BUDGET_NOTIFIER 바인딩으로 동일 채널에 발송.
 
 GET  /internal/github/events           → webhook audit 목록 (N6)
                                 ?projectId & type & since & pageSize

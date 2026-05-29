@@ -1,6 +1,9 @@
+import { Buffer } from 'node:buffer';
 import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import type { Notification, Prisma } from '@prisma/client';
+import { decryptEnvelopeUtf8, encryptEnvelope } from '../crypto/envelope';
 import { PrismaService } from '../prisma/prisma.service';
+import { SlackWebhookChannel } from './slack-webhook.channel';
 
 // Which terminal run statuses notify. Defaults: only failures, to avoid spam.
 export interface TriggerMap {
@@ -23,6 +26,8 @@ export interface NotificationSettingsView {
   webToast: boolean;
   /** Whether a Slack webhook URL is stored (the URL itself is never returned). */
   slackConfigured: boolean;
+  /** Masked tail of the stored Slack URL (last 6 chars), or null. */
+  slackHint: string | null;
   emailEnabled: boolean;
   emailAddress: string | null;
   triggers: TriggerMap;
@@ -32,6 +37,8 @@ export interface NotificationSettingsView {
 
 export interface UpdateNotificationSettingsInput {
   webToast?: boolean;
+  /** string sets + encrypts; '' or null clears; undefined leaves unchanged. */
+  slackWebhookUrl?: string | null;
   emailEnabled?: boolean;
   emailAddress?: string | null;
   triggers?: Partial<TriggerMap>;
@@ -54,7 +61,10 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 export class NotificationService {
   private readonly logger = new Logger(NotificationService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly slack: SlackWebhookChannel,
+  ) {}
 
   async getSettings(userId: string): Promise<NotificationSettingsView> {
     const row = await this.prisma.userNotificationSettings.findUnique({ where: { userId } });
@@ -83,6 +93,13 @@ export class NotificationService {
 
     const data = {
       ...(input.webToast !== undefined ? { webToast: input.webToast } : {}),
+      ...(input.slackWebhookUrl !== undefined
+        ? {
+            slackWebhookUrl: input.slackWebhookUrl
+              ? toBytes(encryptEnvelope(input.slackWebhookUrl))
+              : null,
+          }
+        : {}),
       ...(input.emailEnabled !== undefined ? { emailEnabled: input.emailEnabled } : {}),
       ...(input.emailAddress !== undefined ? { emailAddress: input.emailAddress || null } : {}),
       triggers: mergedTriggers as unknown as Prisma.InputJsonValue,
@@ -126,15 +143,12 @@ export class NotificationService {
       const key = STATUS_TO_TRIGGER[input.status];
       if (!this.triggerEnabled(settings, run.projectId, key)) return;
 
-      if (settings?.webToast ?? DEFAULT_WEB_TOAST) {
-        const shortId = run.id.slice(0, 8);
-        await this.deliverWebToast(ownerId, {
-          kind: `run-${key}`,
-          title: RUN_TITLES[key],
-          body: `${run.project.repoFullName} · ${shortId}`,
-          runId: run.id,
-        });
-      }
+      await this.deliverAll(settings, ownerId, {
+        kind: `run-${key}`,
+        title: RUN_TITLES[key],
+        body: `${run.project.repoFullName} · ${run.id.slice(0, 8)}`,
+        runId: run.id,
+      });
     } catch (err) {
       this.logger.error(
         `notification fanOut failed for run ${input.runId}: ${err instanceof Error ? err.message : String(err)}`,
@@ -155,10 +169,8 @@ export class NotificationService {
       const settings = await this.prisma.userNotificationSettings.findUnique({
         where: { userId: event.ownerId },
       });
-      if (!(settings?.webToast ?? DEFAULT_WEB_TOAST)) return;
-
       const limit = event.status.limitUsd != null ? `$${event.status.limitUsd.toFixed(2)}` : '—';
-      await this.deliverWebToast(event.ownerId, {
+      await this.deliverAll(settings, event.ownerId, {
         kind: event.kind,
         title: event.kind === 'budget-exceeded' ? 'Budget exceeded' : 'Budget warning',
         body: `$${event.status.spendUsd.toFixed(2)} / ${limit} (${event.status.warnAt}% threshold)`,
@@ -190,6 +202,22 @@ export class NotificationService {
       take: limit,
     });
     return rows.map(toNotificationView);
+  }
+
+  // Dispatch one notification to every channel the user has enabled: the web
+  // toast (DB row) and, when a Slack webhook URL is configured, Slack.
+  private async deliverAll(
+    settings: { webToast: boolean; slackWebhookUrl: Uint8Array | null } | null,
+    userId: string,
+    n: { kind: string; title: string; body?: string; runId?: string },
+  ): Promise<void> {
+    if (settings?.webToast ?? DEFAULT_WEB_TOAST) {
+      await this.deliverWebToast(userId, n);
+    }
+    const slackUrl = decryptSlackUrl(settings?.slackWebhookUrl ?? null);
+    if (slackUrl) {
+      await this.slack.send(slackUrl, { text: n.body ? `${n.title} — ${n.body}` : n.title });
+    }
   }
 
   private async deliverWebToast(
@@ -276,10 +304,12 @@ function toView(
     updatedAt: Date;
   } | null,
 ): NotificationSettingsView {
+  const slackUrl = decryptSlackUrl(row?.slackWebhookUrl ?? null);
   return {
     userId,
     webToast: row?.webToast ?? DEFAULT_WEB_TOAST,
     slackConfigured: !!row?.slackWebhookUrl,
+    slackHint: slackUrl ? `…${slackUrl.slice(-6)}` : null,
     emailEnabled: row?.emailEnabled ?? false,
     emailAddress: row?.emailAddress ?? null,
     triggers: parseTriggers(row?.triggers),
@@ -304,4 +334,24 @@ function clamp(n: number, min: number, max: number): number {
   if (n < min) return min;
   if (n > max) return max;
   return n;
+}
+
+// Decrypt a stored Slack webhook URL. Returns null when absent or if the
+// envelope can't be decrypted (e.g. key rotated) — a bad URL must not break
+// notification fan-out.
+function decryptSlackUrl(bytes: Uint8Array | null): string | null {
+  if (!bytes) return null;
+  try {
+    return decryptEnvelopeUtf8(Buffer.from(bytes));
+  } catch {
+    return null;
+  }
+}
+
+function toBytes(src: Uint8Array): Uint8Array<ArrayBuffer> {
+  // Prisma's Bytes column expects Uint8Array<ArrayBuffer> specifically.
+  const ab = new ArrayBuffer(src.byteLength);
+  const out = new Uint8Array(ab);
+  out.set(src);
+  return out;
 }

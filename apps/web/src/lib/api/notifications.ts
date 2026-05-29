@@ -10,6 +10,7 @@ export interface NotificationSettings {
   userId: string;
   webToast: boolean;
   slackConfigured: boolean;
+  slackHint: string | null;
   emailEnabled: boolean;
   emailAddress: string | null;
   triggers: TriggerMap;
@@ -19,6 +20,7 @@ export interface NotificationSettings {
 
 export interface UpdateNotificationSettingsInput {
   webToast?: boolean;
+  slackWebhookUrl?: string | null;
   emailEnabled?: boolean;
   emailAddress?: string | null;
   triggers?: Partial<TriggerMap>;
