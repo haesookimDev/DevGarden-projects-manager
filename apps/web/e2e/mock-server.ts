@@ -32,6 +32,11 @@ let emptyFixtures = false;
 // post-registration state.
 let onboardingRegistered = false;
 
+// Notification-stream toggle. Off by default so the global toaster doesn't pop
+// on every dashboard page during unrelated specs. On: the SSE endpoint emits
+// one notification, letting the toast spec assert it appears.
+let streamNotification = false;
+
 export async function startMockServer(port = 0): Promise<MockServerHandle> {
   const server = createServer((req, res) => handle(req, res));
   await new Promise<void>((resolve) => server.listen(port, '127.0.0.1', resolve));
@@ -76,6 +81,21 @@ function handle(req: IncomingMessage, res: ServerResponse): void {
         res
           .writeHead(200, { 'content-type': 'application/json' })
           .end(JSON.stringify({ onboardingRegistered }));
+      } catch {
+        res.writeHead(400).end('invalid body');
+      }
+    });
+    return;
+  }
+
+  if (url.pathname === '/mock/set-stream-notification' && req.method === 'POST') {
+    readBody(req).then((raw) => {
+      try {
+        const body = JSON.parse(raw || '{}') as { value?: boolean };
+        streamNotification = Boolean(body.value);
+        res
+          .writeHead(200, { 'content-type': 'application/json' })
+          .end(JSON.stringify({ streamNotification }));
       } catch {
         res.writeHead(400).end('invalid body');
       }
@@ -921,6 +941,36 @@ steps:
         }),
       );
     });
+    return;
+  }
+
+  // Notification SSE stream. Emits one notification only when the toggle is on
+  // (so the global toaster stays quiet during unrelated specs), then ends.
+  const notifStreamMatch = url.pathname.match(
+    /^\/internal\/users\/([^/]+)\/notifications\/stream$/,
+  );
+  if (notifStreamMatch && req.method === 'GET') {
+    res.writeHead(200, {
+      'content-type': 'text/event-stream',
+      'cache-control': 'no-cache, no-transform',
+      connection: 'keep-alive',
+    });
+    if (streamNotification && !emptyFixtures) {
+      res.write(
+        `data: ${JSON.stringify({
+          id: 'mock-notif-stream-1',
+          kind: 'run-failed',
+          title: 'Run failed',
+          body: 'mock/repo · streamed',
+          runId: 'mock-run-6',
+          readAt: null,
+          createdAt: new Date().toISOString(),
+        })}\n\n`,
+      );
+    }
+    // End shortly after so the connection doesn't block server teardown; the
+    // browser reconnects (same id → deduped by the toaster).
+    setTimeout(() => res.end(), 100);
     return;
   }
 
