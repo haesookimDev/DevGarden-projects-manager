@@ -51,6 +51,7 @@ export class RunsInternalController {
       triggeredByUserId,
       branchName,
       workingDir,
+      inputs,
     });
 
     try {
@@ -180,6 +181,7 @@ export class RunsInternalController {
       clientId: preset.clientId,
       triggeredByUserId,
       workingDir,
+      inputs: (preset.inputs ?? {}) as Record<string, unknown>,
     });
 
     try {
@@ -193,6 +195,53 @@ export class RunsInternalController {
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       this.logger.error(`preset run ${run.id} dispatch failed: ${msg}`);
+    }
+
+    return projectRun(run);
+  }
+
+  // Cancel an in-flight run (N5). QUEUED runs flip straight to CANCELLED;
+  // RUNNING runs get a cancel request + a `run:cancel` emit so the sidecar
+  // kills its current step process and confirms via run:status. Cancelling a
+  // run that already finished is a no-op (reported as alreadyFinished).
+  @Post(':id/cancel')
+  async cancel(@Param('id') id: string, @Body() body: unknown) {
+    const reason = optionalReason(body);
+    const { run, alreadyTerminal, flipped } = await this.runs.requestCancel(id, reason);
+    if (!alreadyTerminal && !flipped && run.status === RunStatus.RUNNING) {
+      this.gateway.emitRunCancel(run.clientId, { runId: run.id, reason });
+    }
+    return {
+      ...projectRun(run),
+      cancelRequested: !alreadyTerminal,
+      alreadyFinished: alreadyTerminal,
+    };
+  }
+
+  // Re-run a FAILED / CANCELLED run with the same harness + inputs (N5). A
+  // fresh QUEUED row is created (linked via retryOfRunId) and dispatched.
+  @Post(':id/retry')
+  async retry(@Param('id') id: string, @Body() body: unknown) {
+    const b =
+      body && typeof body === 'object' && !Array.isArray(body)
+        ? (body as Record<string, unknown>)
+        : {};
+    const triggeredByUserId =
+      typeof b.triggeredByUserId === 'string' ? b.triggeredByUserId : undefined;
+
+    const run = await this.runs.retryRun(id, triggeredByUserId);
+
+    try {
+      const harness = await this.runs.getHarnessDefinition(run.harnessId);
+      this.gateway.emitRunStart(run.clientId, {
+        runId: run.id,
+        harness,
+        inputs: (run.inputs ?? {}) as Record<string, unknown>,
+        workingDir: run.workingDir ?? undefined,
+      });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      this.logger.error(`retry run ${run.id} dispatch failed: ${msg}`);
     }
 
     return projectRun(run);
@@ -240,6 +289,14 @@ function requireString(b: Record<string, unknown>, key: string): string {
   return v;
 }
 
+function optionalReason(body: unknown): string | undefined {
+  if (body && typeof body === 'object' && !Array.isArray(body)) {
+    const r = (body as Record<string, unknown>).reason;
+    if (typeof r === 'string' && r.trim()) return r;
+  }
+  return undefined;
+}
+
 function parseRunStatus(s: string | undefined): RunStatus | undefined {
   if (!s) return undefined;
   if (s in RunStatus) return RunStatus[s as keyof typeof RunStatus];
@@ -273,6 +330,10 @@ interface RunRow {
   workingDir: string | null;
   startedAt: Date;
   finishedAt: Date | null;
+  retryOfRunId: string | null;
+  cancelRequestedAt: Date | null;
+  cancelledAt: Date | null;
+  cancelReason: string | null;
 }
 
 function projectRun(run: RunRow) {
@@ -287,5 +348,9 @@ function projectRun(run: RunRow) {
     workingDir: run.workingDir,
     startedAt: run.startedAt.toISOString(),
     finishedAt: run.finishedAt ? run.finishedAt.toISOString() : null,
+    retryOfRunId: run.retryOfRunId,
+    cancelRequestedAt: run.cancelRequestedAt ? run.cancelRequestedAt.toISOString() : null,
+    cancelledAt: run.cancelledAt ? run.cancelledAt.toISOString() : null,
+    cancelReason: run.cancelReason,
   };
 }

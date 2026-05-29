@@ -8,6 +8,7 @@ import {
 } from '@nestjs/websockets';
 import {
   RUN_EVENTS,
+  type RunCancelPayload,
   type RunLogPayload,
   type RunStartPayload,
   type RunStatusPayload,
@@ -54,6 +55,13 @@ export class RunsGateway {
     this.server.to(`client:${clientId}`).emit(RUN_EVENTS.Start, payload);
     // Also fan-out to subscribers (web BFF / future direct browser subscribers)
     this.fanOutToRunRoom(payload.runId, RUN_EVENTS.Start, payload);
+  }
+
+  // Ask the client owning a RUNNING run to kill its current step process (N5).
+  // The client confirms by reporting a CANCELLED run:status event.
+  emitRunCancel(clientId: string, payload: RunCancelPayload): void {
+    this.server.to(`client:${clientId}`).emit(RUN_EVENTS.Cancel, payload);
+    this.fanOutToRunRoom(payload.runId, RUN_EVENTS.Cancel, payload);
   }
 
   @SubscribeMessage(RUN_EVENTS.Log)
