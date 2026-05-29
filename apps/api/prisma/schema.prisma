@@ -116,31 +116,31 @@ enum CloneStatus {
 }
 
 model Project {
-  id                   String              @id @default(cuid())
-  ownerId              String
-  owner                User                @relation(fields: [ownerId], references: [id], onDelete: Cascade)
-  githubInstallationId Int
+  id                    String              @id @default(cuid())
+  ownerId               String
+  owner                 User                @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  githubInstallationId  Int
   // FK to the matching GithubInstallation row when one has been synced. The
   // numeric githubInstallationId stays as the source of truth for legacy
   // env-based deployments; the DB id is the new path that picker UIs use.
-  installationDbId     String?
-  installation         GithubInstallation? @relation(fields: [installationDbId], references: [id], onDelete: SetNull)
-  githubRepoId         Int
-  repoFullName         String
-  defaultClientId      String?
-  defaultClient        Client?             @relation("ProjectDefaultClient", fields: [defaultClientId], references: [id])
-  defaultHarnessId     String?
-  defaultHarness       Harness?            @relation("ProjectDefaultHarness", fields: [defaultHarnessId], references: [id])
+  installationDbId      String?
+  installation          GithubInstallation? @relation(fields: [installationDbId], references: [id], onDelete: SetNull)
+  githubRepoId          Int
+  repoFullName          String
+  defaultClientId       String?
+  defaultClient         Client?             @relation("ProjectDefaultClient", fields: [defaultClientId], references: [id])
+  defaultHarnessId      String?
+  defaultHarness        Harness?            @relation("ProjectDefaultHarness", fields: [defaultHarnessId], references: [id])
   // v0.2 N4: when null, project follows the latest version of defaultHarness
   // (resolved at dispatch time). When set, runs pin to that specific version.
   defaultHarnessVersion Int?
-  localRoot            String
-  worktreePolicy       WorktreePolicy      @default(AUTO_REMOVE_SUCCESS)
-  cloneStatus          CloneStatus         @default(NOT_CLONED)
-  cloneError           String?
-  cloneCompletedAt     DateTime?
-  createdAt            DateTime            @default(now())
-  updatedAt            DateTime            @updatedAt
+  localRoot             String
+  worktreePolicy        WorktreePolicy      @default(AUTO_REMOVE_SUCCESS)
+  cloneStatus           CloneStatus         @default(NOT_CLONED)
+  cloneError            String?
+  cloneCompletedAt      DateTime?
+  createdAt             DateTime            @default(now())
+  updatedAt             DateTime            @updatedAt
 
   todos        HarnessRun[]
   items        TodoItem[]
@@ -219,10 +219,25 @@ model HarnessRun {
   status            RunStatus @default(QUEUED)
   branchName        String?
   workingDir        String?
+  // v0.2 N5: inputs are persisted at dispatch so a retry can re-run with the
+  // exact same payload. Pre-N5 runs default to {}.
+  inputs            Json      @default("{}")
   startedAt         DateTime  @default(now())
   finishedAt        DateTime?
   costUsd           Decimal?  @db.Decimal(10, 6)
   tokenUsage        Json?
+
+  // v0.2 N5 run controls. A retry is a fresh row linked back to its origin so
+  // history is preserved. Cancel tracks the request (cancelRequestedAt, set
+  // when the user clicks) separately from confirmation (cancelledAt, set when
+  // the run actually transitions to CANCELLED) so the UI can show
+  // "cancel requested" while the sidecar tears the process down.
+  retryOfRunId      String?
+  retryOfRun        HarnessRun?  @relation("RunRetry", fields: [retryOfRunId], references: [id], onDelete: SetNull)
+  retries           HarnessRun[] @relation("RunRetry")
+  cancelRequestedAt DateTime?
+  cancelledAt       DateTime?
+  cancelReason      String?
 
   steps     RunStep[]
   logs      RunLog[]
@@ -233,6 +248,7 @@ model HarnessRun {
   @@index([harnessId, startedAt(sort: Desc)]) // N6 runs search: harness filter + recency
   @@index([clientId])
   @@index([startedAt(sort: Desc)]) // N6 runs search: owner-wide recency scan
+  @@index([retryOfRunId]) // N5: list a run's retries
 }
 
 enum StepKind {

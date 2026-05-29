@@ -96,9 +96,16 @@ HarnessRun 1───* RunArtifact
 - `id`, `harnessId`, `projectId`, `clientId`, `triggeredByUserId`
 - `status` ('queued' | 'running' | 'success' | 'failed' | 'cancelled')
 - `branchName`, `workingDir`
+- `inputs` (JSONB, default `{}`) — 실행 시 inject 된 입력 값. v0.2 N5 에서 retry 가 동일 payload 로
+  재실행할 수 있도록 dispatch 시점에 보존
 - `startedAt`, `finishedAt` (nullable)
 - `costUsd` (decimal, nullable)
 - `tokenUsage` (JSONB: { input, output, total } per provider)
+- `retryOfRunId` (→ HarnessRun.id, nullable, onDelete SetNull) — retry 로 만들어진 run 이 원본을 link.
+  self-relation `RunRetry` (역방향 `retries`)
+- `cancelRequestedAt` (datetime, nullable) — 사용자가 cancel 을 요청한 시점 (RUNNING run 은 sidecar 확인 대기)
+- `cancelledAt` (datetime, nullable) — 실제 CANCELLED 로 전이된 시점
+- `cancelReason` (string, nullable)
 
 ### RunStep
 
@@ -142,6 +149,7 @@ HarnessRun 1───* RunArtifact
 
 - `Project(ownerId)`, `Project(repoFullName)`
 - `HarnessRun(projectId, startedAt DESC)`
+- `HarnessRun(retryOfRunId)` (N5: 한 run 의 retry 목록 조회)
 - `RunLog(runId, ts)` (시간순 조회)
 - `RunStep(runId, stepIndex)`
 
