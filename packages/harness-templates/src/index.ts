@@ -12,35 +12,28 @@
 import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import * as nodePath from 'node:path';
 
-// Resolve `<package-root>/src/catalog` without using `import.meta.url` — the
-// api consumer compiles in CommonJS where that's a type error. We walk up
-// from a known module file (this one's compiled equivalent) until we hit
-// the package.json that names this package, then look for src/catalog under
-// that root. Works whether we're loaded from src/ (workspace dev) or dist/
-// (consumer that compiled the package first).
+// Locate the catalog directory. The package ships a CommonJS dist and the
+// build copies `src/catalog` → `dist/catalog`, so `__dirname` (the running
+// file's dir: dist/ when required by the api, src/ under vitest) sits right
+// next to the catalog. cwd is a last-resort fallback.
 function findCatalogDir(): string {
   const candidates: string[] = [];
-  // CJS: __dirname is the directory of the compiled file. ESM doesn't define
-  // __dirname so we guard.
   if (typeof __dirname !== 'undefined') candidates.push(__dirname);
-  // process.cwd() as a last resort — tests run from package root.
   candidates.push(process.cwd());
 
   for (const start of candidates) {
     let cur = start;
     for (let i = 0; i < 6; i++) {
-      const catalog = nodePath.join(cur, 'catalog');
-      if (existsSync(catalog) && existsSync(nodePath.join(cur, '..', 'package.json'))) {
-        return catalog;
+      // `<dir>/catalog` (built dist, or vitest running from src/) ...
+      if (existsSync(nodePath.join(cur, 'catalog'))) return nodePath.join(cur, 'catalog');
+      // ... or `<dir>/src/catalog` (workspace root / cwd fallback).
+      if (existsSync(nodePath.join(cur, 'src', 'catalog'))) {
+        return nodePath.join(cur, 'src', 'catalog');
       }
       const parent = nodePath.dirname(cur);
       if (parent === cur) break;
       cur = parent;
     }
-    // Also try `<start>/src/catalog` directly — covers the workspace dev
-    // case where __dirname is the package root.
-    const direct = nodePath.join(start, 'src', 'catalog');
-    if (existsSync(direct)) return direct;
   }
   throw new Error('harness-templates: could not locate catalog directory');
 }

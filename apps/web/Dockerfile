@@ -12,11 +12,16 @@ COPY pnpm-lock.yaml pnpm-workspace.yaml package.json .npmrc tsconfig.base.json .
 COPY apps/web/package.json ./apps/web/
 COPY packages/shared/package.json ./packages/shared/
 COPY packages/ui/package.json ./packages/ui/
+COPY packages/harness-core/package.json ./packages/harness-core/
 RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
     pnpm install --frozen-lockfile --filter @devgarden/web... --prefer-offline
 COPY packages/shared ./packages/shared
 COPY packages/ui ./packages/ui
+COPY packages/harness-core ./packages/harness-core
 COPY apps/web ./apps/web
+# The harness editor dynamically imports @devgarden/harness-core, which now
+# ships built dist/ — build it before next build so webpack can resolve it.
+RUN pnpm --filter @devgarden/harness-core build
 RUN pnpm --filter @devgarden/web build
 
 FROM base AS runner
