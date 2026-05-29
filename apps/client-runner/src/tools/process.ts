@@ -13,7 +13,15 @@ export class ProcessPolicyError extends Error {
   }
 }
 
+export class ProcessCancelledError extends Error {
+  constructor(message = 'process.run cancelled') {
+    super(message);
+    this.name = 'ProcessCancelledError';
+  }
+}
+
 const MAX_BUFFER = 1024 * 1024; // 1 MB per stream
+const DEFAULT_KILL_GRACE_MS = 5_000;
 
 export type SpawnLike = typeof defaultSpawn;
 
@@ -21,17 +29,20 @@ export interface ProcessOptions {
   policy: PathPolicy;
   allowList: ReadonlyArray<string>;
   timeoutMs?: number;
+  /** Grace period between SIGTERM and SIGKILL when a run is cancelled. */
+  killGraceMs?: number;
   spawnImpl?: SpawnLike;
 }
 
 export function makeProcessTool(opts: ProcessOptions): ToolHandler {
   const allow = new Set(opts.allowList);
   const timeoutMs = opts.timeoutMs ?? 60_000;
+  const killGraceMs = opts.killGraceMs ?? DEFAULT_KILL_GRACE_MS;
   const spawn = opts.spawnImpl ?? defaultSpawn;
 
   return {
     name: 'process.run',
-    async run(input) {
+    async run(input, ctx) {
       const command = requireString(input, 'command');
       if (!allow.has(command)) {
         throw new ProcessPolicyError(`command "${command}" is not in the allow-list`);
@@ -66,17 +77,48 @@ export function makeProcessTool(opts: ProcessOptions): ToolHandler {
         stderrLen += c.length;
       });
 
+      const signal = ctx?.signal;
       const exitCode = await new Promise<number | null>((resolve, reject) => {
+        let cancelled = false;
+        let graceTimer: ReturnType<typeof setTimeout> | undefined;
+
+        // On cancel: SIGTERM the child, then escalate to SIGKILL after the
+        // grace period. The close handler rejects so the runner records a
+        // cancellation rather than a spurious success/exit code.
+        const onAbort = () => {
+          cancelled = true;
+          child.kill('SIGTERM');
+          graceTimer = setTimeout(() => child.kill('SIGKILL'), killGraceMs);
+          graceTimer.unref?.();
+        };
+
+        const cleanup = () => {
+          clearTimeout(timer);
+          if (graceTimer) clearTimeout(graceTimer);
+          signal?.removeEventListener('abort', onAbort);
+        };
+
         const timer = setTimeout(() => {
           child.kill('SIGKILL');
+          cleanup();
           reject(new Error(`process.run timed out after ${timeoutMs}ms`));
         }, timeoutMs);
+
+        if (signal) {
+          if (signal.aborted) onAbort();
+          else signal.addEventListener('abort', onAbort, { once: true });
+        }
+
         child.on('error', (err) => {
-          clearTimeout(timer);
+          cleanup();
           reject(err);
         });
         child.on('close', (code) => {
-          clearTimeout(timer);
+          cleanup();
+          if (cancelled) {
+            reject(new ProcessCancelledError());
+            return;
+          }
           resolve(code);
         });
       });

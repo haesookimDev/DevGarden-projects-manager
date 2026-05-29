@@ -16,6 +16,7 @@ import {
   CLONE_EVENTS,
   RUN_EVENTS,
   type CloneStartPayload,
+  type RunCancelPayload,
   type RunStartPayload,
 } from '@devgarden/shared';
 import { io as defaultIo, type Socket } from 'socket.io-client';
@@ -36,7 +37,11 @@ const stdoutEmitter: Emitter = {
   },
 };
 
-type ExecuteRunFn = (socket: RunExecutorSocket, event: RunStartPayload) => Promise<unknown>;
+type ExecuteRunFn = (
+  socket: RunExecutorSocket,
+  event: RunStartPayload,
+  deps?: { signal?: AbortSignal },
+) => Promise<unknown>;
 type CloneProjectFn = (
   payload: CloneStartPayload,
   deps: CloneDeps,
@@ -85,6 +90,9 @@ export async function runSidecar(
   deps.onSocket?.(socket);
 
   let heartbeat: NodeJS.Timeout | undefined;
+  // Per-run cancellation handles. A run:cancel aborts the matching run's
+  // signal; the entry is cleared when the run settles.
+  const runControllers = new Map<string, AbortController>();
 
   socket.on('connect', () => {
     emitter.emit({
@@ -114,7 +122,9 @@ export async function runSidecar(
     // sidecar's only job here is to start it and announce the outcome on
     // stdout for the Rust host's log. Anything unexpected becomes a
     // sidecar:error event so the host can flag it to the webview.
-    void executeRun(socket, payload)
+    const controller = new AbortController();
+    runControllers.set(payload.runId, controller);
+    void executeRun(socket, payload, { signal: controller.signal })
       .then(() => {
         emitter.emit({ type: 'sidecar:run-end', runId: payload.runId });
       })
@@ -124,7 +134,23 @@ export async function runSidecar(
           runId: payload.runId,
           message: err instanceof Error ? err.message : String(err),
         });
+      })
+      .finally(() => {
+        runControllers.delete(payload.runId);
       });
+  });
+
+  // api → client cancel. Abort the matching run's signal so the runner stops
+  // advancing and the in-flight step process is killed. Unknown runId (already
+  // finished / never started here) is a no-op the host can log.
+  socket.on(RUN_EVENTS.Cancel, (payload: RunCancelPayload) => {
+    const controller = runControllers.get(payload.runId);
+    if (!controller) {
+      emitter.emit({ type: 'sidecar:cancel-miss', runId: payload.runId });
+      return;
+    }
+    controller.abort();
+    emitter.emit({ type: 'sidecar:run-cancel', runId: payload.runId });
   });
 
   socket.on(CLONE_EVENTS.Start, (payload: CloneStartPayload) => {

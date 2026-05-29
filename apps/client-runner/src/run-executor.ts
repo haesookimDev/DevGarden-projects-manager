@@ -45,6 +45,8 @@ export interface RunExecutorDeps {
   processAllowList?: ReadonlyArray<string>;
   /** Fallback workingDir when the run event omits one (rare). */
   fallbackWorkingDir?: string;
+  /** Per-run cancellation signal; aborting it cancels the run (N5). */
+  signal?: AbortSignal;
 }
 
 const NOOP_LLM: LlmDispatch = {
@@ -127,11 +129,19 @@ export async function executeRun(
     workingDir,
     hooks,
     host,
+    signal: deps.signal,
   });
 
-  emitStatus(socket, event.runId, result.status === 'success' ? 'SUCCESS' : 'FAILED');
+  const status: RunStatusPayload['status'] =
+    result.status === 'success'
+      ? 'SUCCESS'
+      : result.status === 'cancelled'
+        ? 'CANCELLED'
+        : 'FAILED';
+  emitStatus(socket, event.runId, status, result.status === 'cancelled' ? result.error : undefined);
   if (result.error) {
-    emitLog(socket, event.runId, 'error', 'run-executor', result.error);
+    const level = result.status === 'cancelled' ? 'warn' : 'error';
+    emitLog(socket, event.runId, level, 'run-executor', result.error);
   }
   return result;
 }
@@ -149,8 +159,13 @@ function emitStatus(
   socket: RunExecutorSocket,
   runId: string,
   status: RunStatusPayload['status'],
+  reason?: string,
 ): void {
-  socket.emit(RUN_EVENTS.Status, { runId, status } satisfies RunStatusPayload);
+  socket.emit(RUN_EVENTS.Status, {
+    runId,
+    status,
+    ...(reason ? { reason } : {}),
+  } satisfies RunStatusPayload);
 }
 
 function emitLog(
