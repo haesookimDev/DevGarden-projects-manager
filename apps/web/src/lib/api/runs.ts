@@ -107,6 +107,35 @@ export async function createRun(input: CreateRunInput): Promise<RunSummary> {
   return (await res.json()) as RunSummary;
 }
 
+export interface CancelRunResult extends RunSummary {
+  cancelRequested: boolean;
+  alreadyFinished: boolean;
+}
+
+export async function cancelRun(id: string, reason?: string): Promise<CancelRunResult> {
+  const res = await internalFetch(`/internal/runs/${encodeURIComponent(id)}/cancel`, {
+    method: 'POST',
+    body: reason ? { reason } : {},
+  });
+  if (!res.ok) {
+    const text = await res.text().catch(() => '');
+    throw new Error(`cancelRun failed: ${res.status} ${text}`);
+  }
+  return (await res.json()) as CancelRunResult;
+}
+
+export async function retryRun(id: string, triggeredByUserId: string): Promise<RunSummary> {
+  const res = await internalFetch(`/internal/runs/${encodeURIComponent(id)}/retry`, {
+    method: 'POST',
+    body: { triggeredByUserId },
+  });
+  if (!res.ok) {
+    const text = await res.text().catch(() => '');
+    throw new Error(`retryRun failed: ${res.status} ${text}`);
+  }
+  return (await res.json()) as RunSummary;
+}
+
 export interface RunHistoryRow extends RunSummary {
   repoFullName: string;
 }
