@@ -12,7 +12,7 @@ export function getInternalApiConfig(): { baseUrl: string; secret: string } {
 export async function internalFetch(
   path: string,
   init: {
-    method: 'GET' | 'POST' | 'PATCH' | 'DELETE';
+    method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
     body?: unknown;
     /** Extra request headers (merged on top of x-internal-secret + content-type). */
     headers?: Record<string, string>;

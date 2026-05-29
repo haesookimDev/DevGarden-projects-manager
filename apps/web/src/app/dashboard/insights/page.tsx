@@ -41,24 +41,33 @@ export default async function InsightsPage({
             일별 cost / token 추이와 project / harness 별 break-down.
           </p>
         </div>
-        <nav className="flex gap-1" data-testid="insights-range">
-          {[7, 30, 90].map((d) => (
-            <Link
-              key={d}
-              href={`/dashboard/insights?days=${d}`}
-              data-testid={`insights-range-${d}`}
-              data-active={d === days ? '1' : '0'}
-              className={
-                'rounded-md border px-3 py-1.5 text-sm transition-colors ' +
-                (d === days
-                  ? 'border-foreground font-medium'
-                  : 'border-border text-muted-foreground hover:text-foreground')
-              }
-            >
-              {d}d
-            </Link>
-          ))}
-        </nav>
+        <div className="flex items-center gap-3">
+          <Link
+            href="/dashboard/settings/budget"
+            className="text-sm text-muted-foreground hover:text-foreground"
+            data-testid="insights-budget-cta"
+          >
+            Budget →
+          </Link>
+          <nav className="flex gap-1" data-testid="insights-range">
+            {[7, 30, 90].map((d) => (
+              <Link
+                key={d}
+                href={`/dashboard/insights?days=${d}`}
+                data-testid={`insights-range-${d}`}
+                data-active={d === days ? '1' : '0'}
+                className={
+                  'rounded-md border px-3 py-1.5 text-sm transition-colors ' +
+                  (d === days
+                    ? 'border-foreground font-medium'
+                    : 'border-border text-muted-foreground hover:text-foreground')
+                }
+              >
+                {d}d
+              </Link>
+            ))}
+          </nav>
+        </div>
       </header>
 
       {error && (

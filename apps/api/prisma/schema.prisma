@@ -36,6 +36,20 @@ model User {
   pairings              ClientPairing[]
   triggeredRuns         HarnessRun[]           @relation("RunTriggeredBy")
   githubAppRegistration GithubAppRegistration?
+  budget                OwnerBudget?
+}
+
+// Per-owner monthly spend cap (v0.2 N6). When monthlyUsdLimit is set, the
+// BudgetMonitorService checks spend after each terminal run and flags
+// warn (warnAt %) / exceeded (100%) crossings. resetDay is the day-of-month
+// the rolling window restarts.
+model OwnerBudget {
+  ownerId         String   @id
+  owner           User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  monthlyUsdLimit Decimal? @db.Decimal(10, 2)
+  warnAt          Int      @default(80)
+  resetDay        Int      @default(1)
+  updatedAt       DateTime @updatedAt
 }
 
 // =============================================================================

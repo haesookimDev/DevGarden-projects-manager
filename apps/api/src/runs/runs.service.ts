@@ -170,6 +170,16 @@ export class RunsService {
     };
   }
 
+  // Resolve the owning user for a run via its project. Used by the budget
+  // monitor after a terminal run. Returns null if the run is gone.
+  async getOwnerIdForRun(runId: string): Promise<string | null> {
+    const row = await this.prisma.harnessRun.findUnique({
+      where: { id: runId },
+      select: { project: { select: { ownerId: true } } },
+    });
+    return row?.project.ownerId ?? null;
+  }
+
   listByProject(projectId: string): Promise<HarnessRun[]> {
     return this.prisma.harnessRun.findMany({
       where: { projectId },

@@ -73,6 +73,14 @@ HarnessRun 1───* RunArtifact
 - `expiresAt`
 - `consumedAt` (nullable, 1회용)
 
+### OwnerBudget (v0.2 N6)
+
+- `ownerId` (PK, → User.id, cascade) — 1:1 with User
+- `monthlyUsdLimit` (decimal, nullable) — null 이면 무제한
+- `warnAt` (int, default 80) — 한도의 % 경고 임계치
+- `resetDay` (int, default 1) — 월 윈도우 리셋 day-of-month (1~28)
+- `updatedAt`
+
 ### Harness
 
 - `id`, `ownerId`

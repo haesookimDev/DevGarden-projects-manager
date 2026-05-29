@@ -17,17 +17,22 @@ function makeGateway() {
     appendLog: vi.fn().mockResolvedValue(undefined),
     appendStep: vi.fn().mockResolvedValue(undefined),
     setStatus: vi.fn().mockResolvedValue(undefined),
+    getOwnerIdForRun: vi.fn().mockResolvedValue('owner-1'),
   } satisfies Partial<RunsService>;
   const githubPr = {
     open: vi.fn().mockResolvedValue({ url: 'https://github.com/x/y/pull/1', number: 1 }),
   } satisfies Partial<GithubPrService>;
+  const budgetMonitor = {
+    checkAfterRun: vi.fn().mockResolvedValue(null),
+  };
 
   const gw = new RunsGateway(
     runs as unknown as RunsService,
     githubPr as unknown as GithubPrService,
+    budgetMonitor as unknown as import('../budget/budget-monitor.service').BudgetMonitorService,
   );
   gw.server = { to } as unknown as RunsGateway['server'];
-  return { gw, emit, to, runs, githubPr };
+  return { gw, emit, to, runs, githubPr, budgetMonitor };
 }
 
 function authedSocket(clientId = 'client-abc'): Socket {

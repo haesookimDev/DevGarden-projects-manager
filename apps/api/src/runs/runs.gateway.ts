@@ -15,6 +15,7 @@ import {
 } from '@devgarden/shared';
 import { LogLevel, RunStatus, StepKind, StepStatus } from '@prisma/client';
 import type { Server, Socket } from 'socket.io';
+import { BudgetMonitorService } from '../budget/budget-monitor.service';
 import { GithubPrService } from '../github/github-pr.service';
 import { RunsService } from './runs.service';
 
@@ -46,6 +47,7 @@ export class RunsGateway {
   constructor(
     private readonly runs: RunsService,
     private readonly githubPr: GithubPrService,
+    private readonly budgetMonitor: BudgetMonitorService,
   ) {}
 
   emitRunStart(clientId: string, payload: RunStartPayload): void {
@@ -102,8 +104,17 @@ export class RunsGateway {
   ): Promise<{ ok: boolean }> {
     if (!this.assertAuthed(socket)) return { ok: false };
     if (!body?.runId) return { ok: false };
-    await this.runs.setStatus(body.runId, mapRunStatus(body.status));
+    const status = mapRunStatus(body.status);
+    await this.runs.setStatus(body.runId, status);
     this.fanOutToRunRoom(body.runId, RUN_EVENTS.Status, body);
+
+    // On a terminal run, check the owner's budget. Fire-and-forget so the
+    // ack isn't delayed; the monitor never throws.
+    if (status === RunStatus.SUCCESS || status === RunStatus.FAILED) {
+      void this.runs.getOwnerIdForRun(body.runId).then((ownerId) => {
+        if (ownerId) void this.budgetMonitor.checkAfterRun(ownerId);
+      });
+    }
     return { ok: true };
   }
 
