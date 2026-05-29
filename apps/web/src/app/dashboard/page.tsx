@@ -53,6 +53,14 @@ export default async function DashboardPage() {
               GitHub settings
             </Link>
           </Button>
+          <Button asChild variant="outline" size="sm">
+            <Link
+              href="/dashboard/settings/notifications"
+              data-testid="dashboard-settings-notifications-cta"
+            >
+              Notifications
+            </Link>
+          </Button>
           <form
             action={async () => {
               'use server';
