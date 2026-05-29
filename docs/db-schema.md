@@ -81,6 +81,26 @@ HarnessRun 1───* RunArtifact
 - `resetDay` (int, default 1) — 월 윈도우 리셋 day-of-month (1~28)
 - `updatedAt`
 
+### UserNotificationSettings (v0.2 N5)
+
+- `id`, `userId` (unique, → User.id, cascade) — 1:1 with User
+- `webToast` (bool, default true) — web 토스트 채널 on/off
+- `slackWebhookUrl` (bytea, nullable) — envelope-encrypted (Slack 채널 PR 에서 set)
+- `emailEnabled` (bool, default false), `emailAddress` (string, nullable)
+- `triggers` (json, default `{success:false, failed:true, cancelled:false}`) — terminal status 별 알림 여부
+- `perProject` (json, default `{}`) — `{ [projectId]: { success?/failed?/cancelled? } }` override
+- `createdAt`, `updatedAt`
+
+### Notification (v0.2 N5)
+
+- `id`, `userId` (→ User.id, cascade)
+- `kind` (string) — `run-success`/`run-failed`/`run-cancelled`/`budget-warn`/`budget-exceeded`/`test`
+- `title`, `body` (nullable)
+- `runId` (nullable) — run 관련 알림이면 link
+- `readAt` (datetime, nullable) — 안 읽었으면 null
+- `createdAt`
+- WebToast 채널이 한 row 씩 남김. Slack/email 은 out-of-band 발송이라 row 안 남김
+
 ### Harness
 
 - `id`, `ownerId`

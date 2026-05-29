@@ -1,0 +1,210 @@
+// Integration test for N5 notifications: real prisma + the internal controller
+// for settings CRUD / test / inbox, and the NotificationService directly for
+// fanOut (run terminal) + notify (budget seam).
+
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { INestApplication } from '@nestjs/common';
+import { Test } from '@nestjs/testing';
+import { PrismaClient, RunStatus, UserRole } from '@prisma/client';
+import request from 'supertest';
+import { PrismaModule } from '../../src/prisma/prisma.module';
+import { NotificationsInternalController } from '../../src/notifications/notifications.internal.controller';
+import { NotificationService } from '../../src/notifications/notifications.service';
+
+const prisma = new PrismaClient();
+const SECRET = 'notif-test-secret';
+
+let app: INestApplication;
+let service: NotificationService;
+
+beforeAll(async () => {
+  await prisma.$connect();
+  process.env.INTERNAL_API_SECRET = SECRET;
+
+  const moduleRef = await Test.createTestingModule({
+    imports: [PrismaModule],
+    controllers: [NotificationsInternalController],
+    providers: [NotificationService],
+  }).compile();
+
+  service = moduleRef.get(NotificationService);
+  app = moduleRef.createNestApplication();
+  await app.init();
+});
+
+afterAll(async () => {
+  await app?.close();
+  await prisma.$disconnect();
+});
+
+beforeEach(async () => {
+  await prisma.notification.deleteMany();
+  await prisma.userNotificationSettings.deleteMany();
+  await prisma.runLog.deleteMany();
+  await prisma.runStep.deleteMany();
+  await prisma.harnessRun.deleteMany();
+  await prisma.client.deleteMany();
+  await prisma.harness.deleteMany();
+  await prisma.project.deleteMany();
+  await prisma.user.deleteMany();
+});
+
+async function seed() {
+  const user = await prisma.user.create({
+    data: { githubId: 1100, login: 'notif-owner', role: UserRole.OWNER },
+  });
+  const project = await prisma.project.create({
+    data: {
+      ownerId: user.id,
+      githubInstallationId: 1,
+      githubRepoId: 1,
+      repoFullName: 'n/p',
+      localRoot: '/tmp/n',
+    },
+  });
+  const harness = await prisma.harness.create({
+    data: { ownerId: user.id, name: 'h', definition: { name: 'h', version: 1, steps: [] } },
+  });
+  const client = await prisma.client.create({
+    data: { ownerId: user.id, name: 'c', jwtTokenHash: 'h' },
+  });
+  return { user, project, harness, client };
+}
+
+async function makeRun(
+  ids: {
+    user: { id: string };
+    project: { id: string };
+    harness: { id: string };
+    client: { id: string };
+  },
+  status: RunStatus,
+) {
+  return prisma.harnessRun.create({
+    data: {
+      harnessId: ids.harness.id,
+      projectId: ids.project.id,
+      clientId: ids.client.id,
+      triggeredByUserId: ids.user.id,
+      status,
+    },
+  });
+}
+
+describe('notification settings (HTTP)', () => {
+  it('returns defaults when no settings row exists', async () => {
+    const { user } = await seed();
+    const res = await request(app.getHttpServer())
+      .get(`/internal/users/${user.id}/notification-settings`)
+      .set('x-internal-secret', SECRET);
+
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({
+      webToast: true,
+      slackConfigured: false,
+      emailEnabled: false,
+      triggers: { success: false, failed: true, cancelled: false },
+      perProject: {},
+    });
+  });
+
+  it('upserts settings and merges triggers', async () => {
+    const { user } = await seed();
+    const res = await request(app.getHttpServer())
+      .put(`/internal/users/${user.id}/notification-settings`)
+      .set('x-internal-secret', SECRET)
+      .send({
+        webToast: true,
+        triggers: { success: true },
+        emailEnabled: true,
+        emailAddress: 'a@b.co',
+      });
+
+    expect(res.status).toBe(200);
+    expect(res.body.triggers).toEqual({ success: true, failed: true, cancelled: false });
+    expect(res.body.emailEnabled).toBe(true);
+    expect(res.body.emailAddress).toBe('a@b.co');
+  });
+
+  it('rejects an invalid email address', async () => {
+    const { user } = await seed();
+    const res = await request(app.getHttpServer())
+      .put(`/internal/users/${user.id}/notification-settings`)
+      .set('x-internal-secret', SECRET)
+      .send({ emailAddress: 'not-an-email' });
+    expect(res.status).toBe(400);
+  });
+
+  it('delivers a test notification and lists it', async () => {
+    const { user } = await seed();
+    const test = await request(app.getHttpServer())
+      .post(`/internal/users/${user.id}/notifications/test`)
+      .set('x-internal-secret', SECRET);
+    expect(test.status).toBe(201);
+    expect(test.body.kind).toBe('test');
+
+    const list = await request(app.getHttpServer())
+      .get(`/internal/users/${user.id}/notifications`)
+      .set('x-internal-secret', SECRET);
+    expect(list.status).toBe(200);
+    expect(list.body).toHaveLength(1);
+    expect(list.body[0].kind).toBe('test');
+  });
+});
+
+describe('NotificationService.fanOut', () => {
+  it('creates a web toast for a FAILED run (default triggers) but not a SUCCESS run', async () => {
+    const ids = await seed();
+    const failed = await makeRun(ids, RunStatus.FAILED);
+    const ok = await makeRun(ids, RunStatus.SUCCESS);
+
+    await service.fanOut({ runId: failed.id, status: 'FAILED' });
+    await service.fanOut({ runId: ok.id, status: 'SUCCESS' });
+
+    const rows = await prisma.notification.findMany({ where: { userId: ids.user.id } });
+    expect(rows).toHaveLength(1);
+    expect(rows[0]!.kind).toBe('run-failed');
+    expect(rows[0]!.runId).toBe(failed.id);
+  });
+
+  it('honors a per-project trigger override', async () => {
+    const ids = await seed();
+    await service.upsertSettings(ids.user.id, {
+      perProject: { [ids.project.id]: { success: true } },
+    });
+    const ok = await makeRun(ids, RunStatus.SUCCESS);
+
+    await service.fanOut({ runId: ok.id, status: 'SUCCESS' });
+
+    const rows = await prisma.notification.findMany({ where: { userId: ids.user.id } });
+    expect(rows).toHaveLength(1);
+    expect(rows[0]!.kind).toBe('run-success');
+  });
+
+  it('delivers nothing when web toast is disabled', async () => {
+    const ids = await seed();
+    await service.upsertSettings(ids.user.id, { webToast: false });
+    const failed = await makeRun(ids, RunStatus.FAILED);
+
+    await service.fanOut({ runId: failed.id, status: 'FAILED' });
+
+    const rows = await prisma.notification.findMany({ where: { userId: ids.user.id } });
+    expect(rows).toHaveLength(0);
+  });
+});
+
+describe('NotificationService.notify (budget seam)', () => {
+  it('creates a budget web toast', async () => {
+    const { user } = await seed();
+    await service.notify({
+      ownerId: user.id,
+      kind: 'budget-warn',
+      status: { spendUsd: 8, limitUsd: 10, warnAt: 80 },
+    });
+
+    const rows = await prisma.notification.findMany({ where: { userId: user.id } });
+    expect(rows).toHaveLength(1);
+    expect(rows[0]!.kind).toBe('budget-warn');
+    expect(rows[0]!.body).toContain('$8.00 / $10.00');
+  });
+});

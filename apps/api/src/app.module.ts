@@ -4,6 +4,7 @@ import { ClientsModule } from './clients/clients.module';
 import { GithubModule } from './github/github.module';
 import { HarnessesModule } from './harnesses/harnesses.module';
 import { HealthController } from './health.controller';
+import { NotificationsModule } from './notifications/notifications.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { ProjectsModule } from './projects/projects.module';
 import { RunsModule } from './runs/runs.module';
@@ -23,6 +24,7 @@ import { WebhooksModule } from './webhooks/webhooks.module';
     TodosModule,
     WebhooksModule,
     BudgetModule,
+    NotificationsModule,
   ],
   controllers: [HealthController],
 })

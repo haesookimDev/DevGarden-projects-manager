@@ -13,6 +13,7 @@ import { ClientsGateway } from '../../src/clients/clients.gateway';
 import { BudgetMonitorService } from '../../src/budget/budget-monitor.service';
 import { BudgetService } from '../../src/budget/budget.service';
 import { GithubPrService } from '../../src/github/github-pr.service';
+import { NotificationService } from '../../src/notifications/notifications.service';
 import { PrismaModule } from '../../src/prisma/prisma.module';
 import { RunsGateway } from '../../src/runs/runs.gateway';
 import { RunsService } from '../../src/runs/runs.service';
@@ -39,6 +40,7 @@ beforeAll(async () => {
       RunsService,
       BudgetService,
       BudgetMonitorService,
+      NotificationService,
       // GithubPrService is only invoked by the github:openPR handler — these
       // tests never trigger that path, so a stub keeps the DI graph happy
       // without bringing the GitHub App env vars into scope.
