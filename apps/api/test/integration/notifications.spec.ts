@@ -4,12 +4,13 @@
 
 import { createServer, type Server } from 'node:http';
 import { randomBytes } from 'node:crypto';
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { PrismaClient, RunStatus, UserRole } from '@prisma/client';
 import request from 'supertest';
 import { resetEncryptionKeyCache } from '../../src/crypto/envelope';
+import { EmailChannel, MAIL_TRANSPORT } from '../../src/notifications/email.channel';
 import { PrismaModule } from '../../src/prisma/prisma.module';
 import { NotificationsInternalController } from '../../src/notifications/notifications.internal.controller';
 import { NotificationService } from '../../src/notifications/notifications.service';
@@ -17,6 +18,8 @@ import { SlackWebhookChannel } from '../../src/notifications/slack-webhook.chann
 
 const prisma = new PrismaClient();
 const SECRET = 'notif-test-secret';
+
+const sentMail = vi.fn().mockResolvedValue(undefined);
 
 let app: INestApplication;
 let service: NotificationService;
@@ -30,7 +33,12 @@ beforeAll(async () => {
   const moduleRef = await Test.createTestingModule({
     imports: [PrismaModule],
     controllers: [NotificationsInternalController],
-    providers: [NotificationService, SlackWebhookChannel],
+    providers: [
+      NotificationService,
+      SlackWebhookChannel,
+      EmailChannel,
+      { provide: MAIL_TRANSPORT, useValue: { sendMail: sentMail } },
+    ],
   }).compile();
 
   service = moduleRef.get(NotificationService);
@@ -44,6 +52,7 @@ afterAll(async () => {
 });
 
 beforeEach(async () => {
+  sentMail.mockClear();
   await prisma.notification.deleteMany();
   await prisma.userNotificationSettings.deleteMany();
   await prisma.runLog.deleteMany();
@@ -274,5 +283,32 @@ describe('Slack channel', () => {
       new Promise<string>((_, rej) => setTimeout(() => rej(new Error('timeout')), 3_000)),
     ])) as string;
     expect(JSON.parse(body).text).toContain('Run failed');
+  });
+});
+
+describe('Email channel', () => {
+  it('sends an email on fanOut when email is enabled with an address', async () => {
+    const ids = await seed();
+    await service.upsertSettings(ids.user.id, {
+      emailEnabled: true,
+      emailAddress: 'owner@example.com',
+    });
+    const failed = await makeRun(ids, RunStatus.FAILED);
+
+    await service.fanOut({ runId: failed.id, status: 'FAILED' });
+
+    expect(sentMail).toHaveBeenCalledTimes(1);
+    expect(sentMail).toHaveBeenCalledWith(
+      expect.objectContaining({ to: 'owner@example.com', subject: 'Run failed' }),
+    );
+  });
+
+  it('does not send when email is disabled', async () => {
+    const ids = await seed();
+    const failed = await makeRun(ids, RunStatus.FAILED);
+
+    await service.fanOut({ runId: failed.id, status: 'FAILED' });
+
+    expect(sentMail).not.toHaveBeenCalled();
   });
 });
