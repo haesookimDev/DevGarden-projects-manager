@@ -4,6 +4,8 @@
 export const RUN_EVENTS = {
   /** api → client: start executing a harness for the given run. */
   Start: 'run:start',
+  /** api → client: cancel an in-flight run (kill the current step process). */
+  Cancel: 'run:cancel',
   /** client → api: append a log line to the run. */
   Log: 'run:log',
   /** client → api: append a step result to the run. */
@@ -44,4 +46,11 @@ export interface RunStepPayload {
 export interface RunStatusPayload {
   runId: string;
   status: 'RUNNING' | 'SUCCESS' | 'FAILED' | 'CANCELLED';
+  /** Set when the client confirms a cancel (CANCELLED status). */
+  reason?: string;
+}
+
+export interface RunCancelPayload {
+  runId: string;
+  reason?: string;
 }

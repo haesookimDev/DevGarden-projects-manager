@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import {
   type HarnessRun,
   type Prisma,
@@ -18,6 +18,8 @@ export interface CreateRunInput {
   triggeredByUserId: string;
   branchName?: string;
   workingDir?: string;
+  /** Persisted so a retry can re-run with the exact same payload (N5). */
+  inputs?: Record<string, unknown>;
 }
 
 export interface AppendStepInput {
@@ -52,6 +54,7 @@ export class RunsService {
         triggeredByUserId: input.triggeredByUserId,
         branchName: input.branchName,
         workingDir: input.workingDir,
+        inputs: (input.inputs ?? {}) as Prisma.InputJsonValue,
         status: RunStatus.QUEUED,
       },
     });
@@ -67,9 +70,89 @@ export class RunsService {
   }
 
   async setStatus(runId: string, status: RunStatus, finishedAt?: Date): Promise<HarnessRun> {
+    const now = new Date();
     return this.prisma.harnessRun.update({
       where: { id: runId },
-      data: { status, finishedAt: finishedAt ?? (isTerminal(status) ? new Date() : null) },
+      data: {
+        status,
+        finishedAt: finishedAt ?? (isTerminal(status) ? now : null),
+        // Stamp the confirmation timestamp when the run actually settles into
+        // CANCELLED (vs. cancelRequestedAt, which the cancel request sets).
+        ...(status === RunStatus.CANCELLED ? { cancelledAt: now } : {}),
+      },
+    });
+  }
+
+  /**
+   * Request cancellation of a run (N5).
+   *
+   *   - terminal already → no-op, reported back so the UI can say
+   *     "already finished" (the cancel/finish race in N5 §6).
+   *   - QUEUED → never dispatched to a live process, so flip straight to
+   *     CANCELLED here; there is no sidecar to ack.
+   *   - RUNNING → only mark cancelRequestedAt + reason; the controller emits
+   *     `run:cancel` and the sidecar confirms with a CANCELLED status event.
+   *
+   * `flipped` tells the caller whether the status already moved to CANCELLED
+   * (QUEUED case) so it knows whether a `run:cancel` emit is still needed.
+   */
+  async requestCancel(
+    runId: string,
+    reason?: string,
+  ): Promise<{ run: HarnessRun; alreadyTerminal: boolean; flipped: boolean }> {
+    const run = await this.prisma.harnessRun.findUnique({ where: { id: runId } });
+    if (!run) throw new NotFoundException(`run ${runId} not found`);
+
+    if (isTerminal(run.status)) {
+      return { run, alreadyTerminal: true, flipped: false };
+    }
+
+    if (run.status === RunStatus.QUEUED) {
+      const now = new Date();
+      const updated = await this.prisma.harnessRun.update({
+        where: { id: runId },
+        data: {
+          status: RunStatus.CANCELLED,
+          cancelRequestedAt: now,
+          cancelledAt: now,
+          cancelReason: reason ?? 'cancelled before start',
+          finishedAt: now,
+        },
+      });
+      return { run: updated, alreadyTerminal: false, flipped: true };
+    }
+
+    const updated = await this.prisma.harnessRun.update({
+      where: { id: runId },
+      data: { cancelRequestedAt: new Date(), cancelReason: reason ?? null },
+    });
+    return { run: updated, alreadyTerminal: false, flipped: false };
+  }
+
+  /**
+   * Clone a FAILED / CANCELLED run into a fresh QUEUED row (N5). The new run
+   * reuses the origin's harness + client + inputs + branch/workingDir and links
+   * back via retryOfRunId so the history chain is preserved. The caller
+   * dispatches it (emitRunStart) exactly like a new run.
+   */
+  async retryRun(runId: string, triggeredByUserId?: string): Promise<HarnessRun> {
+    const orig = await this.prisma.harnessRun.findUnique({ where: { id: runId } });
+    if (!orig) throw new NotFoundException(`run ${runId} not found`);
+    if (orig.status !== RunStatus.FAILED && orig.status !== RunStatus.CANCELLED) {
+      throw new BadRequestException('only FAILED or CANCELLED runs can be retried');
+    }
+    return this.prisma.harnessRun.create({
+      data: {
+        harnessId: orig.harnessId,
+        projectId: orig.projectId,
+        clientId: orig.clientId,
+        triggeredByUserId: triggeredByUserId ?? orig.triggeredByUserId,
+        branchName: orig.branchName,
+        workingDir: orig.workingDir,
+        inputs: (orig.inputs ?? {}) as Prisma.InputJsonValue,
+        retryOfRunId: orig.id,
+        status: RunStatus.QUEUED,
+      },
     });
   }
 
