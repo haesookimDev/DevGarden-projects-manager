@@ -153,6 +153,11 @@ GET  /internal/users/:id/notification-settings → 채널/트리거 설정 (N5)
 PUT  /internal/users/:id/notification-settings → upsert (webToast/email/triggers/perProject)
 GET  /internal/users/:id/notifications          → web-toast inbox
 POST /internal/users/:id/notifications/test     → 테스트 토스트 1건 발송
+GET  /internal/users/:id/notifications/stream   → SSE: 새 web-toast 알림 push (15s ping)
+  web BFF GET /api/notifications/stream 가 세션→ownerId 확인 후 internal secret
+  으로 위 SSE 를 프록시. 브라우저는 EventSource 로 자기 origin 만 연결, dashboard
+  layout 의 <NotificationsToaster> 가 받아 토스트. (단일 api 프로세스 기준 — 다중
+  인스턴스는 v0.3+ 공유 버스 필요)
   NotificationService: 터미널 run 의 status 를 owner 설정(per-project override 포함)
   대로 채널에 fan-out. WebToast(=Notification row) + Slack(incoming webhook,
   5s timeout·3 retries) + Email(nodemailer SMTP, SMTP_* env; 미설정 시 no-op).

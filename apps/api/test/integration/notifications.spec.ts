@@ -286,6 +286,40 @@ describe('Slack channel', () => {
   });
 });
 
+describe('streamFor (SSE source)', () => {
+  it('emits a delivered web toast to a subscriber for that user', async () => {
+    const { user } = await seed();
+    const got = new Promise<{ kind: string; title: string }>((resolve) => {
+      const sub = service.streamFor(user.id).subscribe((n) => {
+        sub.unsubscribe();
+        resolve(n);
+      });
+    });
+
+    await service.sendTest(user.id);
+
+    const n = (await Promise.race([
+      got,
+      new Promise<never>((_, rej) => setTimeout(() => rej(new Error('timeout')), 2_000)),
+    ])) as { kind: string; title: string };
+    expect(n.kind).toBe('test');
+    expect(n.title).toBe('Test notification');
+  });
+
+  it('does not emit another user’s notification', async () => {
+    const { user } = await seed();
+    let emitted = false;
+    const sub = service.streamFor('someone-else').subscribe(() => {
+      emitted = true;
+    });
+
+    await service.sendTest(user.id);
+    await new Promise((r) => setTimeout(r, 100));
+    sub.unsubscribe();
+    expect(emitted).toBe(false);
+  });
+});
+
 describe('Email channel', () => {
   it('sends an email on fanOut when email is enabled with an address', async () => {
     const ids = await seed();
