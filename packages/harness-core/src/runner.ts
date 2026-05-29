@@ -17,6 +17,18 @@ export class RunnerError extends Error {
   }
 }
 
+/**
+ * Thrown internally when `opts.signal` aborts mid-run. `runHarness` catches it
+ * and resolves with status 'cancelled' (vs. 'failed') so callers can tell a
+ * deliberate cancel apart from an error.
+ */
+export class CancelledError extends Error {
+  constructor(message = 'run cancelled') {
+    super(message);
+    this.name = 'CancelledError';
+  }
+}
+
 interface ExecState {
   inputs: Record<string, unknown>;
   stepsOut: Record<string, unknown>;
@@ -36,6 +48,10 @@ export async function runHarness(harness: Harness, opts: RunOptions): Promise<Ru
     return { runId: opts.runId, status: 'success', steps: state.results };
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
+    if (err instanceof CancelledError) {
+      emit(opts.hooks, 'warn', 'system', message);
+      return { runId: opts.runId, status: 'cancelled', steps: state.results, error: message };
+    }
     return {
       runId: opts.runId,
       status: 'failed',
@@ -76,6 +92,8 @@ async function runOneStep(
   opts: RunOptions,
   maxIterations: number,
 ): Promise<void> {
+  // Refuse to start a new step once the run has been cancelled.
+  if (opts.signal?.aborted) throw new CancelledError();
   opts.hooks?.onStepStart?.(step);
   emit(opts.hooks, 'info', step.id, `step ${step.type} starting`);
   const started = Date.now();
@@ -97,6 +115,9 @@ async function runOneStep(
       opts.hooks?.onStepFinish?.(result);
       return;
     } catch (err) {
+      // A tool that was killed by the cancel signal surfaces as an error; treat
+      // it as a cancellation (don't retry, don't honor onFail:continue).
+      if (opts.signal?.aborted) throw new CancelledError();
       const message = err instanceof Error ? err.message : String(err);
       if (attempt < retries) {
         attempt += 1;
@@ -159,6 +180,7 @@ async function runToolStep(step: ToolStep, ctx: ExprContext, opts: RunOptions): 
     runId: opts.runId,
     workingDir: opts.workingDir,
     host: opts.host,
+    signal: opts.signal,
   });
 }
 

@@ -14,7 +14,7 @@ export { parseHarness, parseHarnessRaw, HarnessParseError } from './parser';
 
 export { evalExpression, interpolate, ExprError, type ExprContext } from './expr';
 
-export { runHarness, RunnerError } from './runner';
+export { runHarness, RunnerError, CancelledError } from './runner';
 export type {
   ToolHandler,
   ToolRunContext,

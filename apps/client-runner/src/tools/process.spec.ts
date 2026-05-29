@@ -2,7 +2,7 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { makeProcessTool, ProcessPolicyError } from './process';
+import { makeProcessTool, ProcessCancelledError, ProcessPolicyError } from './process';
 
 let root: string;
 
@@ -38,5 +38,25 @@ describe('process.run — allow-list', () => {
       { runId: 'r' },
     )) as { exitCode: number };
     expect(out.exitCode).toBe(7);
+  });
+});
+
+describe('process.run — cancellation', () => {
+  it('kills a long-running process when the signal aborts', async () => {
+    const controller = new AbortController();
+    const tool = makeProcessTool({
+      policy: { rootDir: root },
+      allowList: ['node'],
+      killGraceMs: 200,
+    });
+
+    const p = tool.run(
+      { command: 'node', args: ['-e', 'setInterval(() => {}, 1000)'] },
+      { runId: 'r', signal: controller.signal },
+    );
+    // Give the child a moment to start, then cancel.
+    setTimeout(() => controller.abort(), 50);
+
+    await expect(p).rejects.toBeInstanceOf(ProcessCancelledError);
   });
 });

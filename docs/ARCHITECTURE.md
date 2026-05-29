@@ -121,12 +121,17 @@ Desktop client (paired socket, `/clients` 네임스페이스)
                        ──▶  emit 'run:status' { runId, status: 'RUNNING' }
                        ──▶  emit 'run:log'    { runId, level, source, message } (반복)
                        ──▶  emit 'run:step'   { runId, stepIndex, stepId, kind, status, durationMs, output, error } (반복)
-                       ──▶  emit 'run:status' { runId, status: 'SUCCESS'|'FAILED' }
+                       ──▶  emit 'run:status' { runId, status: 'SUCCESS'|'FAILED'|'CANCELLED', reason? }
+  on 'run:cancel' { runId, reason? }  (N5)
+                       - runId 별 AbortController 를 abort → 진행 중 step process
+                         에 SIGTERM → grace 후 SIGKILL, runner 는 다음 step 진입 거부
+                       ──▶  emit 'run:status' { runId, status: 'CANCELLED', reason }
 
 RunsGateway (apps/api/src/runs/runs.gateway.ts)
   on 'run:log'    →  RunsService.appendLog
   on 'run:step'   →  RunsService.appendStep
-  on 'run:status' →  RunsService.setStatus  (자동 finishedAt 처리)
+  on 'run:status' →  RunsService.setStatus  (자동 finishedAt; CANCELLED 시 cancelledAt)
+  emitRunCancel(clientId, { runId, reason })  →  client:<id> 룸으로 'run:cancel' (N5)
 
 GET /internal/runs/:id        → 단일 run + steps + logs (최근 500)
 GET /internal/runs?projectId  → 프로젝트별 최근 50 runs
@@ -137,6 +142,11 @@ GET /internal/runs/search     → owner 필터 + 페이지네이션 검색 (N6)
 GET /internal/runs/:id/timeline → step 별 Gantt 데이터 (N6)
                                 { totalMs, longestStepIndex, steps[{ stepId,
                                 startOffsetMs, durationMs, kind, status }] }
+POST /internal/runs/:id/cancel  → 진행 중 run 취소 (N5)
+                                QUEUED → 즉시 CANCELLED, RUNNING → cancelRequestedAt
+                                마킹 + run:cancel emit (sidecar 확인 대기), 이미 종료 → no-op
+POST /internal/runs/:id/retry   → FAILED/CANCELLED run 을 같은 harness+inputs 로
+                                재실행 (retryOfRunId 로 원본 link) + dispatch (N5)
 
 GET  /internal/github/events           → webhook audit 목록 (N6)
                                 ?projectId & type & since & pageSize

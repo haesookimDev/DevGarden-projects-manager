@@ -128,6 +128,39 @@ describe('executeRun', () => {
     expect(emit.mock.calls[0]).toEqual([RUN_EVENTS.Status, { runId: 'run-3', status: 'FAILED' }]);
   });
 
+  it('emits CANCELLED with reason + passes the signal when the harness cancels', async () => {
+    const { socket, emit } = fakeSocket();
+    const controller = new AbortController();
+    const run = vi.fn().mockResolvedValue({
+      runId: 'run-c',
+      status: 'cancelled',
+      steps: [],
+      error: 'run cancelled',
+    });
+
+    await executeRun(
+      socket,
+      { runId: 'run-c', harness: sampleHarness, inputs: {}, workingDir: '/tmp/x' },
+      { run, buildTools: () => new Map(), signal: controller.signal },
+    );
+
+    // The per-run signal reaches the runner.
+    expect(run).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ signal: controller.signal }),
+    );
+
+    const lastStatus = emit.mock.calls.filter((c) => c[0] === RUN_EVENTS.Status).at(-1);
+    expect(lastStatus?.[1]).toEqual({
+      runId: 'run-c',
+      status: 'CANCELLED',
+      reason: 'run cancelled',
+    });
+
+    const lastLog = emit.mock.calls.filter((c) => c[0] === RUN_EVENTS.Log).at(-1);
+    expect(lastLog?.[1]).toMatchObject({ level: 'warn', message: 'run cancelled' });
+  });
+
   it('forwards run.error as a final error log when harness returns failed', async () => {
     const { socket, emit } = fakeSocket();
     const run = vi.fn().mockResolvedValue({
