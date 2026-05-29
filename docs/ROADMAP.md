@@ -6,13 +6,13 @@
 
 ---
 
-## Progress snapshot (2026-05-28)
+## Progress snapshot (2026-05-29)
 
-- **머지된 GitHub PR**: 99 개 (PR #1 ~ #99) — **v0.1.0 릴리즈 완료** + **v0.2 N0~N4 + N6 완료** (design system / onboarding / sidecar / project workflow / harness editor / observability)
-- **테스트**: api 71 unit + 157 integration + client-runner 39 + web 18 unit + web 71 e2e + harness-core 30 + harness-templates 10 + llm-adapters 10 + client 22 = **428 cases**
+- **머지된 GitHub PR**: 108 개 (PR #1 ~ #108) — **v0.1.0 릴리즈 완료** + **v0.2 N0~N6 마일스톤 완료** (design system / onboarding / sidecar / project workflow / harness editor / observability / run controls + notifications)
+- **테스트**: api 79 unit + 177 integration + client-runner 43 + web 18 unit + web 80 e2e + harness-core 32 + harness-templates 10 + llm-adapters 10 + client 22 = **471 cases**
 - **CI**: 5 jobs (Lint · Typecheck · Unit · Integration · E2E) 모두 green + N2 PR7 의 `Tauri build smoke` (push-to-main 만)
 - **운영 정책 도입**: 한 PR 안의 commit 분리(§4), CI 통과 시 자동 머지(§6)
-- **다음 우선순위**: v0.2 ([roadmap/v0.2/README.md](./roadmap/v0.2/README.md)) — N0~N4 + N6 완료, 마지막은 N5 (run controls + notifications) — N2 의 per-run cancel IPC 가 우선.
+- **다음 우선순위**: v0.2.0 릴리즈 마무리 ([roadmap/v0.2/README.md](./roadmap/v0.2/README.md) §6) — SELF-HOSTING.md 재작성 · CHANGELOG v0.2.0 · GitHub Release. 기능 마일스톤(N0~N6)은 전부 완료.
 
 | Milestone                          | 상태                                         |
 | ---------------------------------- | -------------------------------------------- |
