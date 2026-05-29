@@ -3,6 +3,20 @@
 본 프로젝트의 모든 주요 변경 사항을 기록한다. [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 형식을
 느슨하게 따르며 — semver 적용. 자세한 PR 단위 작업 이력은 [`docs/ROADMAP.md`](docs/ROADMAP.md).
 
+## [v0.2.1] — 2026-05-29
+
+### Fixed
+
+- **prod `docker build` 실패** (PR #110) — N4 에서 api/web 의 의존성으로 추가된
+  `@devgarden/harness-core` 와 `@devgarden/harness-templates` 가 source-only 패키지
+  (`main` → `./src/index.ts`, 빌드 없음) 라, 앱의 컴파일된 산출물이 런타임에 raw `.ts` 를
+  `require` 해서 Docker 이미지 빌드가 깨졌다 (Node 는 node_modules 아래 타입 stripping 거부).
+  per-PR CI 는 소스에서 빌드해 통과했고 — nightly `docker build` 만 노출. `@devgarden/shared`
+  처럼 **CommonJS dist 로 빌드해서 ship** 하도록 바꾸고 (build script + `main`/`types` → dist +
+  `files:[dist,src]` + spec 제외 `tsconfig.build.json`), api/web Dockerfile 과 Tauri
+  `prepare:sidecar` 가 의존성을 먼저 빌드하도록 수정. harness-templates 빌드는 yaml 카탈로그를
+  `dist/catalog` 로 복사.
+
 ## [v0.2.0] — 2026-05-29
 
 ### 매일 쓸 만한 수준으로
@@ -93,5 +107,6 @@ GitHub issue 자동 미러 → 자동 PR 생성 → 백업/복구 — 이 끝에
 - **Signed installers (Mac/Win/Linux)** — Apple / Microsoft 인증서 발급이 환경 의존적이라 백로그.
 - **하네스 노드 UI (drag-drop)** / 다중 클라이언트 라우팅 · 큐잉 / 멀티 LLM provider routing / 클라이언트 JWT OS keychain 저장.
 
+[v0.2.1]: https://github.com/haesookimDev/DevGarden-projects-manager/releases/tag/v0.2.1
 [v0.2.0]: https://github.com/haesookimDev/DevGarden-projects-manager/releases/tag/v0.2.0
 [v0.1.0]: https://github.com/haesookimDev/DevGarden-projects-manager/releases/tag/v0.1.0
