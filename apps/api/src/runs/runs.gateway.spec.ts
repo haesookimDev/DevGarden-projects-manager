@@ -191,6 +191,24 @@ describe('RunsGateway', () => {
       expect(ack).toEqual({ ok: true });
       expect(runs.setStatus).toHaveBeenCalledWith('run-1', RunStatus.SUCCESS);
     });
+
+    it('fans out a notification on a terminal status incl. CANCELLED', async () => {
+      const { gw, notifications, budgetMonitor } = makeGateway();
+      await gw.onStatus(authedSocket(), { runId: 'run-2', status: 'CANCELLED' });
+      expect(notifications.fanOut).toHaveBeenCalledWith({
+        runId: 'run-2',
+        status: RunStatus.CANCELLED,
+      });
+      // Budget is only checked for SUCCESS/FAILED, not CANCELLED.
+      await Promise.resolve();
+      expect(budgetMonitor.checkAfterRun).not.toHaveBeenCalled();
+    });
+
+    it('does not notify on a non-terminal status', async () => {
+      const { gw, notifications } = makeGateway();
+      await gw.onStatus(authedSocket(), { runId: 'run-3', status: 'RUNNING' });
+      expect(notifications.fanOut).not.toHaveBeenCalled();
+    });
   });
 
   describe('onOpenPullRequest', () => {

@@ -38,12 +38,12 @@ v0.2 가 끝나면:
 | N2  | [Node sidecar runner](./N2-node-sidecar-runner.md)             | Tauri Rust 가 Node sidecar 를 spawn, harness 실행 webview 밖으로       | —             | ✅ 완료 (PR #66–#73, 2026-05-27)    |
 | N3  | [Project workflow polish](./N3-project-workflow.md)            | Repo 자동 clone + worktree 옵션 + project detail 개편 + run trigger v2 | N1, N2        | ✅ 완료 (PR #74–#80, 2026-05-27)    |
 | N4  | [Harness editor + templates](./N4-harness-editor.md)           | Web 에서 YAML 편집 + zod 라이브 검증 + 시작 템플릿 카탈로그            | N0            | ✅ 완료 (PR #81–#89, 2026-05-28)    |
-| N5  | [Run controls + notifications](./N5-controls-notifications.md) | Run cancel · retry · notification (web toast / Slack / email)          | N2 (cancel)   | ▶ 다음 (N2 의 cancel IPC 추가 필요) |
+| N5  | [Run controls + notifications](./N5-controls-notifications.md) | Run cancel · retry · notification (web toast / Slack / email)          | N2 (cancel)   | ✅ 완료 (PR #100–#108, 2026-05-29)  |
 | N6  | [Observability deepening](./N6-observability.md)               | Run search/filter, step gantt, webhook delivery dashboard, cost trends | N0            | ✅ 완료 (PR #90–#99, 2026-05-28)    |
 
-> N0~N4 + N6 ✅ 완료. 마지막 남은 트랙은 N5 (run controls + notifications) — N2 의 per-run cancel IPC 가
-> 우선 (현재 stop_sidecar 는 전체 종료라 per-run cancel 이 아님). N6 PR9 의 budget alarm 은 N5 의
-> NotificationService 가 `BUDGET_NOTIFIER` 를 바인딩하면 실제 채널로 발송된다 (지금은 로그만).
+> **N0~N6 전부 ✅ 완료 — v0.2 마일스톤 종료.** N5 에서 per-run cancel(AbortSignal 로 sidecar 가 step
+> process kill), retry, 그리고 web toast / Slack / email 알림 채널을 추가했다. N6 의 budget warn/exceeded
+> 도 `BUDGET_NOTIFIER` 가 NotificationService 에 바인딩되어 실제 채널로 발송된다 (더 이상 로그만 아님).
 
 ## 4. Cross-cutting 원칙
 

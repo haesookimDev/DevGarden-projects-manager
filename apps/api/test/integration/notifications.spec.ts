@@ -182,6 +182,18 @@ describe('NotificationService.fanOut', () => {
     expect(rows[0]!.runId).toBe(failed.id);
   });
 
+  it('notifies on CANCELLED when the cancelled trigger is enabled', async () => {
+    const ids = await seed();
+    await service.upsertSettings(ids.user.id, { triggers: { cancelled: true } });
+    const cancelled = await makeRun(ids, RunStatus.CANCELLED);
+
+    await service.fanOut({ runId: cancelled.id, status: 'CANCELLED' });
+
+    const rows = await prisma.notification.findMany({ where: { userId: ids.user.id } });
+    expect(rows).toHaveLength(1);
+    expect(rows[0]!.kind).toBe('run-cancelled');
+  });
+
   it('honors a per-project trigger override', async () => {
     const ids = await seed();
     await service.upsertSettings(ids.user.id, {
