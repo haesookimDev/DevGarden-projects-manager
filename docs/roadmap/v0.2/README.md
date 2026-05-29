@@ -39,10 +39,11 @@ v0.2 가 끝나면:
 | N3  | [Project workflow polish](./N3-project-workflow.md)            | Repo 자동 clone + worktree 옵션 + project detail 개편 + run trigger v2 | N1, N2        | ✅ 완료 (PR #74–#80, 2026-05-27)    |
 | N4  | [Harness editor + templates](./N4-harness-editor.md)           | Web 에서 YAML 편집 + zod 라이브 검증 + 시작 템플릿 카탈로그            | N0            | ✅ 완료 (PR #81–#89, 2026-05-28)    |
 | N5  | [Run controls + notifications](./N5-controls-notifications.md) | Run cancel · retry · notification (web toast / Slack / email)          | N2 (cancel)   | ▶ 다음 (N2 의 cancel IPC 추가 필요) |
-| N6  | [Observability deepening](./N6-observability.md)               | Run search/filter, step gantt, webhook delivery dashboard, cost trends | N0            | ▶ 다음 (병행 가능)                  |
+| N6  | [Observability deepening](./N6-observability.md)               | Run search/filter, step gantt, webhook delivery dashboard, cost trends | N0            | ✅ 완료 (PR #90–#99, 2026-05-28)    |
 
-> N0 + N1 + N2 + N3 + N4 ✅ 완료. 남은 트랙: N6 (observability) 는 N0 위에서 바로 병행 가능. N5 는 N2 의
-> per-run cancel IPC 가 우선 (현재 stop_sidecar 는 전체 종료라 per-run cancel 이 아님).
+> N0~N4 + N6 ✅ 완료. 마지막 남은 트랙은 N5 (run controls + notifications) — N2 의 per-run cancel IPC 가
+> 우선 (현재 stop_sidecar 는 전체 종료라 per-run cancel 이 아님). N6 PR9 의 budget alarm 은 N5 의
+> NotificationService 가 `BUDGET_NOTIFIER` 를 바인딩하면 실제 채널로 발송된다 (지금은 로그만).
 
 ## 4. Cross-cutting 원칙
 
