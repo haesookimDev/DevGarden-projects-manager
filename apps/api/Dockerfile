@@ -14,15 +14,25 @@ COPY apps/api/package.json ./apps/api/
 # `postinstall: prisma generate` hook. Schema changes already invalidate the
 # generated client, so it's fine for them to bust the install layer too.
 COPY apps/api/prisma ./apps/api/prisma
+# api depends on these workspace packages — their manifests must be present
+# for the frozen install to resolve the workspace graph.
 COPY packages/shared/package.json ./packages/shared/
+COPY packages/harness-core/package.json ./packages/harness-core/
+COPY packages/harness-templates/package.json ./packages/harness-templates/
 RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
     pnpm install --frozen-lockfile --filter @devgarden/api... --prefer-offline
 COPY packages/shared ./packages/shared
+COPY packages/harness-core ./packages/harness-core
+COPY packages/harness-templates ./packages/harness-templates
 COPY apps/api ./apps/api
-# @devgarden/shared ships dist/, not raw .ts — Node 22 refuses to strip types
-# under node_modules at runtime. Build the package before the api so its dist
-# is in place when api code does `require('@devgarden/shared')`.
+# These workspace packages ship built dist/, not raw .ts — the api's compiled
+# output does `require('@devgarden/...')` at runtime and Node 22 won't strip
+# types under node_modules. Build each (in dependency order) before the api so
+# its dist is in place. harness-templates' build also copies its yaml catalog
+# into dist/.
 RUN pnpm --filter @devgarden/shared build
+RUN pnpm --filter @devgarden/harness-core build
+RUN pnpm --filter @devgarden/harness-templates build
 RUN pnpm --filter @devgarden/api build
 RUN pnpm --filter @devgarden/api deploy --prod /out && \
     rm -rf /out/dist && \
