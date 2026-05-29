@@ -18,6 +18,7 @@ import { LogLevel, RunStatus, StepKind, StepStatus } from '@prisma/client';
 import type { Server, Socket } from 'socket.io';
 import { BudgetMonitorService } from '../budget/budget-monitor.service';
 import { GithubPrService } from '../github/github-pr.service';
+import { NotificationService } from '../notifications/notifications.service';
 import { RunsService } from './runs.service';
 
 interface AuthedSocketData {
@@ -49,6 +50,7 @@ export class RunsGateway {
     private readonly runs: RunsService,
     private readonly githubPr: GithubPrService,
     private readonly budgetMonitor: BudgetMonitorService,
+    private readonly notifications: NotificationService,
   ) {}
 
   emitRunStart(clientId: string, payload: RunStartPayload): void {
@@ -116,12 +118,20 @@ export class RunsGateway {
     await this.runs.setStatus(body.runId, status);
     this.fanOutToRunRoom(body.runId, RUN_EVENTS.Status, body);
 
-    // On a terminal run, check the owner's budget. Fire-and-forget so the
-    // ack isn't delayed; the monitor never throws.
-    if (status === RunStatus.SUCCESS || status === RunStatus.FAILED) {
-      void this.runs.getOwnerIdForRun(body.runId).then((ownerId) => {
-        if (ownerId) void this.budgetMonitor.checkAfterRun(ownerId);
-      });
+    // On a terminal run, fan out a notification (per the owner's settings) and
+    // check the budget. Fire-and-forget so the ack isn't delayed; neither
+    // throws.
+    if (
+      status === RunStatus.SUCCESS ||
+      status === RunStatus.FAILED ||
+      status === RunStatus.CANCELLED
+    ) {
+      void this.notifications.fanOut({ runId: body.runId, status });
+      if (status === RunStatus.SUCCESS || status === RunStatus.FAILED) {
+        void this.runs.getOwnerIdForRun(body.runId).then((ownerId) => {
+          if (ownerId) void this.budgetMonitor.checkAfterRun(ownerId);
+        });
+      }
     }
     return { ok: true };
   }

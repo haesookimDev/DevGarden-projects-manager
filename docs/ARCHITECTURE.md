@@ -131,6 +131,7 @@ RunsGateway (apps/api/src/runs/runs.gateway.ts)
   on 'run:log'    →  RunsService.appendLog
   on 'run:step'   →  RunsService.appendStep
   on 'run:status' →  RunsService.setStatus  (자동 finishedAt; CANCELLED 시 cancelledAt)
+                     terminal 시 NotificationService.fanOut (N5) + BudgetMonitor.checkAfterRun (SUCCESS/FAILED)
   emitRunCancel(clientId, { runId, reason })  →  client:<id> 룸으로 'run:cancel' (N5)
 
 GET /internal/runs/:id        → 단일 run + steps + logs (최근 500)
@@ -147,6 +148,14 @@ POST /internal/runs/:id/cancel  → 진행 중 run 취소 (N5)
                                 마킹 + run:cancel emit (sidecar 확인 대기), 이미 종료 → no-op
 POST /internal/runs/:id/retry   → FAILED/CANCELLED run 을 같은 harness+inputs 로
                                 재실행 (retryOfRunId 로 원본 link) + dispatch (N5)
+
+GET  /internal/users/:id/notification-settings → 채널/트리거 설정 (N5)
+PUT  /internal/users/:id/notification-settings → upsert (webToast/email/triggers/perProject)
+GET  /internal/users/:id/notifications          → web-toast inbox
+POST /internal/users/:id/notifications/test     → 테스트 토스트 1건 발송
+  NotificationService: 터미널 run 의 status 를 owner 설정(per-project override 포함)
+  대로 채널에 fan-out. 현재 WebToast(=Notification row) 만, Slack/email 은 후속 PR.
+  N6 의 budget warn/exceeded 도 BUDGET_NOTIFIER 바인딩으로 WebToast 발송.
 
 GET  /internal/github/events           → webhook audit 목록 (N6)
                                 ?projectId & type & since & pageSize

@@ -25,14 +25,18 @@ function makeGateway() {
   const budgetMonitor = {
     checkAfterRun: vi.fn().mockResolvedValue(null),
   };
+  const notifications = {
+    fanOut: vi.fn().mockResolvedValue(undefined),
+  };
 
   const gw = new RunsGateway(
     runs as unknown as RunsService,
     githubPr as unknown as GithubPrService,
     budgetMonitor as unknown as import('../budget/budget-monitor.service').BudgetMonitorService,
+    notifications as unknown as import('../notifications/notifications.service').NotificationService,
   );
   gw.server = { to } as unknown as RunsGateway['server'];
-  return { gw, emit, to, runs, githubPr, budgetMonitor };
+  return { gw, emit, to, runs, githubPr, budgetMonitor, notifications };
 }
 
 function authedSocket(clientId = 'client-abc'): Socket {
