@@ -1,7 +1,8 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { Card, CardContent } from '@devgarden/ui';
+import { useRouter } from 'next/navigation';
+import { Button, Card, CardContent } from '@devgarden/ui';
 import type { RunDetail, RunLogRow, RunStepRow } from '@/lib/api/runs';
 import { TimelineTab } from './timeline-tab';
 
@@ -32,13 +33,57 @@ type RunStatusEventPayload = {
 type Tab = 'detail' | 'timeline';
 
 export function RunView({ initial }: { initial: RunDetail }) {
+  const router = useRouter();
   const [run, setRun] = useState<RunDetail>(initial);
   const [error, setError] = useState<string | null>(null);
   const [liveConnected, setLiveConnected] = useState(false);
   const [tab, setTab] = useState<Tab>('detail');
+  // Run controls (N5): inline confirm before cancel / retry.
+  const [confirm, setConfirm] = useState<null | 'cancel' | 'retry'>(null);
+  const [busy, setBusy] = useState(false);
+  const [note, setNote] = useState<string | null>(null);
   // Monotonic counter so SSE-appended rows have stable React keys without
   // colliding with persisted DB ids.
   const liveSeqRef = useRef(0);
+
+  const cancelable = run.status === 'RUNNING' || run.status === 'QUEUED';
+  const retryable = run.status === 'FAILED' || run.status === 'CANCELLED';
+
+  async function doCancel() {
+    setBusy(true);
+    setNote(null);
+    try {
+      const res = await fetch(`/api/runs/${run.id}/cancel`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: '{}',
+      });
+      if (!res.ok) throw new Error(`cancel failed: ${res.status}`);
+      const data = (await res.json()) as { status: RunDetail['status']; alreadyFinished: boolean };
+      setRun((prev) => ({ ...prev, status: data.status }));
+      setNote(data.alreadyFinished ? '이미 종료된 run 입니다.' : '취소를 요청했습니다.');
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'cancel error');
+    } finally {
+      setBusy(false);
+      setConfirm(null);
+    }
+  }
+
+  async function doRetry() {
+    setBusy(true);
+    setNote(null);
+    try {
+      const res = await fetch(`/api/runs/${run.id}/retry`, { method: 'POST' });
+      if (!res.ok) throw new Error(`retry failed: ${res.status}`);
+      const next = (await res.json()) as { id: string };
+      router.push(`/dashboard/runs/${next.id}`);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'retry error');
+      setBusy(false);
+      setConfirm(null);
+    }
+  }
 
   // ---- SSE (preferred) -----------------------------------------------------
   useEffect(() => {
@@ -140,13 +185,69 @@ export function RunView({ initial }: { initial: RunDetail }) {
         <div className="flex items-center gap-2">
           <LivePill connected={liveConnected} terminal={TERMINAL.includes(run.status)} />
           <StatusPill status={run.status} />
+          {cancelable && (
+            <Button
+              size="sm"
+              variant="outline"
+              data-testid="run-cancel"
+              disabled={busy}
+              onClick={() => setConfirm('cancel')}
+            >
+              Cancel
+            </Button>
+          )}
+          {retryable && (
+            <Button
+              size="sm"
+              variant="outline"
+              data-testid="run-retry"
+              disabled={busy}
+              onClick={() => setConfirm('retry')}
+            >
+              Retry
+            </Button>
+          )}
         </div>
       </header>
+
+      {confirm && (
+        <div
+          data-testid="run-confirm"
+          className="mt-4 flex items-center gap-3 rounded-md border border-border bg-muted/40 px-3 py-2 text-sm"
+        >
+          <span>{confirm === 'cancel' ? '이 run 을 취소할까요?' : '이 run 을 재실행할까요?'}</span>
+          <Button
+            size="sm"
+            data-testid="run-confirm-yes"
+            disabled={busy}
+            onClick={confirm === 'cancel' ? doCancel : doRetry}
+          >
+            확인
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            data-testid="run-confirm-no"
+            disabled={busy}
+            onClick={() => setConfirm(null)}
+          >
+            아니오
+          </Button>
+        </div>
+      )}
 
       <section className="mt-4 text-sm text-muted-foreground">
         <p>started: {new Date(run.startedAt).toLocaleString()}</p>
         {run.finishedAt && <p>finished: {new Date(run.finishedAt).toLocaleString()}</p>}
         {run.branchName && <p>branch: {run.branchName}</p>}
+        {note && (
+          <p
+            className="mt-2 rounded-md border border-sky-500/40 bg-sky-500/10 px-3 py-2 text-xs text-sky-500"
+            data-testid="run-action-note"
+          >
+            {note}
+          </p>
+        )}
         {error && (
           <p className="mt-2 rounded-md border border-destructive/50 bg-destructive/10 px-3 py-2 text-xs text-destructive">
             {error}
