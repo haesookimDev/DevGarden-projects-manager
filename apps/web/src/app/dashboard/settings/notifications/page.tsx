@@ -31,6 +31,8 @@ async function saveNotificationSettingsAction(formData: FormData) {
 
   const on = (name: string) => formData.get(name) === 'on';
   const emailAddress = String(formData.get('emailAddress') ?? '').trim();
+  // Empty Slack input = keep the existing URL (we never render the secret).
+  const slackWebhookUrl = String(formData.get('slackWebhookUrl') ?? '').trim();
 
   let saveErr: string | null = null;
   try {
@@ -38,6 +40,7 @@ async function saveNotificationSettingsAction(formData: FormData) {
       webToast: on('webToast'),
       emailEnabled: on('emailEnabled'),
       emailAddress: emailAddress === '' ? null : emailAddress,
+      ...(slackWebhookUrl ? { slackWebhookUrl } : {}),
       triggers: {
         success: on('trigger-success'),
         failed: on('trigger-failed'),
@@ -166,10 +169,25 @@ export default async function NotificationSettingsPage({
                     data-testid="notif-email-address"
                   />
                 </div>
-                <p className="text-xs text-muted-foreground">
-                  Slack: {settings?.slackConfigured ? '설정됨' : '미설정'} — webhook URL 입력은 후속
-                  PR에서 추가됩니다.
-                </p>
+                <div className="space-y-1.5">
+                  <Label htmlFor="notif-slack-url">Slack incoming webhook URL</Label>
+                  <Input
+                    id="notif-slack-url"
+                    name="slackWebhookUrl"
+                    type="url"
+                    placeholder={
+                      settings?.slackConfigured
+                        ? `설정됨 (${settings.slackHint ?? '••••'}) — 비우면 유지`
+                        : 'https://hooks.slack.com/services/…'
+                    }
+                    data-testid="notif-slack-url"
+                  />
+                  <p className="text-xs text-muted-foreground" data-testid="notif-slack-status">
+                    {settings?.slackConfigured
+                      ? `현재 설정됨 (${settings.slackHint ?? '••••'}). 새 URL을 입력하면 교체됩니다.`
+                      : '미설정 — webhook URL을 입력하면 Slack으로도 알림이 갑니다.'}
+                  </p>
+                </div>
               </div>
 
               <div className="space-y-3">

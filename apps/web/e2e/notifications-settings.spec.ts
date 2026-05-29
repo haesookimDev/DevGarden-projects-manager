@@ -35,3 +35,15 @@ test('send test notification lands on the test confirmation', async ({ page }) =
   await expect(page).toHaveURL(/\?test=sent$/);
   await expect(page.getByTestId('notif-test-sent')).toBeVisible();
 });
+
+test('slack webhook URL input renders and saves', async ({ page }) => {
+  await page.goto('/dashboard/settings/notifications');
+  await expect(page.getByTestId('notif-slack-status')).toContainText('미설정');
+
+  await page
+    .getByTestId('notif-slack-url')
+    .fill('https://hooks.slack.com/services/T000/B000/abcDEF');
+  await page.getByTestId('notif-save').click();
+  await expect(page).toHaveURL(/\?saved=1$/);
+  await expect(page.getByTestId('notif-saved')).toBeVisible();
+});
