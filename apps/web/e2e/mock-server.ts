@@ -1262,9 +1262,41 @@ steps:
     return;
   }
 
+  // Run cancel (N5). Status derived from the id (see runStatusForId): a RUNNING
+  // run reports cancelRequested without flipping; a terminal run no-ops.
+  const runCancelMatch = url.pathname.match(/^\/internal\/runs\/([^/]+)\/cancel$/);
+  if (runCancelMatch && req.method === 'POST') {
+    readBody(req).then(() => {
+      const id = runCancelMatch[1]!;
+      const status = runStatusForId(id);
+      const terminal = status === 'SUCCESS' || status === 'FAILED' || status === 'CANCELLED';
+      res.writeHead(201, { 'content-type': 'application/json' }).end(
+        JSON.stringify({
+          ...mockRunSummary(id, status === 'QUEUED' ? 'CANCELLED' : status),
+          cancelRequested: !terminal,
+          alreadyFinished: terminal,
+        }),
+      );
+    });
+    return;
+  }
+
+  // Run retry (N5) — returns a fresh QUEUED run linked to the origin.
+  const runRetryMatch = url.pathname.match(/^\/internal\/runs\/([^/]+)\/retry$/);
+  if (runRetryMatch && req.method === 'POST') {
+    readBody(req).then(() => {
+      res
+        .writeHead(201, { 'content-type': 'application/json' })
+        .end(JSON.stringify(mockRunSummary('mock-retry-1', 'QUEUED')));
+    });
+    return;
+  }
+
   const runMatch = url.pathname.match(/^\/internal\/runs\/([^/]+)$/);
   if (runMatch && req.method === 'GET') {
     const id = runMatch[1]!;
+    const status = runStatusForId(id);
+    const terminal = status === 'SUCCESS' || status === 'FAILED' || status === 'CANCELLED';
     res.writeHead(200, { 'content-type': 'application/json' }).end(
       JSON.stringify({
         id,
@@ -1272,11 +1304,11 @@ steps:
         projectId: 'p-1',
         clientId: 'c-1',
         triggeredByUserId: 'u-1',
-        status: 'SUCCESS',
+        status,
         branchName: 'feat/mock',
         workingDir: null,
         startedAt: new Date(Date.now() - 60_000).toISOString(),
-        finishedAt: new Date().toISOString(),
+        finishedAt: terminal ? new Date().toISOString() : null,
         steps: [
           {
             id: 'step-a',
@@ -1320,6 +1352,37 @@ function readBody(req: IncomingMessage): Promise<string> {
     req.on('end', () => resolve(Buffer.concat(chunks).toString('utf8')));
     req.on('error', reject);
   });
+}
+
+type MockRunStatus = 'QUEUED' | 'RUNNING' | 'SUCCESS' | 'FAILED' | 'CANCELLED';
+
+// Lets e2e specs drive a run's status by id, e.g. /dashboard/runs/mock-running-1.
+function runStatusForId(id: string): MockRunStatus {
+  if (id.includes('running')) return 'RUNNING';
+  if (id.includes('failed')) return 'FAILED';
+  if (id.includes('queued')) return 'QUEUED';
+  if (id.includes('cancelled')) return 'CANCELLED';
+  return 'SUCCESS';
+}
+
+function mockRunSummary(id: string, status: MockRunStatus) {
+  const terminal = status === 'SUCCESS' || status === 'FAILED' || status === 'CANCELLED';
+  return {
+    id,
+    harnessId: 'h-1',
+    projectId: 'p-1',
+    clientId: 'c-1',
+    triggeredByUserId: 'u-1',
+    status,
+    branchName: 'feat/mock',
+    workingDir: null,
+    startedAt: new Date(Date.now() - 60_000).toISOString(),
+    finishedAt: terminal ? new Date().toISOString() : null,
+    retryOfRunId: null,
+    cancelRequestedAt: null,
+    cancelledAt: null,
+    cancelReason: null,
+  };
 }
 
 function defaultNotifSettings(userId: string) {
