@@ -119,6 +119,65 @@ describe('runHarness — failure handling', () => {
   });
 });
 
+describe('runHarness — cancellation', () => {
+  it('returns cancelled without running any step when already aborted', async () => {
+    const llm = makeLlm('');
+    const tool = vi.fn().mockResolvedValue('ok');
+    const harness = parseHarnessRaw({
+      name: 'h',
+      version: 1,
+      steps: [
+        { id: 'a', type: 'tool', use: 'gh' },
+        { id: 'b', type: 'tool', use: 'gh' },
+      ],
+    });
+    const controller = new AbortController();
+    controller.abort();
+
+    const result = await runHarness(harness, {
+      runId: 'r',
+      llm,
+      tools: tools({ gh: tool }),
+      signal: controller.signal,
+    });
+
+    expect(result.status).toBe('cancelled');
+    expect(tool).not.toHaveBeenCalled();
+    expect(result.steps).toHaveLength(0);
+  });
+
+  it('stops advancing once cancelled mid-run + hands the signal to tools', async () => {
+    const llm = makeLlm('');
+    const controller = new AbortController();
+    // Step a aborts the run (as a real cancel would), then resolves.
+    const stepA = vi.fn().mockImplementation((_args, ctx) => {
+      expect(ctx.signal).toBe(controller.signal);
+      controller.abort();
+      return Promise.resolve('a-done');
+    });
+    const stepB = vi.fn().mockResolvedValue('b-done');
+    const harness = parseHarnessRaw({
+      name: 'h',
+      version: 1,
+      steps: [
+        { id: 'a', type: 'tool', use: 'first' },
+        { id: 'b', type: 'tool', use: 'second' },
+      ],
+    });
+
+    const result = await runHarness(harness, {
+      runId: 'r',
+      llm,
+      tools: tools({ first: stepA, second: stepB }),
+      signal: controller.signal,
+    });
+
+    expect(result.status).toBe('cancelled');
+    expect(stepA).toHaveBeenCalledTimes(1);
+    expect(stepB).not.toHaveBeenCalled();
+  });
+});
+
 describe('runHarness — condition / loop', () => {
   it('runs the then-branch when condition is true', async () => {
     const a = vi.fn().mockResolvedValue('a-out');

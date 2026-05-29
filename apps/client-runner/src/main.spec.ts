@@ -131,8 +131,58 @@ describe('runSidecar', () => {
     await vi.waitFor(() =>
       expect(events.some((e) => e.type === 'sidecar:run-end' && e.runId === 'run_1')).toBe(true),
     );
-    expect(executeRun).toHaveBeenCalledWith(mock.socket, payload);
+    expect(executeRun).toHaveBeenCalledWith(
+      mock.socket,
+      payload,
+      expect.objectContaining({ signal: expect.any(AbortSignal) }),
+    );
     expect(events.some((e) => e.type === 'sidecar:run-start' && e.runId === 'run_1')).toBe(true);
+  });
+
+  it('aborts the matching run on run:cancel', async () => {
+    const events: Array<Record<string, unknown>> = [];
+    const mock = makeMockSocket();
+    let captured: { signal?: AbortSignal } | undefined;
+    // Never resolves — keeps the run "in flight" so the controller stays in the
+    // registry when run:cancel arrives.
+    const executeRun = vi.fn().mockImplementation((_s, _p, deps) => {
+      captured = deps as { signal?: AbortSignal };
+      return new Promise(() => {});
+    });
+
+    await runSidecar({
+      emitter: { emit: (e) => events.push(e) },
+      io: vi.fn().mockReturnValue(mock.socket) as never,
+      stdinLines: singleLine(JSON.stringify({ apiBaseUrl: 'http://api.local', jwt: 'tkn' })),
+      executeRun,
+    });
+
+    mock.handlers.get('run:start')?.({
+      runId: 'run_c',
+      harness: { name: 'noop', version: 1, steps: [] },
+      inputs: {},
+      workingDir: '/tmp/work',
+    });
+    expect(captured?.signal?.aborted).toBe(false);
+
+    mock.handlers.get('run:cancel')?.({ runId: 'run_c' });
+    expect(captured?.signal?.aborted).toBe(true);
+    expect(events.some((e) => e.type === 'sidecar:run-cancel' && e.runId === 'run_c')).toBe(true);
+  });
+
+  it('emits sidecar:cancel-miss for a run:cancel with no matching run', async () => {
+    const events: Array<Record<string, unknown>> = [];
+    const mock = makeMockSocket();
+
+    await runSidecar({
+      emitter: { emit: (e) => events.push(e) },
+      io: vi.fn().mockReturnValue(mock.socket) as never,
+      stdinLines: singleLine(JSON.stringify({ apiBaseUrl: 'http://api.local', jwt: 'tkn' })),
+      executeRun: vi.fn(),
+    });
+
+    mock.handlers.get('run:cancel')?.({ runId: 'ghost' });
+    expect(events.some((e) => e.type === 'sidecar:cancel-miss' && e.runId === 'ghost')).toBe(true);
   });
 
   it('reports an executeRun rejection as sidecar:error with the runId', async () => {
