@@ -881,6 +881,82 @@ steps:
     return;
   }
 
+  // Notification settings + inbox (N5). Stateless like the budget routes:
+  // PUT echoes the merged shape, GET returns fixed defaults.
+  const notifSettingsMatch = url.pathname.match(
+    /^\/internal\/users\/([^/]+)\/notification-settings$/,
+  );
+  if (notifSettingsMatch && req.method === 'GET') {
+    res
+      .writeHead(200, { 'content-type': 'application/json' })
+      .end(JSON.stringify(defaultNotifSettings(notifSettingsMatch[1]!)));
+    return;
+  }
+  if (notifSettingsMatch && req.method === 'PUT') {
+    readBody(req).then((body) => {
+      let parsed: Record<string, unknown> = {};
+      try {
+        parsed = JSON.parse(body) as Record<string, unknown>;
+      } catch {
+        /* ignore */
+      }
+      const base = defaultNotifSettings(notifSettingsMatch[1]!);
+      res.writeHead(200, { 'content-type': 'application/json' }).end(
+        JSON.stringify({
+          ...base,
+          ...(typeof parsed.webToast === 'boolean' ? { webToast: parsed.webToast } : {}),
+          ...(typeof parsed.emailEnabled === 'boolean'
+            ? { emailEnabled: parsed.emailEnabled }
+            : {}),
+          ...('emailAddress' in parsed
+            ? { emailAddress: (parsed.emailAddress as string | null) || null }
+            : {}),
+          triggers: { ...base.triggers, ...((parsed.triggers as object) ?? {}) },
+          updatedAt: new Date().toISOString(),
+        }),
+      );
+    });
+    return;
+  }
+
+  const notifTestMatch = url.pathname.match(/^\/internal\/users\/([^/]+)\/notifications\/test$/);
+  if (notifTestMatch && req.method === 'POST') {
+    res.writeHead(201, { 'content-type': 'application/json' }).end(
+      JSON.stringify({
+        id: 'mock-notif-test',
+        kind: 'test',
+        title: 'Test notification',
+        body: 'If you can see this, web toast notifications are working.',
+        runId: null,
+        readAt: null,
+        createdAt: new Date().toISOString(),
+      }),
+    );
+    return;
+  }
+
+  const notifListMatch = url.pathname.match(/^\/internal\/users\/([^/]+)\/notifications$/);
+  if (notifListMatch && req.method === 'GET') {
+    if (emptyFixtures) {
+      res.writeHead(200, { 'content-type': 'application/json' }).end('[]');
+      return;
+    }
+    res.writeHead(200, { 'content-type': 'application/json' }).end(
+      JSON.stringify([
+        {
+          id: 'mock-notif-1',
+          kind: 'run-failed',
+          title: 'Run failed',
+          body: 'mock/repo · abc12345',
+          runId: 'mock-run-6',
+          readAt: null,
+          createdAt: new Date(Date.now() - 3_600_000).toISOString(),
+        },
+      ]),
+    );
+    return;
+  }
+
   // Cost trend (N6 insights). Returns a small daily series + breakdowns.
   if (url.pathname === '/internal/stats/cost-trend' && req.method === 'GET') {
     if (emptyFixtures) {
@@ -1189,6 +1265,19 @@ function readBody(req: IncomingMessage): Promise<string> {
     req.on('end', () => resolve(Buffer.concat(chunks).toString('utf8')));
     req.on('error', reject);
   });
+}
+
+function defaultNotifSettings(userId: string) {
+  return {
+    userId,
+    webToast: true,
+    slackConfigured: false,
+    emailEnabled: false,
+    emailAddress: null as string | null,
+    triggers: { success: false, failed: true, cancelled: false },
+    perProject: {} as Record<string, unknown>,
+    updatedAt: new Date(Date.now() - 86_400_000).toISOString(),
+  };
 }
 
 export const MOCK_VALUES = {
