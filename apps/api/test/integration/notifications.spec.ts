@@ -2,14 +2,18 @@
 // for settings CRUD / test / inbox, and the NotificationService directly for
 // fanOut (run terminal) + notify (budget seam).
 
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { createServer, type Server } from 'node:http';
+import { randomBytes } from 'node:crypto';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { PrismaClient, RunStatus, UserRole } from '@prisma/client';
 import request from 'supertest';
+import { resetEncryptionKeyCache } from '../../src/crypto/envelope';
 import { PrismaModule } from '../../src/prisma/prisma.module';
 import { NotificationsInternalController } from '../../src/notifications/notifications.internal.controller';
 import { NotificationService } from '../../src/notifications/notifications.service';
+import { SlackWebhookChannel } from '../../src/notifications/slack-webhook.channel';
 
 const prisma = new PrismaClient();
 const SECRET = 'notif-test-secret';
@@ -20,11 +24,13 @@ let service: NotificationService;
 beforeAll(async () => {
   await prisma.$connect();
   process.env.INTERNAL_API_SECRET = SECRET;
+  process.env.ENCRYPTION_KEY = randomBytes(32).toString('base64');
+  resetEncryptionKeyCache();
 
   const moduleRef = await Test.createTestingModule({
     imports: [PrismaModule],
     controllers: [NotificationsInternalController],
-    providers: [NotificationService],
+    providers: [NotificationService, SlackWebhookChannel],
   }).compile();
 
   service = moduleRef.get(NotificationService);
@@ -206,5 +212,67 @@ describe('NotificationService.notify (budget seam)', () => {
     expect(rows).toHaveLength(1);
     expect(rows[0]!.kind).toBe('budget-warn');
     expect(rows[0]!.body).toContain('$8.00 / $10.00');
+  });
+});
+
+describe('Slack channel', () => {
+  let slackServer: Server | undefined;
+
+  afterEach(() => {
+    slackServer?.close();
+    slackServer = undefined;
+  });
+
+  // Local stand-in for a Slack incoming webhook; resolves with the first body.
+  async function listenSlack(): Promise<{ url: string; received: Promise<string> }> {
+    let resolveBody!: (b: string) => void;
+    const received = new Promise<string>((r) => (resolveBody = r));
+    slackServer = createServer((req, res) => {
+      const chunks: Buffer[] = [];
+      req.on('data', (c: Buffer) => chunks.push(c));
+      req.on('end', () => {
+        res.writeHead(200).end();
+        resolveBody(Buffer.concat(chunks).toString('utf8'));
+      });
+    });
+    await new Promise<void>((r) => slackServer!.listen(0, '127.0.0.1', r));
+    const addr = slackServer!.address();
+    if (!addr || typeof addr === 'string') throw new Error('no port');
+    return { url: `http://127.0.0.1:${addr.port}/hook`, received };
+  }
+
+  it('stores the webhook URL encrypted and exposes only a masked hint', async () => {
+    const { user } = await seed();
+    const res = await request(app.getHttpServer())
+      .put(`/internal/users/${user.id}/notification-settings`)
+      .set('x-internal-secret', SECRET)
+      .send({ slackWebhookUrl: 'https://hooks.slack.com/services/T/B/SECRET123' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.slackConfigured).toBe(true);
+    expect(res.body.slackHint).toBe('…RET123');
+    expect(res.body.slackWebhookUrl).toBeUndefined();
+
+    // The stored bytes must not contain the plaintext URL.
+    const row = await prisma.userNotificationSettings.findUniqueOrThrow({
+      where: { userId: user.id },
+    });
+    expect(row.slackWebhookUrl).not.toBeNull();
+    expect(Buffer.from(row.slackWebhookUrl!).toString('utf8')).not.toContain('hooks.slack.com');
+  });
+
+  it('posts to the Slack webhook on fanOut when configured', async () => {
+    const ids = await seed();
+    const { url, received } = await listenSlack();
+    await service.upsertSettings(ids.user.id, { slackWebhookUrl: url });
+    const failed = await makeRun(ids, RunStatus.FAILED);
+
+    await service.fanOut({ runId: failed.id, status: 'FAILED' });
+
+    const body = (await Promise.race([
+      received,
+      new Promise<string>((_, rej) => setTimeout(() => rej(new Error('timeout')), 3_000)),
+    ])) as string;
+    expect(JSON.parse(body).text).toContain('Run failed');
   });
 });
