@@ -1,6 +1,7 @@
 import { Buffer } from 'node:buffer';
 import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import type { Notification, Prisma } from '@prisma/client';
+import { Subject, type Observable, filter, map } from 'rxjs';
 import { decryptEnvelopeUtf8, encryptEnvelope } from '../crypto/envelope';
 import { PrismaService } from '../prisma/prisma.service';
 import { EmailChannel } from './email.channel';
@@ -61,12 +62,24 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 @Injectable()
 export class NotificationService {
   private readonly logger = new Logger(NotificationService.name);
+  // In-process push for the SSE endpoint. Each persisted web-toast row is
+  // emitted here; streamFor() filters by user. Single-process only (a
+  // multi-instance api would need a shared bus — v0.3+).
+  private readonly stream$ = new Subject<{ userId: string; notification: NotificationView }>();
 
   constructor(
     private readonly prisma: PrismaService,
     private readonly slack: SlackWebhookChannel,
     private readonly email: EmailChannel,
   ) {}
+
+  // Live web-toast notifications for a user (powers the SSE endpoint).
+  streamFor(userId: string): Observable<NotificationView> {
+    return this.stream$.pipe(
+      filter((e) => e.userId === userId),
+      map((e) => e.notification),
+    );
+  }
 
   async getSettings(userId: string): Promise<NotificationSettingsView> {
     const row = await this.prisma.userNotificationSettings.findUnique({ where: { userId } });
@@ -236,9 +249,11 @@ export class NotificationService {
     userId: string,
     n: { kind: string; title: string; body?: string; runId?: string },
   ): Promise<Notification> {
-    return this.prisma.notification.create({
+    const row = await this.prisma.notification.create({
       data: { userId, kind: n.kind, title: n.title, body: n.body ?? null, runId: n.runId ?? null },
     });
+    this.stream$.next({ userId, notification: toNotificationView(row) });
+    return row;
   }
 
   private triggerEnabled(

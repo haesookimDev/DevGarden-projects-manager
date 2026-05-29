@@ -7,11 +7,14 @@ import {
   Post,
   Put,
   Query,
+  Sse,
   UseGuards,
 } from '@nestjs/common';
+import { type Observable, merge, interval, map } from 'rxjs';
 import { InternalAuthGuard } from '../auth/internal-auth.guard';
 import {
   NotificationService,
+  type NotificationView,
   type TriggerMap,
   type UpdateNotificationSettingsInput,
 } from './notifications.service';
@@ -99,6 +102,16 @@ export class NotificationsInternalController {
   @Post(':id/notifications/test')
   async test(@Param('id') id: string) {
     return this.notifications.sendTest(id);
+  }
+
+  // Live notification stream (SSE). The web BFF proxies this with the internal
+  // secret; the browser connects to the BFF via EventSource. A 15s ping keeps
+  // intermediaries from dropping an idle connection (clients ignore it).
+  @Sse(':id/notifications/stream')
+  stream(@Param('id') id: string): Observable<{ data: NotificationView | { kind: 'ping' } }> {
+    const events = this.notifications.streamFor(id).pipe(map((n) => ({ data: n })));
+    const ping = interval(15_000).pipe(map(() => ({ data: { kind: 'ping' as const } })));
+    return merge(events, ping);
   }
 }
 
