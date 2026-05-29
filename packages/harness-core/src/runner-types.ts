@@ -23,6 +23,8 @@ export interface ToolRunContext {
   readonly runId: string;
   readonly workingDir?: string;
   readonly host?: HostBridge;
+  /** Aborts when the run is cancelled; long-running tools should bail / kill. */
+  readonly signal?: AbortSignal;
 }
 
 export interface LlmDispatch {
@@ -55,7 +57,7 @@ export interface StepResult {
 
 export interface RunResult {
   runId: string;
-  status: 'success' | 'failed';
+  status: 'success' | 'failed' | 'cancelled';
   steps: StepResult[];
   error?: string;
 }
@@ -78,4 +80,11 @@ export interface RunOptions {
   host?: HostBridge;
   /** Hard ceiling on `loop` and `subagent` iterations. Defaults to 10. */
   maxIterations?: number;
+  /**
+   * Cancellation signal. The runner checks it before each step and refuses to
+   * advance once aborted; it is also handed to tools (via ToolRunContext) so a
+   * long-running tool can kill its work. An aborted run resolves with
+   * status 'cancelled' rather than throwing.
+   */
+  signal?: AbortSignal;
 }
