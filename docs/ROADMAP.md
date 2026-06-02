@@ -6,13 +6,13 @@
 
 ---
 
-## Progress snapshot (2026-05-29)
+## Progress snapshot (2026-06-02)
 
-- **머지된 GitHub PR**: 108 개 (PR #1 ~ #108) — **v0.1.0 릴리즈 완료** + **v0.2 N0~N6 마일스톤 완료** (design system / onboarding / sidecar / project workflow / harness editor / observability / run controls + notifications)
+- **머지된 GitHub PR**: 111 개 (PR #1 ~ #111) — **v0.1.0 + v0.2.0 + v0.2.1 릴리즈 완료**. v0.2 N0~N6 마일스톤 전부 완료 (design system / onboarding / sidecar / project workflow / harness editor / observability / run controls + notifications) + v0.2.1 prod docker build 수정.
 - **테스트**: api 79 unit + 177 integration + client-runner 43 + web 18 unit + web 80 e2e + harness-core 32 + harness-templates 10 + llm-adapters 10 + client 22 = **471 cases**
 - **CI**: 5 jobs (Lint · Typecheck · Unit · Integration · E2E) 모두 green + N2 PR7 의 `Tauri build smoke` (push-to-main 만)
 - **운영 정책 도입**: 한 PR 안의 commit 분리(§4), CI 통과 시 자동 머지(§6)
-- **다음 우선순위**: v0.2.0 릴리즈 마무리 ([roadmap/v0.2/README.md](./roadmap/v0.2/README.md) §6) — SELF-HOSTING.md 재작성 · CHANGELOG v0.2.0 · GitHub Release. 기능 마일스톤(N0~N6)은 전부 완료.
+- **다음 우선순위**: **v0.3 (Production hardening)** 시작 — [roadmap/v0.3/README.md](./roadmap/v0.3/README.md). P1 (Redis SSE) / P2 (OS keychain) / P3 (OAuth e2e) / P4 (Ops + CI hardening), narrow & deep ~30 PR.
 
 | Milestone                          | 상태                                         |
 | ---------------------------------- | -------------------------------------------- |
@@ -147,7 +147,7 @@
 
 ---
 
-## v0.2 (다음 릴리즈)
+## v0.2 (릴리즈 완료 — v0.2.1)
 
 상세 계획: [`roadmap/v0.2/README.md`](./roadmap/v0.2/README.md) — 마일스톤 N0~N6 의 개별 plan + 결정 사항 + 트랙별 PR 분할.
 
@@ -161,16 +161,27 @@
 - **N5** [Run controls + notifications](./roadmap/v0.2/N5-controls-notifications.md) — cancel · retry · web toast / Slack / email.
 - **N6** [Observability deepening](./roadmap/v0.2/N6-observability.md) — runs search / timeline gantt / webhook delivery dashboard / cost trends / budget alarms.
 
-## v0.3+ 백로그
+## v0.3 (다음 릴리즈 — Production hardening)
 
-- 진짜 OAuth round-trip e2e (HTTPS mock + self-signed cert)
+상세 계획: [`roadmap/v0.3/README.md`](./roadmap/v0.3/README.md) — 마일스톤 P1~P4 의 개별 plan + 결정 사항 + 트랙별 PR 분할.
+
+테마: **Production hardening** — feature 확장 없음. v0.2 known limitations 중 운영 위험성 직결 항목 정리. Narrow & deep (4 마일스톤, ~30 PR, ~1.5 개월 추정).
+
+- **P1** [Multi-instance SSE + Redis](./roadmap/v0.3/P1-multi-instance-sse.md) — 알림 SSE 와 RunsGateway 의 in-process Subject 를 Redis pub/sub 으로 fan-out. 다중 인스턴스 가능.
+- **P2** [Client JWT OS keychain](./roadmap/v0.3/P2-jwt-keychain.md) — `tauri-plugin-store` plain JSON → OS keychain (`keyring` crate). plain 파일에 JWT 안 남김.
+- **P3** [OAuth e2e + HTTPS dev](./roadmap/v0.3/P3-oauth-e2e.md) — mkcert 자체 CA + GitHub OAuth mock provider 로 Playwright 가 실 OAuth dance 검증.
+- **P4** [Ops + CI hardening](./roadmap/v0.3/P4-ops-ci-hardening.md) — PR-time docker build smoke (v0.2.1 사고 재발 방지) + pino 구조화 로그 + `/metrics` Prometheus endpoint.
+
+## v0.4+ 백로그
+
+- Team / multi-user 권한 모델
 - 하네스 노드 UI (드래그-드롭)
 - 다중 클라이언트 라우팅 / 큐잉
 - 서브에이전트 마켓플레이스
 - 외부 일정 도구 연동 (Linear/Jira/Notion)
 - 멀티 LLM provider routing (cost/latency 기반)
-- 클라이언트 JWT 의 OS keychain 저장 (현재 `tauri-plugin-store` plain JSON)
 - Tauri Rust commands 로 tools 전면 재구현 (v0.2 의 Node sidecar 보다 native)
 - Signed installers (Mac / Win / Linux) — cert 발급 환경 의존
+- Encrypted backup + off-site target + ENCRYPTION_KEY rotation runbook
+- per-project 알림 override UI (v0.2 N5 known limitation)
 - i18n / mobile responsive
-- Team / multi-user 권한 모델
