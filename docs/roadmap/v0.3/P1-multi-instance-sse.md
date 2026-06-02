@@ -33,34 +33,36 @@ P1 은 **두 경로 모두** 를 Redis 기반 pub/sub 으로 옮긴다.
 
 ## 3. 결정 사항
 
-| 결정             | 선택                                                                | 근거                                                                            |
-| ---------------- | ------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
-| Pub/sub 백엔드   | **Redis (ioredis)**                                                 | 가장 흔한 selbst-host stack. NATS 는 인프라 추가 부담 + 운영자 학습 곡선.       |
-| Redis client     | **ioredis**                                                         | Nest 생태 표준, pub/sub mode 안정적. node-redis (v4) 도 가능하지만 ioredis 채택. |
-| Socket.io adapter | **`@socket.io/redis-adapter`** (공식)                              | 직접 publish/subscribe 구현 대신 검증된 어댑터 사용. ack/room/namespace 자동.   |
-| 채널 명          | `dg:notif:<userId>` (per-user) + socket.io adapter 의 자체 prefix   | per-user 채널로 fan-out 최소화. socket.io 는 adapter 자체 규칙.                 |
-| 미설정 시 동작   | **In-process 만** — REDIS_URL 환경변수 없으면 기존 Subject 그대로   | 단일 인스턴스 사용자에게 회귀 0. opt-in 모델.                                   |
-| 메시지 직렬화    | JSON (`JSON.stringify` / `JSON.parse`)                              | NotificationView 가 이미 JSON 친화. binary 필요한 데이터 없음.                  |
-| 인증/ACL         | Redis 자체 AUTH (rediss:// + password)                              | Redis 노출은 사용자 책임. 앱에서 추가 권한 분리는 v0.4+.                        |
+| 결정              | 선택                                                              | 근거                                                                             |
+| ----------------- | ----------------------------------------------------------------- | -------------------------------------------------------------------------------- |
+| Pub/sub 백엔드    | **Redis (ioredis)**                                               | 가장 흔한 selbst-host stack. NATS 는 인프라 추가 부담 + 운영자 학습 곡선.        |
+| Redis client      | **ioredis**                                                       | Nest 생태 표준, pub/sub mode 안정적. node-redis (v4) 도 가능하지만 ioredis 채택. |
+| Socket.io adapter | **`@socket.io/redis-adapter`** (공식)                             | 직접 publish/subscribe 구현 대신 검증된 어댑터 사용. ack/room/namespace 자동.    |
+| 채널 명           | `dg:notif:<userId>` (per-user) + socket.io adapter 의 자체 prefix | per-user 채널로 fan-out 최소화. socket.io 는 adapter 자체 규칙.                  |
+| 미설정 시 동작    | **In-process 만** — REDIS_URL 환경변수 없으면 기존 Subject 그대로 | 단일 인스턴스 사용자에게 회귀 0. opt-in 모델.                                    |
+| 메시지 직렬화     | JSON (`JSON.stringify` / `JSON.parse`)                            | NotificationView 가 이미 JSON 친화. binary 필요한 데이터 없음.                   |
+| 인증/ACL          | Redis 자체 AUTH (rediss:// + password)                            | Redis 노출은 사용자 책임. 앱에서 추가 권한 분리는 v0.4+.                         |
 
 ## 4. PR 분할 plan
 
-| PR    | 한 줄                                                                    | 변경 영역                                                | 테스트                                |
-| ----- | ------------------------------------------------------------------------ | -------------------------------------------------------- | ------------------------------------- |
-| P1-1  | `chore(api): add ioredis + Redis module foundation`                      | `apps/api/src/redis/` 신규, REDIS_URL env, RedisModule    | 1 unit (connect/disconnect)           |
-| P1-2  | `feat(api): NotificationsService Redis publish + subscribe (per-user)`  | `notifications.service.ts`, `streamFor` merge            | 2 integration (publish, no-redis fallback) |
-| P1-3  | `feat(api): RunsGateway socket.io Redis adapter`                         | `runs.gateway.ts`, `main.ts` bootstrap adapter           | 1 unit + 1 integration (2-instance broadcast) |
-| P1-4  | `chore(infra): docker-compose multi-instance profile`                    | `infra/docker-compose.yml`, README                       | manual smoke                          |
-| P1-5  | `docs(self-hosting): multi-instance setup section`                       | `docs/SELF-HOSTING.md`                                   | —                                     |
+| PR   | 한 줄                                                                  | 변경 영역                                              | 테스트                                        |
+| ---- | ---------------------------------------------------------------------- | ------------------------------------------------------ | --------------------------------------------- |
+| P1-1 | `chore(api): add ioredis + Redis module foundation`                    | `apps/api/src/redis/` 신규, REDIS_URL env, RedisModule | 1 unit (connect/disconnect)                   |
+| P1-2 | `feat(api): NotificationsService Redis publish + subscribe (per-user)` | `notifications.service.ts`, `streamFor` merge          | 2 integration (publish, no-redis fallback)    |
+| P1-3 | `feat(api): RunsGateway socket.io Redis adapter`                       | `runs.gateway.ts`, `main.ts` bootstrap adapter         | 1 unit + 1 integration (2-instance broadcast) |
+| P1-4 | `chore(infra): docker-compose multi-instance profile`                  | `infra/docker-compose.yml`, README                     | manual smoke                                  |
+| P1-5 | `docs(self-hosting): multi-instance setup section`                     | `docs/SELF-HOSTING.md`                                 | —                                             |
 
 ## 5. 테스트 plan
 
 ### 단위
+
 - `RedisModule` factory 가 REDIS_URL 없을 때 null pub/sub 클라이언트 반환, 있을 때 ioredis 인스턴스 반환.
 - `NotificationsService.streamFor` 가 in-process + Redis 두 소스를 dedupe 없이 merge — 중복은 없는 설계
   (publish 측에서만 emit, 자기 자신은 subscribe 무시 또는 자기 publish 무시).
 
 ### Integration (`apps/api/test/integration/`)
+
 - `notifications-multi-instance.spec.ts` (신규)
   - Testcontainer 로 redis spin up
   - 두 NestJS app context 띄우고 같은 REDIS_URL 주입
@@ -69,6 +71,7 @@ P1 은 **두 경로 모두** 를 Redis 기반 pub/sub 으로 옮긴다.
   - 기존 케이스에 "no REDIS_URL → in-process 동작" 추가.
 
 ### E2E
+
 - 추가 e2e 는 cost 대비 가치 낮음 (인프라 셋업 복잡). dogfood 수동 검증 항목으로 둠.
 
 ## 6. 리스크 / 미해결

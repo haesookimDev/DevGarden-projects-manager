@@ -36,39 +36,42 @@ v0.2.1 사후 분석 (`CHANGELOG.md`):
 
 ## 3. 결정 사항
 
-| 결정              | 선택                                                             | 근거                                                                    |
-| ----------------- | ---------------------------------------------------------------- | ----------------------------------------------------------------------- |
-| 로그 라이브러리   | **pino** (Nest Logger override)                                  | 성능 최상, JSON 친화. nestjs-pino 모듈 사용.                            |
-| 로그 형식         | dev=pretty, prod=JSON 한 줄                                      | 사람/기계 둘 다 행복하게. NODE_ENV 분기.                                |
-| Metrics format    | **Prometheus `/metrics` (prom-client 직접)**                     | OpenTelemetry 도입은 v0.4+. 우리 단일 endpoint scrape 에는 prom-client 충분. |
-| Metrics auth      | **INTERNAL_API_SECRET 헤더** 또는 `METRICS_PUBLIC=true` env       | 기본 비공개. 운영자가 명시적으로 열 수 있음.                            |
-| Docker build CI   | **PR-time, ubuntu-latest, buildx cache**                          | 추가 ~3~5분. v0.2.1 비용 대비 충분히 가치.                              |
-| Tauri smoke       | **기존 push-to-main + 신규 weekly schedule + on-tag**             | PR 마다 돌리면 너무 비쌈. release-blocker 만 차단.                      |
-| pino transport    | **stdout 만** (수집기 측에서 처리)                                | 단순함. file/syslog 직접 출력은 운영 환경 책임.                          |
+| 결정            | 선택                                                        | 근거                                                                         |
+| --------------- | ----------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| 로그 라이브러리 | **pino** (Nest Logger override)                             | 성능 최상, JSON 친화. nestjs-pino 모듈 사용.                                 |
+| 로그 형식       | dev=pretty, prod=JSON 한 줄                                 | 사람/기계 둘 다 행복하게. NODE_ENV 분기.                                     |
+| Metrics format  | **Prometheus `/metrics` (prom-client 직접)**                | OpenTelemetry 도입은 v0.4+. 우리 단일 endpoint scrape 에는 prom-client 충분. |
+| Metrics auth    | **INTERNAL_API_SECRET 헤더** 또는 `METRICS_PUBLIC=true` env | 기본 비공개. 운영자가 명시적으로 열 수 있음.                                 |
+| Docker build CI | **PR-time, ubuntu-latest, buildx cache**                    | 추가 ~3~5분. v0.2.1 비용 대비 충분히 가치.                                   |
+| Tauri smoke     | **기존 push-to-main + 신규 weekly schedule + on-tag**       | PR 마다 돌리면 너무 비쌈. release-blocker 만 차단.                           |
+| pino transport  | **stdout 만** (수집기 측에서 처리)                          | 단순함. file/syslog 직접 출력은 운영 환경 책임.                              |
 
 ## 4. PR 분할 plan
 
-| PR    | 한 줄                                                                       | 변경 영역                                                                | 테스트                          |
-| ----- | --------------------------------------------------------------------------- | ------------------------------------------------------------------------ | ------------------------------- |
-| P4-1  | `ci: pr-time docker build smoke (api + web)`                                | `.github/workflows/ci.yml` (or new `docker-smoke.yml`)                  | CI workflow self-test           |
-| P4-2  | `ci: nightly + on-tag tauri build smoke`                                    | `.github/workflows/tauri-build-smoke.yml`                                | manual workflow_dispatch        |
-| P4-3  | `feat(api): structured logging with pino (nestjs-pino)`                     | `apps/api/src/main.ts`, `app.module.ts`, env config                     | 1 unit (logger context)         |
-| P4-4  | `feat(api): /metrics endpoint with prom-client + http counter`              | `metrics/` 모듈, interceptor, controller                                 | 2 integration (auth + counter increment) |
-| P4-5  | `feat(api): run/notification metrics + sse client gauge`                    | RunsService + NotificationsService 에 metric 호출                        | 2 integration (gauge inc/dec)   |
-| P4-6  | `docs(self-hosting): logging + metrics section`                             | `docs/SELF-HOSTING.md`                                                   | —                               |
+| PR   | 한 줄                                                          | 변경 영역                                              | 테스트                                   |
+| ---- | -------------------------------------------------------------- | ------------------------------------------------------ | ---------------------------------------- |
+| P4-1 | `ci: pr-time docker build smoke (api + web)`                   | `.github/workflows/ci.yml` (or new `docker-smoke.yml`) | CI workflow self-test                    |
+| P4-2 | `ci: nightly + on-tag tauri build smoke`                       | `.github/workflows/tauri-build-smoke.yml`              | manual workflow_dispatch                 |
+| P4-3 | `feat(api): structured logging with pino (nestjs-pino)`        | `apps/api/src/main.ts`, `app.module.ts`, env config    | 1 unit (logger context)                  |
+| P4-4 | `feat(api): /metrics endpoint with prom-client + http counter` | `metrics/` 모듈, interceptor, controller               | 2 integration (auth + counter increment) |
+| P4-5 | `feat(api): run/notification metrics + sse client gauge`       | RunsService + NotificationsService 에 metric 호출      | 2 integration (gauge inc/dec)            |
+| P4-6 | `docs(self-hosting): logging + metrics section`                | `docs/SELF-HOSTING.md`                                 | —                                        |
 
 ## 5. 테스트 plan
 
 ### Integration
+
 - `metrics.spec.ts` — INTERNAL_API_SECRET 없으면 401, 있으면 prometheus text format 반환.
 - HTTP request counter — 다양한 status code 가 들어와도 라벨 정상.
 - Run status counter — createRun + setStatus(SUCCESS) → `dg_run_status_total{status="SUCCESS"}` 1 증가.
 - SSE client gauge — `/internal/users/:id/notifications/stream` 구독 시작/종료에 따라 gauge 증감.
 
 ### Unit
+
 - pino logger formatter 가 dev/prod 분기.
 
 ### CI workflow self-test
+
 - docker-smoke job 이 `apps/api/Dockerfile`, `apps/web/Dockerfile` 둘 다 빌드 성공.
 - 의도적으로 깨진 Dockerfile (별도 branch 테스트) 에서 red 확인.
 

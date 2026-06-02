@@ -23,26 +23,26 @@ v0.3 이 끝나면:
 
 ## 2. 결정 사항 (이 로드맵의 전제)
 
-| 결정             | 선택                                             | 영향                                                                |
-| ---------------- | ------------------------------------------------ | ------------------------------------------------------------------- |
-| 테마             | **Production hardening**                         | feature 확장 없음. 운영 안전성/관측성/보안 한정.                    |
-| 스코프           | **Narrow & deep (4 마일스톤, ~30 PR)**           | v0.2 의 7 마일스톤보다 좁게. v0.3.0 cut 까지 ~1.5 개월 추정.        |
-| Pub/sub 백엔드   | **Redis (ioredis)** — env 가 없으면 in-process   | P1 — 단일 인스턴스 사용자 영향 없음, 다중 인스턴스만 REDIS_URL.     |
-| Keychain 접근    | **Tauri Rust 의 `keyring` crate 직접 binding**   | P2 — 플러그인 의존 줄이고 fallback 제어. headless 는 file fallback. |
-| OAuth e2e        | **mkcert 자체 CA + GitHub OAuth mock provider**  | P3 — 실 GitHub 의존성 회피, e2e 마다 새 cert/cookie 가능.           |
-| 로그 라이브러리  | **pino** (Nest Logger override)                  | P4 — 성능 우선, JSON 출력으로 외부 수집기 친화.                     |
-| Metrics endpoint | **Prometheus `/metrics` (prom-client 직접 사용)** | P4 — `@willsoto/nestjs-prometheus` 의존 안 추가, 핵심 4~5 메트릭.    |
+| 결정             | 선택                                              | 영향                                                                |
+| ---------------- | ------------------------------------------------- | ------------------------------------------------------------------- |
+| 테마             | **Production hardening**                          | feature 확장 없음. 운영 안전성/관측성/보안 한정.                    |
+| 스코프           | **Narrow & deep (4 마일스톤, ~30 PR)**            | v0.2 의 7 마일스톤보다 좁게. v0.3.0 cut 까지 ~1.5 개월 추정.        |
+| Pub/sub 백엔드   | **Redis (ioredis)** — env 가 없으면 in-process    | P1 — 단일 인스턴스 사용자 영향 없음, 다중 인스턴스만 REDIS_URL.     |
+| Keychain 접근    | **Tauri Rust 의 `keyring` crate 직접 binding**    | P2 — 플러그인 의존 줄이고 fallback 제어. headless 는 file fallback. |
+| OAuth e2e        | **mkcert 자체 CA + GitHub OAuth mock provider**   | P3 — 실 GitHub 의존성 회피, e2e 마다 새 cert/cookie 가능.           |
+| 로그 라이브러리  | **pino** (Nest Logger override)                   | P4 — 성능 우선, JSON 출력으로 외부 수집기 친화.                     |
+| Metrics endpoint | **Prometheus `/metrics` (prom-client 직접 사용)** | P4 — `@willsoto/nestjs-prometheus` 의존 안 추가, 핵심 4~5 메트릭.   |
 
 > 위 결정은 default. 마일스톤별 plan 문서에서 더 자세한 trade-off 와 함께 다시 검토.
 
 ## 3. 마일스톤 한눈에
 
-| #   | 마일스톤                                                 | 한 줄 요약                                                                   | 의존성 | 상태       |
-| --- | -------------------------------------------------------- | ---------------------------------------------------------------------------- | ------ | ---------- |
-| P1  | [Multi-instance SSE + Redis](./P1-multi-instance-sse.md) | 알림 SSE 와 RunsGateway 의 in-process Subject 를 Redis pub/sub 으로 fan-out  | —      | ⬜ 시작 전 |
-| P2  | [Client JWT OS keychain](./P2-jwt-keychain.md)           | `tauri-plugin-store` plain JSON → OS keychain (`keyring` crate) + migration  | —      | ⬜ 시작 전 |
+| #   | 마일스톤                                                 | 한 줄 요약                                                                    | 의존성 | 상태       |
+| --- | -------------------------------------------------------- | ----------------------------------------------------------------------------- | ------ | ---------- |
+| P1  | [Multi-instance SSE + Redis](./P1-multi-instance-sse.md) | 알림 SSE 와 RunsGateway 의 in-process Subject 를 Redis pub/sub 으로 fan-out   | —      | ⬜ 시작 전 |
+| P2  | [Client JWT OS keychain](./P2-jwt-keychain.md)           | `tauri-plugin-store` plain JSON → OS keychain (`keyring` crate) + migration   | —      | ⬜ 시작 전 |
 | P3  | [OAuth e2e + HTTPS dev](./P3-oauth-e2e.md)               | mkcert 자체 CA + GitHub OAuth mock + Playwright HTTPS context 로 실 OAuth e2e | —      | ⬜ 시작 전 |
-| P4  | [Ops + CI hardening](./P4-ops-ci-hardening.md)           | pino 구조화 로그, `/metrics`, PR-time docker build + tauri build smoke       | —      | ⬜ 시작 전 |
+| P4  | [Ops + CI hardening](./P4-ops-ci-hardening.md)           | pino 구조화 로그, `/metrics`, PR-time docker build + tauri build smoke        | —      | ⬜ 시작 전 |
 
 ## 4. Cross-cutting 원칙
 

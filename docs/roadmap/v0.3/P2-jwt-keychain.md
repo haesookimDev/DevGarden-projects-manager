@@ -16,6 +16,7 @@
 이 있는 어떤 프로세스에도 평문 노출**. v0.1 부터 v0.2.x 까지 이어진 known limitation.
 
 v0.1 Known Limitations 인용:
+
 > 클라이언트 JWT 의 OS keychain 저장 (현재 `tauri-plugin-store` plain JSON)
 
 ## 2. What (acceptance)
@@ -33,37 +34,40 @@ v0.1 Known Limitations 인용:
 
 ## 3. 결정 사항
 
-| 결정          | 선택                                                              | 근거                                                                          |
-| ------------- | ----------------------------------------------------------------- | ----------------------------------------------------------------------------- |
-| Keychain 방식 | **Tauri Rust 의 `keyring` crate 직접 binding**                    | 플러그인 의존 줄임. `keyring` crate 가 3 OS 통일 API. 검증된 crate.            |
-| Service/Account 이름 | service=`devgarden-client`, account=`pairing-jwt`         | Mac Keychain / Win Credential Manager 의 공통 키.                             |
-| Migration     | **자동 1회** — 첫 load 시 plain 파일 발견하면 옮기고 파일 삭제    | 사용자 액션 없이 안전하게 이동. 실패 시 file fallback 유지하고 warn.          |
-| Fallback      | **명시적 opt-in 만** — env `DEVGARDEN_PAIRING_STORAGE=file` 또는 keychain unavailable 감지 시. UI 에 \"insecure storage\" 경고 띄움. | dogfood-time 우회 가능하지만 기본은 secure. |
-| Linux 환경    | libsecret/gnome-keyring 필요 — 없으면 fallback                    | 최소 의존만 권장 (libsecret-1-0). README 명시.                                |
-| `Stronghold`  | 도입 안 함                                                        | 무거움 (별도 vault 파일). 우리 용도 (단일 토큰) 에는 keyring 으로 충분.        |
+| 결정                 | 선택                                                                                                                                 | 근거                                                                    |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------- |
+| Keychain 방식        | **Tauri Rust 의 `keyring` crate 직접 binding**                                                                                       | 플러그인 의존 줄임. `keyring` crate 가 3 OS 통일 API. 검증된 crate.     |
+| Service/Account 이름 | service=`devgarden-client`, account=`pairing-jwt`                                                                                    | Mac Keychain / Win Credential Manager 의 공통 키.                       |
+| Migration            | **자동 1회** — 첫 load 시 plain 파일 발견하면 옮기고 파일 삭제                                                                       | 사용자 액션 없이 안전하게 이동. 실패 시 file fallback 유지하고 warn.    |
+| Fallback             | **명시적 opt-in 만** — env `DEVGARDEN_PAIRING_STORAGE=file` 또는 keychain unavailable 감지 시. UI 에 \"insecure storage\" 경고 띄움. | dogfood-time 우회 가능하지만 기본은 secure.                             |
+| Linux 환경           | libsecret/gnome-keyring 필요 — 없으면 fallback                                                                                       | 최소 의존만 권장 (libsecret-1-0). README 명시.                          |
+| `Stronghold`         | 도입 안 함                                                                                                                           | 무거움 (별도 vault 파일). 우리 용도 (단일 토큰) 에는 keyring 으로 충분. |
 
 ## 4. PR 분할 plan
 
-| PR    | 한 줄                                                                       | 변경 영역                                                                | 테스트                          |
-| ----- | --------------------------------------------------------------------------- | ------------------------------------------------------------------------ | ------------------------------- |
-| P2-1  | `feat(client): add tauri keyring commands (rust)`                           | `apps/client/src-tauri/Cargo.toml` (+ keyring crate), `src/keychain.rs`, `lib.rs` invoke handler | rust unit (mock-keyring) |
-| P2-2  | `feat(client): keychainPairingStorage + JS bridge`                          | `apps/client/src/lib/keychain-pairing-storage.ts`, types                | 3 vitest (load/save/clear with mocked invoke) |
-| P2-3  | `feat(client): auto-migrate plain pairing.json → keychain`                  | `pairing-storage.ts` (wrapping factory), one-time migration              | 2 vitest (migration happy/fail) |
-| P2-4  | `feat(client): file-fallback opt-in + insecure storage UI warning`         | `App.tsx` 또는 settings, env detection                                  | 1 vitest + 1 e2e (warning shows when fallback) |
-| P2-5  | `docs(self-hosting): keychain storage section + Linux libsecret requirement` | `docs/SELF-HOSTING.md`, `docs/SECURITY.md` 갱신                          | —                               |
+| PR   | 한 줄                                                                        | 변경 영역                                                                                        | 테스트                                         |
+| ---- | ---------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ | ---------------------------------------------- |
+| P2-1 | `feat(client): add tauri keyring commands (rust)`                            | `apps/client/src-tauri/Cargo.toml` (+ keyring crate), `src/keychain.rs`, `lib.rs` invoke handler | rust unit (mock-keyring)                       |
+| P2-2 | `feat(client): keychainPairingStorage + JS bridge`                           | `apps/client/src/lib/keychain-pairing-storage.ts`, types                                         | 3 vitest (load/save/clear with mocked invoke)  |
+| P2-3 | `feat(client): auto-migrate plain pairing.json → keychain`                   | `pairing-storage.ts` (wrapping factory), one-time migration                                      | 2 vitest (migration happy/fail)                |
+| P2-4 | `feat(client): file-fallback opt-in + insecure storage UI warning`           | `App.tsx` 또는 settings, env detection                                                           | 1 vitest + 1 e2e (warning shows when fallback) |
+| P2-5 | `docs(self-hosting): keychain storage section + Linux libsecret requirement` | `docs/SELF-HOSTING.md`, `docs/SECURITY.md` 갱신                                                  | —                                              |
 
 ## 5. 테스트 plan
 
 ### Rust 단위
+
 - `keychain.rs` 의 set/get/delete 가 mock keyring backend 위에서 동작 (`keyring` crate 의 in-memory mock).
 - 에러 매핑 (entry not found → Ok(None) 반환).
 
 ### JS (vitest)
+
 - `keychainPairingStorage.spec.ts` — `@tauri-apps/api/core` 의 `invoke` 를 mock 해서 명령 호출 인자/응답 검증.
 - `pairing-storage.spec.ts` — migration: file 에 기존 record 있을 때 keychain 에 옮기고 file 삭제.
 - fallback path: keychain invoke 가 throw 하면 file storage 로 polling, UI 가 warning 노출.
 
 ### E2E
+
 - 기존 `pairing.spec.ts` 에 "after pair, keychain is used (no plaintext file remains)" 가시화 case 추가
   가능하면 추가. Tauri webview 에서 file system 확인이 까다로우면 manual smoke 로.
 
