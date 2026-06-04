@@ -61,6 +61,14 @@ services:
       GITHUB_WEBHOOK_SECRET: ${GITHUB_WEBHOOK_SECRET}
       OWNER_GITHUB_LOGINS: ${OWNER_GITHUB_LOGINS}
       CORS_ALLOW_ORIGINS: ${CORS_ALLOW_ORIGINS:-}
+      # v0.3 P1: blank for single-instance (default). Set to
+      # `redis://redis:6379` (or external) to share notification + socket.io
+      # fan-out with other api instances. Activate the bundled redis service
+      # with `--profile multi-instance` or point at an external one.
+      REDIS_URL: ${REDIS_URL:-}
+      # v0.3 P4
+      LOG_LEVEL: ${LOG_LEVEL:-}
+      METRICS_PUBLIC: ${METRICS_PUBLIC:-}
     ports:
       - '${API_PORT:-3001}:3001'
     healthcheck:
@@ -112,6 +120,28 @@ services:
       resources:
         limits:
           memory: 1g
+
+  # v0.3 P1: opt-in shared bus for multi-instance api deployments.
+  # Brought up with `docker compose --profile multi-instance up -d`. The api
+  # picks it up via REDIS_URL=redis://redis:6379 (see api.environment above).
+  # Off by default — single-instance self-hosters see no extra container.
+  redis:
+    image: redis:7-alpine
+    container_name: devgarden-redis
+    restart: unless-stopped
+    logging: *default-logging
+    profiles: ['multi-instance']
+    command: ['redis-server', '--save', '', '--appendonly', 'no']
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          memory: 256m
 
 volumes:
   postgres_data:
