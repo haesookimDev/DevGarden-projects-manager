@@ -6,6 +6,7 @@ import { GithubModule } from './github/github.module';
 import { HarnessesModule } from './harnesses/harnesses.module';
 import { HealthController } from './health.controller';
 import { buildPinoParams } from './logger/pino-config';
+import { MetricsModule } from './metrics/metrics.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { ProjectsModule } from './projects/projects.module';
@@ -17,6 +18,7 @@ import { WebhooksModule } from './webhooks/webhooks.module';
 @Module({
   imports: [
     LoggerModule.forRoot(buildPinoParams()),
+    MetricsModule,
     PrismaModule,
     GithubModule,
     UsersModule,
