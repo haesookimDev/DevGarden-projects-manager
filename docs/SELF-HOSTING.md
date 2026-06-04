@@ -156,13 +156,50 @@ docker compose -f infra/docker-compose.yml ps
 1. 웹 대시보드 → "Add client" → 클라이언트 이름 입력 → 1회용 페어링 토큰 발급.
 2. 자기 PC 에 데스크탑 클라이언트를 빌드 또는 설치 ([apps/client](../apps/client) `pnpm tauri build`).
 3. 클라이언트 앱 열기 → API base URL + 페어링 토큰 입력 → "Pair this client".
-4. 페어링되면 토큰은 자동으로 OS-local store 에 저장된다 (현재는 `tauri-plugin-store` plain JSON;
-   keychain 전환은 v0.2 백로그).
+4. 페어링되면 토큰은 **OS 키체인** 에 저장된다 (v0.3 P2). 자세한 동작은 §3.1.
 
 > v0.2 (N2) 부터 클라이언트는 페어링만 하는 게 아니라 **실제로 harness 를 실행**한다 — Tauri Rust 가
 > 번들된 Node sidecar 를 spawn 하고, sidecar 가 repo clone · fs/process/git 도구 · PR 생성을
 > 수행한다. 별도 Node 설치는 필요 없다 (sidecar 가 클라이언트 빌드에 포함). 진행 중 run 은 대시보드의
 > run detail 에서 **Cancel** 할 수 있고, sidecar 가 현재 step 프로세스를 종료한다 (N5).
+
+### 3.1 페어링 JWT 저장 위치 (v0.3 P2)
+
+v0.3 부터 페어링 JWT 는 OS 키체인에 저장된다 — 디스크에 평문으로 남지 않는다.
+
+| OS      | 저장소                             | 위치                                                                 |
+| ------- | ---------------------------------- | -------------------------------------------------------------------- |
+| macOS   | Keychain                           | "login" keychain, service `devgarden-client` / account `pairing-jwt` |
+| Windows | Credential Manager                 | Windows Credentials → `devgarden-client`                             |
+| Linux   | Secret Service (libsecret / D-Bus) | gnome-keyring / kwallet — `libsecret-1-0` 패키지 필요                |
+
+#### v0.2 사용자 자동 이관
+
+기존 `pairing.json` (`~/Library/Application Support/com.devgarden.client/pairing.json` 등) 에 페어링 정보가 있으면 v0.3 클라이언트 첫 실행 시 자동으로 키체인에 이관한 뒤 plain 파일을 삭제한다. 사용자 action 불필요.
+
+#### 첫 키체인 접근 시 시스템 프롬프트
+
+- **macOS**: "DevGarden Client 가 Keychain 항목 'pairing-jwt' 에 접근하려고 합니다 — 항상 허용 / 한 번 허용 / 거부" 프롬프트가 뜬다. "항상 허용" 선택 권장.
+- **Windows**: 별도 프롬프트 없음 (Credential Manager 가 silent).
+- **Linux**: gnome-keyring/kwallet 의 잠금 해제 프롬프트가 한 번 뜰 수 있음.
+
+#### 키체인을 사용할 수 없는 환경
+
+- **Linux without libsecret**: 클라이언트가 키체인 사용 불가를 감지 → 자동으로 v0.2 file 저장소로 폴백 + UI 에 amber 배지 표시 ("Insecure storage"). pairing 자체는 정상 동작. 보안을 원하면 `sudo apt install libsecret-1-0` (Debian/Ubuntu) 등으로 backend 설치 후 재실행.
+- **명시적 file fallback**: 환경변수 `DEVGARDEN_PAIRING_STORAGE=file` 로 키체인을 강제 우회. 디버깅 / sandbox 용. 동일하게 amber 배지가 뜬다.
+
+#### 키체인 항목 수동 삭제
+
+```bash
+# macOS — Keychain Access.app 에서 "devgarden-client" 검색 후 Delete
+# 또는 CLI:
+security delete-generic-password -s devgarden-client -a pairing-jwt
+
+# Linux — secret-tool (libsecret-tools)
+secret-tool clear service devgarden-client username pairing-jwt
+```
+
+> 클라이언트 앱의 "Unpair" 버튼으로도 같은 효과 — 키체인 항목 삭제 + sidecar 중지.
 
 ## 4. 백업 / 복구
 
