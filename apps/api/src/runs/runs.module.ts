@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { BudgetModule } from '../budget/budget.module';
+import { MetricsModule } from '../metrics/metrics.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { ProjectsModule } from '../projects/projects.module';
 import { RunsGateway } from './runs.gateway';
@@ -8,7 +9,7 @@ import { RunsService } from './runs.service';
 import { StatsInternalController } from './stats.internal.controller';
 
 @Module({
-  imports: [ProjectsModule, BudgetModule, NotificationsModule],
+  imports: [ProjectsModule, BudgetModule, NotificationsModule, MetricsModule],
   controllers: [RunsInternalController, StatsInternalController],
   providers: [RunsService, RunsGateway],
   exports: [RunsService, RunsGateway],
