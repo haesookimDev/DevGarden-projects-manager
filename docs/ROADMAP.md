@@ -8,11 +8,11 @@
 
 ## Progress snapshot (2026-06-02)
 
-- **머지된 GitHub PR**: 111 개 (PR #1 ~ #111) — **v0.1.0 + v0.2.0 + v0.2.1 릴리즈 완료**. v0.2 N0~N6 마일스톤 전부 완료 (design system / onboarding / sidecar / project workflow / harness editor / observability / run controls + notifications) + v0.2.1 prod docker build 수정.
-- **테스트**: api 79 unit + 177 integration + client-runner 43 + web 18 unit + web 80 e2e + harness-core 32 + harness-templates 10 + llm-adapters 10 + client 22 = **471 cases**
-- **CI**: 5 jobs (Lint · Typecheck · Unit · Integration · E2E) 모두 green + N2 PR7 의 `Tauri build smoke` (push-to-main 만)
+- **머지된 GitHub PR**: 117 개 (PR #1 ~ #117) — **v0.1.0 + v0.2.0 + v0.2.1 릴리즈 완료**. v0.2 N0~N6 전부 완료. v0.3 **P4 마일스톤 완료** (PR #113–#117): PR-time docker build smoke, tauri smoke trigger 확장, pino 구조화 로그, Prometheus `/metrics`, run/notification/SSE 도메인 metric.
+- **테스트**: api 89 unit + 181 integration + client-runner 43 + web 18 unit + web 80 e2e + harness-core 32 + harness-templates 10 + llm-adapters 10 + client 22 = **485 cases**
+- **CI**: 5 jobs (Lint · Typecheck · Unit · Integration · E2E) + **PR-time Docker build smoke (api/web)** 전부 green. Tauri build smoke 는 push-to-main / v\* tag / weekly cron / dispatch.
 - **운영 정책 도입**: 한 PR 안의 commit 분리(§4), CI 통과 시 자동 머지(§6)
-- **다음 우선순위**: **v0.3 (Production hardening)** 시작 — [roadmap/v0.3/README.md](./roadmap/v0.3/README.md). P1 (Redis SSE) / P2 (OS keychain) / P3 (OAuth e2e) / P4 (Ops + CI hardening), narrow & deep ~30 PR.
+- **다음 우선순위**: v0.3 의 **P1 (Redis SSE) / P2 (OS keychain) / P3 (OAuth e2e)** — 의존성 없이 병행 가능. 작업 순서 가이드는 [roadmap/v0.3/README.md §7](./roadmap/v0.3/README.md#7-작업-순서-가이드).
 
 | Milestone                          | 상태                                         |
 | ---------------------------------- | -------------------------------------------- |
