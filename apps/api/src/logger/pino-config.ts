@@ -7,7 +7,11 @@ import type { Params } from 'nestjs-pino';
 // prod (NODE_ENV === 'production'): JSON one-line for log shippers
 export function buildPinoParams(env: NodeJS.ProcessEnv = process.env): Params {
   const isProd = env.NODE_ENV === 'production';
-  const level = env.LOG_LEVEL ?? (isProd ? 'info' : 'debug');
+  // `${LOG_LEVEL:-}` in docker compose exports an empty string when the var
+  // is unset, and pino throws `default level: must be included in custom
+  // levels` on `''`. Treat empty / whitespace as unset.
+  const trimmed = env.LOG_LEVEL?.trim();
+  const level = trimmed ? trimmed : isProd ? 'info' : 'debug';
   return {
     pinoHttp: {
       level,

@@ -25,4 +25,18 @@ describe('buildPinoParams', () => {
     const cfg = params.pinoHttp as { level: string };
     expect(cfg.level).toBe('warn');
   });
+
+  it('treats empty or whitespace LOG_LEVEL as unset (regression)', () => {
+    // `${LOG_LEVEL:-}` in docker compose exports the empty string when the
+    // env var is unset, and pino rejects '' with
+    // `default level: must be included in custom levels`.
+    for (const value of ['', '   ', '\t']) {
+      const params = buildPinoParams({
+        NODE_ENV: 'production',
+        LOG_LEVEL: value,
+      } as NodeJS.ProcessEnv);
+      const cfg = params.pinoHttp as { level: string };
+      expect(cfg.level).toBe('info');
+    }
+  });
 });
