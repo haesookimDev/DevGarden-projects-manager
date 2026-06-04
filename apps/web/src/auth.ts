@@ -29,6 +29,32 @@ declare module 'next-auth/jwt' {
 const allowList = parseAllowList(process.env.OWNER_GITHUB_LOGINS);
 const githubUrls = getGithubOAuthUrls();
 
+// NextAuth v5 routes the userinfo call through oauth4webapi, which enforces
+// HTTPS on the configured endpoint even when AUTH_GITHUB_USERINFO_URL points
+// at http://localhost during e2e. Providing a `request` callback bypasses
+// oauth4webapi.userInfoRequest entirely and lets the mock server stay on
+// HTTP. The override is opt-in (only when the env var is set) so the
+// production path against api.github.com is unchanged.
+const userinfoConfig = process.env.AUTH_GITHUB_USERINFO_URL
+  ? {
+      url: githubUrls.userinfoUrl,
+      async request({
+        tokens,
+      }: {
+        tokens: { access_token?: string };
+      }): Promise<Record<string, unknown>> {
+        const res = await fetch(githubUrls.userinfoUrl, {
+          headers: {
+            Authorization: `Bearer ${tokens.access_token ?? ''}`,
+            'User-Agent': 'devgarden-e2e',
+          },
+        });
+        if (!res.ok) throw new Error(`mock userinfo failed: ${res.status}`);
+        return (await res.json()) as Record<string, unknown>;
+      },
+    }
+  : githubUrls.userinfoUrl;
+
 export const { handlers, signIn, signOut, auth } = NextAuth({
   trustHost: true,
   session: { strategy: 'jwt' },
@@ -45,7 +71,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         params: { scope: 'read:user user:email' },
       },
       token: githubUrls.tokenUrl,
-      userinfo: githubUrls.userinfoUrl,
+      userinfo: userinfoConfig,
     }),
   ],
   callbacks: {
@@ -98,5 +124,11 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   },
   pages: {
     signIn: '/signin',
+    // Route NextAuth's error UI back to /signin so the AccessDenied banner
+    // built into the signin page renders the actual message. Without this
+    // override v0.2 sends denied users to the default /api/auth/error page,
+    // which only shows a generic error code and breaks the polished flow
+    // we already built in src/app/signin/page.tsx.
+    error: '/signin',
   },
 });
