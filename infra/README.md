@@ -28,6 +28,24 @@ depends_on `condition: service_healthy` 체인 덕에 부팅 순서가 자동으
 1 GB 메모리 제한 (`deploy.resources.limits.memory`) 으로 한 컨테이너가 호스트 자원을 다 잡아먹는 사고를
 방지한다. 더 큰 인스턴스가 필요하면 prod 환경에 맞춰 조정.
 
+## Multi-instance (v0.3 P1)
+
+기본 compose 는 단일 api 인스턴스. 두 대 이상 띄우려면 알림 SSE 와 socket.io broadcast 가 인스턴스 간 fan-out 되도록 Redis 가 필요하다.
+
+```bash
+# bundled redis 와 함께 부팅. api 는 REDIS_URL 을 자동 사용.
+REDIS_URL=redis://redis:6379 docker compose \
+  -f infra/docker-compose.yml \
+  --profile multi-instance up -d
+
+# 그 다음에 api 만 scale=2 로 (별도 override 파일 또는 swarm/compose v2 의
+# replicas 사용). container_name 충돌 회피를 위해 override 가 필요한 점에 유의.
+```
+
+- `--profile multi-instance` 없이는 `redis` 서비스가 안 뜸 → 단일 인스턴스 사용자에게 추가 컨테이너 부담 없음.
+- 외부 Redis 가 이미 있으면 `REDIS_URL=rediss://...` 만 환경에 주면 됨. profile 은 불필요.
+- 자세한 내용: [`docs/SELF-HOSTING.md`](../docs/SELF-HOSTING.md) §6.3 다중 인스턴스 주의.
+
 ## Backup
 
 ```bash
