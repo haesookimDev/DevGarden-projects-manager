@@ -12,7 +12,8 @@ import {
 } from '@devgarden/ui';
 import type { ConnectionStatus } from './lib/client-socket';
 import { pairClient, PairClientError } from './lib/pair-client';
-import { tauriPairingStorage, type PairingRecord } from './lib/pairing-storage';
+import { defaultPairingStorage } from './lib/default-pairing-storage';
+import type { PairingRecord } from './lib/pairing-storage';
 import { useClientSocket } from './lib/use-client-socket';
 import { useSidecar, type SidecarStatus } from './lib/sidecar';
 
@@ -38,7 +39,7 @@ export default function App() {
     let cancelled = false;
     void (async () => {
       try {
-        const existing = await tauriPairingStorage.load();
+        const existing = await defaultPairingStorage.load();
         if (cancelled) return;
         if (existing) {
           setStatus({ kind: 'paired', record: existing });
@@ -67,7 +68,7 @@ export default function App() {
     try {
       const record = await pairClient(
         { apiBaseUrl: apiBase, token: token.trim() },
-        tauriPairingStorage,
+        defaultPairingStorage,
       );
       setStatus({ kind: 'paired', record });
       setToken('');
@@ -85,7 +86,7 @@ export default function App() {
 
   async function handleUnpair() {
     await sidecar.stop().catch(() => undefined);
-    await tauriPairingStorage.clear();
+    await defaultPairingStorage.clear();
     setStatus({ kind: 'unpaired' });
   }
 
