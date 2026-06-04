@@ -3,7 +3,10 @@
 # apps/client/src-tauri/ that lint/typecheck/unit/e2e can't see.
 #
 # Trigger policy (deliberately narrow to stay cheap):
-#   - push to main only (post-merge sanity check)
+#   - push to main (post-merge sanity check, path-filtered)
+#   - push of a v* tag (release-blocker — must succeed before tagging announces)
+#   - weekly Monday 09:00 KST = 00:00 UTC (heartbeat — catches toolchain drift
+#     even when no relevant files change for a while)
 #   - manual dispatch from the Actions tab (debugging)
 #
 # Not on pull_request — the matrix below pulls a Rust toolchain + GTK +
@@ -14,13 +17,17 @@
 name: Tauri build smoke
 
 on:
+  # NOTE: paths filter intentionally dropped — adding `tags: [v*]` here means
+  # tag pushes also need to pass the path filter, and tag pushes point at an
+  # already-merged commit whose diff may not match, silently skipping the
+  # release-blocker check. Cost: branch pushes to main now always trigger
+  # (~5min) instead of being path-filtered. Worth it for predictable
+  # release-blocker semantics.
   push:
     branches: [main]
-    paths:
-      - 'apps/client/**'
-      - 'apps/client-runner/**'
-      - 'packages/**'
-      - '.github/workflows/tauri-build-smoke.yml'
+    tags: ['v*']
+  schedule:
+    - cron: '0 0 * * 1'
   workflow_dispatch:
 
 concurrency:
