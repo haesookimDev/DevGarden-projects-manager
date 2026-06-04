@@ -3,6 +3,17 @@
 본 프로젝트의 모든 주요 변경 사항을 기록한다. [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 형식을
 느슨하게 따르며 — semver 적용. 자세한 PR 단위 작업 이력은 [`docs/ROADMAP.md`](docs/ROADMAP.md).
 
+## [v0.3.1] — 2026-06-04
+
+### Fixed
+
+- **prod 부팅 시 pino crash** (PR #134) — `infra/docker-compose.yml` 의
+  `LOG_LEVEL: ${LOG_LEVEL:-}` 가 unset 시 빈 문자열을 export 하고,
+  `apps/api/src/logger/pino-config.ts` 의 `env.LOG_LEVEL ?? default` 가 `''` 에
+  fallback 안 함 → pino 가 `default level: must be included in custom levels`
+  로 즉시 죽음. v0.3.0 prod 부팅 자체가 깨졌음. fix: `?.trim()` + truthy check
+  로 unset / 빈 문자열 / whitespace 동일 처리. 회귀 케이스 추가.
+
 ## [v0.3.0] — 2026-06-04
 
 ### Production hardening
@@ -169,6 +180,7 @@ GitHub issue 자동 미러 → 자동 PR 생성 → 백업/복구 — 이 끝에
 - **Signed installers (Mac/Win/Linux)** — Apple / Microsoft 인증서 발급이 환경 의존적이라 백로그.
 - **하네스 노드 UI (drag-drop)** / 다중 클라이언트 라우팅 · 큐잉 / 멀티 LLM provider routing / 클라이언트 JWT OS keychain 저장.
 
+[v0.3.1]: https://github.com/haesookimDev/DevGarden-projects-manager/releases/tag/v0.3.1
 [v0.3.0]: https://github.com/haesookimDev/DevGarden-projects-manager/releases/tag/v0.3.0
 [v0.2.1]: https://github.com/haesookimDev/DevGarden-projects-manager/releases/tag/v0.2.1
 [v0.2.0]: https://github.com/haesookimDev/DevGarden-projects-manager/releases/tag/v0.2.0
