@@ -1,7 +1,7 @@
 mod keychain;
 mod sidecar;
 
-use keychain::{keychain_delete, keychain_get, keychain_set};
+use keychain::{keychain_delete, keychain_get, keychain_set, pairing_storage_override};
 use sidecar::{start_sidecar, stop_sidecar, SidecarState};
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -16,6 +16,7 @@ pub fn run() {
             keychain_get,
             keychain_set,
             keychain_delete,
+            pairing_storage_override,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
