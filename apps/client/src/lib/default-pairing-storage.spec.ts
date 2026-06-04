@@ -5,6 +5,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { PairingRecord } from './pairing-storage';
 
+const invokeMock = vi.fn();
+
+vi.mock('@tauri-apps/api/core', () => ({
+  invoke: (...args: unknown[]) => invokeMock(...args),
+}));
+
 const sampleRecord: PairingRecord = {
   apiBaseUrl: 'http://api',
   jwt: 'j',
@@ -52,6 +58,9 @@ function makeMocked(): Mocked {
 
 beforeEach(() => {
   vi.resetModules();
+  // Default: env override is empty → keychain probe runs as usual.
+  invokeMock.mockReset();
+  invokeMock.mockResolvedValue('');
 });
 
 afterEach(() => {
@@ -101,6 +110,18 @@ describe('defaultPairingStorage', () => {
     await mod.defaultPairingStorage.save(sampleRecord);
     expect(m.keychain.save).toHaveBeenCalledWith(sampleRecord);
     expect(m.file.save).not.toHaveBeenCalled();
+  });
+
+  it('honours DEVGARDEN_PAIRING_STORAGE=file by skipping the keychain', async () => {
+    invokeMock.mockResolvedValue('file');
+    const m = makeMocked();
+    m.file.load.mockResolvedValue(sampleRecord);
+    const mod = await loadModule(m);
+    expect(await mod.defaultPairingStorage.load()).toEqual(sampleRecord);
+    expect(m.keychain.load).not.toHaveBeenCalled();
+    const details = await mod.getPairingStorageDetails();
+    expect(details.backend).toBe('file');
+    expect(details.forced).toBe(true);
   });
 
   it('stays on file when migration mid-flight fails', async () => {

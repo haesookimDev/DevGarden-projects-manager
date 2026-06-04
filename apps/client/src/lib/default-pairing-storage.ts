@@ -12,6 +12,7 @@
 // save() / clear() called before load() trigger the same detection so a
 // fresh pair right after install still ends up in the keychain.
 
+import { invoke } from '@tauri-apps/api/core';
 import { KeychainUnavailableError, keychainPairingStorage } from './keychain-pairing-storage';
 import { tauriPairingStorage } from './pairing-storage';
 import type { PairingRecord, PairingStorage } from './pairing-storage';
@@ -20,11 +21,28 @@ export interface MigrationDetails {
   backend: 'keychain' | 'file';
   migrated: boolean;
   migrationFailed?: string;
+  /** True when DEVGARDEN_PAIRING_STORAGE=file forced the file backend. */
+  forced?: boolean;
+}
+
+async function readForceFileOverride(): Promise<boolean> {
+  try {
+    const v = await invoke<string>('pairing_storage_override');
+    return v.trim().toLowerCase() === 'file';
+  } catch {
+    return false;
+  }
 }
 
 let detectionPromise: Promise<{ backend: PairingStorage; details: MigrationDetails }> | null = null;
 
 async function detect(): Promise<{ backend: PairingStorage; details: MigrationDetails }> {
+  if (await readForceFileOverride()) {
+    return {
+      backend: tauriPairingStorage,
+      details: { backend: 'file', migrated: false, forced: true },
+    };
+  }
   try {
     const keychainRecord = await keychainPairingStorage.load();
     if (keychainRecord) {
