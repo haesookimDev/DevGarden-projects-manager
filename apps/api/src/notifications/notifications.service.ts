@@ -1,10 +1,18 @@
 import { Buffer } from 'node:buffer';
-import { BadRequestException, Injectable, Logger, Optional } from '@nestjs/common';
+import {
+  BadRequestException,
+  Inject,
+  Injectable,
+  Logger,
+  OnModuleInit,
+  Optional,
+} from '@nestjs/common';
 import type { Notification, Prisma } from '@prisma/client';
 import { Observable, Subject, filter, map } from 'rxjs';
 import { decryptEnvelopeUtf8, encryptEnvelope } from '../crypto/envelope';
 import { MetricsService } from '../metrics/metrics.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { REDIS_PUBLISHER, REDIS_SUBSCRIBER, type RedisClient } from '../redis/redis.tokens';
 import { EmailChannel } from './email.channel';
 import { SlackWebhookChannel } from './slack-webhook.channel';
 
@@ -60,12 +68,18 @@ export interface NotificationView {
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+// Single channel for all per-user notifications; the receive handler routes
+// to the per-userId Subject the existing streamFor() filter already consumes.
+// Cheaper than psubscribe + still bounded (one subscription per api instance).
+const NOTIF_CHANNEL = 'dg:notif';
+
 @Injectable()
-export class NotificationService {
+export class NotificationService implements OnModuleInit {
   private readonly logger = new Logger(NotificationService.name);
-  // In-process push for the SSE endpoint. Each persisted web-toast row is
-  // emitted here; streamFor() filters by user. Single-process only (a
-  // multi-instance api would need a shared bus — v0.3+).
+  // Local fan-out for the SSE endpoint. Sourced from either:
+  //   - the in-process deliverWebToast (single-instance default), or
+  //   - the Redis subscriber on NOTIF_CHANNEL (when REDIS_URL is set).
+  // streamFor() filters by userId so per-user routing stays the same.
   private readonly stream$ = new Subject<{ userId: string; notification: NotificationView }>();
 
   constructor(
@@ -73,7 +87,31 @@ export class NotificationService {
     private readonly slack: SlackWebhookChannel,
     private readonly email: EmailChannel,
     @Optional() private readonly metrics?: MetricsService,
+    @Optional() @Inject(REDIS_PUBLISHER) private readonly redisPub?: RedisClient,
+    @Optional() @Inject(REDIS_SUBSCRIBER) private readonly redisSub?: RedisClient,
   ) {}
+
+  async onModuleInit(): Promise<void> {
+    if (!this.redisSub) return;
+    try {
+      await this.redisSub.subscribe(NOTIF_CHANNEL);
+      this.redisSub.on('message', (channel, payload) => {
+        if (channel !== NOTIF_CHANNEL) return;
+        try {
+          const parsed = JSON.parse(payload) as {
+            userId: string;
+            notification: NotificationView;
+          };
+          this.stream$.next(parsed);
+        } catch (err) {
+          this.logger.warn(`bad redis notif payload: ${(err as Error).message}`);
+        }
+      });
+      this.logger.log(`redis subscriber active on ${NOTIF_CHANNEL}`);
+    } catch (err) {
+      this.logger.warn(`redis subscribe failed: ${(err as Error).message}`);
+    }
+  }
 
   // Live web-toast notifications for a user (powers the SSE endpoint).
   // Increments the SSE-client gauge on subscribe and decrements when the
@@ -268,7 +306,22 @@ export class NotificationService {
     const row = await this.prisma.notification.create({
       data: { userId, kind: n.kind, title: n.title, body: n.body ?? null, runId: n.runId ?? null },
     });
-    this.stream$.next({ userId, notification: toNotificationView(row) });
+    const notification = toNotificationView(row);
+    if (this.redisPub) {
+      // Publish only. The subscribe handler (this instance + every other)
+      // calls stream$.next(); calling it here too would double-emit on the
+      // origin instance.
+      try {
+        await this.redisPub.publish(NOTIF_CHANNEL, JSON.stringify({ userId, notification }));
+      } catch (err) {
+        // Best-effort: if publish failed, fall back to in-process emit so the
+        // browser on this api at least gets the toast.
+        this.logger.warn(`redis publish failed: ${(err as Error).message}`);
+        this.stream$.next({ userId, notification });
+      }
+    } else {
+      this.stream$.next({ userId, notification });
+    }
     return row;
   }
 
