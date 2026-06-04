@@ -34,6 +34,12 @@ manual smoke 의존. NextAuth v5 마이너 업데이트 / 의존성 충돌 회�
 - [ ] CI Playwright job 이 cert 신뢰 셋업 포함 — `mkcert -install` 또는 NODE_EXTRA_CA_CERTS 설정.
 - [ ] `docs/TESTING.md` 에 OAuth e2e 셋업 / 로컬 실행 방법 추가.
 
+## 2.1 Scope reduction (during implementation)
+
+원래 plan 은 mkcert + HTTPS web 서버 + HTTPS mock provider 로 "production-grade" OAuth e2e 를 목표했다. 실제 코드를 들여다보니 v0.2 시점에 이미 `AUTH_GITHUB_*_URL` env 가 NextAuth 에 override 되도록 wire 되어 있었고, `apps/web/e2e/mock-server.ts` 가 `/login/oauth/authorize` / `/access_token` / `/user` 세 endpoint 를 in-process HTTP 로 mock 한다. NextAuth 자체는 dev 모드에서 HTTP callback URL 을 허용하므로 (`AUTH_URL=http://localhost:...` + `trustHost: true`), HTTPS 없이도 OAuth round-trip 검증이 가능하다.
+
+따라서 v0.3 P3 는 HTTPS / mkcert 셋업을 **v0.4+ 백로그로 미루고** 기존 HTTP mock provider 위에서 OAuth round-trip e2e 를 추가한다. HTTPS 가 필요한 별도 검증 (Secure cookie attribute, HSTS, 실 GitHub 와의 round-trip) 은 별도 milestone 으로.
+
 ## 3. 결정 사항
 
 | 결정            | 선택                                                                                      | 근거                                                                                                                 |
@@ -47,13 +53,13 @@ manual smoke 의존. NextAuth v5 마이너 업데이트 / 의존성 충돌 회�
 
 ## 4. PR 분할 plan
 
-| PR   | 한 줄                                                             | 변경 영역                                                                            | 테스트                                |
-| ---- | ----------------------------------------------------------------- | ------------------------------------------------------------------------------------ | ------------------------------------- |
-| P3-1 | `chore(web): NextAuth GitHub provider env-overridable endpoints`  | `apps/web/src/auth.ts`, `auth.config.ts`                                             | 1 unit (override active when env set) |
-| P3-2 | `chore(web,e2e): mkcert + https playwright config (e2e profile)`  | `playwright.config.ts` (https 옵션), `e2e/cert/` (gitignored, mkcert 산출물), README | manual setup smoke                    |
-| P3-3 | `feat(web,e2e): github oauth mock server (start in global-setup)` | `e2e/github-oauth-mock.ts`, `global-setup.ts` 가 시작/종료                           | 1 e2e (mock server up/down)           |
-| P3-4 | `test(web): oauth-roundtrip e2e`                                  | `e2e/oauth-roundtrip.spec.ts`                                                        | 1 e2e (full dance)                    |
-| P3-5 | `docs(testing): oauth e2e setup + mkcert + ci notes`              | `docs/TESTING.md`, `.github/workflows/e2e.yml`                                       | —                                     |
+| PR   | 한 줄                                                                             | 변경 영역                                                           | 테스트                          |
+| ---- | --------------------------------------------------------------------------------- | ------------------------------------------------------------------- | ------------------------------- |
+| P3-1 | `feat(web): Centralise NextAuth GitHub URL overrides into getGithubOAuthUrls`     | `apps/web/src/auth.ts`, `lib/auth/github-oauth-urls.ts`             | 3 unit                          |
+| P3-2 | `feat(web,e2e): mock-server oauth user override + reset hooks`                    | `apps/web/e2e/mock-server.ts`                                       | (P3-4 가 활용)                  |
+| P3-3 | (no-op — existing v0.2 mock-server already covers GitHub OAuth; folded into P3-4) | —                                                                   | —                               |
+| P3-4 | `test(web): oauth-roundtrip e2e`                                                  | `e2e/oauth-roundtrip.spec.ts`                                       | 2 e2e (happy + allow-list 거부) |
+| P3-5 | `docs(testing,roadmap): oauth e2e + v0.3 wrap-up`                                 | `docs/TESTING.md`, `docs/roadmap/v0.3/README.md`, `docs/ROADMAP.md` | —                               |
 
 ## 5. 테스트 plan
 
