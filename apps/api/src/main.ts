@@ -9,6 +9,9 @@ async function bootstrap() {
   // bufferLogs lets the pino logger take over before any application code logs.
   const app = await NestFactory.create(AppModule, { rawBody: true, bufferLogs: true });
   app.useLogger(app.get(Logger));
+  // Surfaces SIGTERM/SIGINT to Nest's onApplicationShutdown so RedisModule
+  // (and any future infra modules) can quit() their clients before exit.
+  app.enableShutdownHooks();
 
   // CORS: the Tauri desktop client's webview calls /clients/pair directly
   // from origin `tauri://localhost` (or `https://tauri.localhost` on Windows).

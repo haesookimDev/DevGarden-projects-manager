@@ -30,6 +30,7 @@
     "@octokit/rest": "^21.0.2",
     "@prisma/client": "^6.1.0",
     "bcrypt": "^5.1.1",
+    "ioredis": "^5.11.0",
     "jose": "^5.9.6",
     "nestjs-pino": "^4.6.1",
     "nodemailer": "^8.0.9",

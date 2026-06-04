@@ -8,6 +8,7 @@ import { HealthController } from './health.controller';
 import { buildPinoParams } from './logger/pino-config';
 import { MetricsModule } from './metrics/metrics.module';
 import { NotificationsModule } from './notifications/notifications.module';
+import { RedisModule } from './redis/redis.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { ProjectsModule } from './projects/projects.module';
 import { RunsModule } from './runs/runs.module';
@@ -18,6 +19,7 @@ import { WebhooksModule } from './webhooks/webhooks.module';
 @Module({
   imports: [
     LoggerModule.forRoot(buildPinoParams()),
+    RedisModule,
     MetricsModule,
     PrismaModule,
     GithubModule,
