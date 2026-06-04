@@ -39,7 +39,7 @@ v0.3 이 끝나면:
 
 | #   | 마일스톤                                                 | 한 줄 요약                                                                    | 의존성 | 상태                   |
 | --- | -------------------------------------------------------- | ----------------------------------------------------------------------------- | ------ | ---------------------- |
-| P1  | [Multi-instance SSE + Redis](./P1-multi-instance-sse.md) | 알림 SSE 와 RunsGateway 의 in-process Subject 를 Redis pub/sub 으로 fan-out   | —      | ⬜ 시작 전             |
+| P1  | [Multi-instance SSE + Redis](./P1-multi-instance-sse.md) | 알림 SSE 와 RunsGateway 의 in-process Subject 를 Redis pub/sub 으로 fan-out   | —      | ✅ 완료 (PR #119–#123) |
 | P2  | [Client JWT OS keychain](./P2-jwt-keychain.md)           | `tauri-plugin-store` plain JSON → OS keychain (`keyring` crate) + migration   | —      | ⬜ 시작 전             |
 | P3  | [OAuth e2e + HTTPS dev](./P3-oauth-e2e.md)               | mkcert 자체 CA + GitHub OAuth mock + Playwright HTTPS context 로 실 OAuth e2e | —      | ⬜ 시작 전             |
 | P4  | [Ops + CI hardening](./P4-ops-ci-hardening.md)           | pino 구조화 로그, `/metrics`, PR-time docker build + tauri build smoke        | —      | ✅ 완료 (PR #113–#118) |
