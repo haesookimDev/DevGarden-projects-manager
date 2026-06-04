@@ -6,13 +6,13 @@
 
 ---
 
-## Progress snapshot (2026-06-02)
+## Progress snapshot (2026-06-04)
 
 - **머지된 GitHub PR**: 131 개 (PR #1 ~ #131) — **v0.1.0 + v0.2.0 + v0.2.1 릴리즈 완료**. v0.2 N0~N6 전부 완료. **v0.3 P1 + P2 + P3 + P4 마일스톤 완료** (총 20 PR, PR #113–#132): P4 (#113–#118) PR-time docker build smoke + pino + Prometheus `/metrics`. P1 (#119–#123) ioredis fan-out + socket.io Redis adapter + multi-instance compose. P2 (#124–#128) Tauri keychain + auto-migration + insecure storage warning. P3 (#129–#132) NextAuth URL helper + mock OAuth hooks + 진짜 OAuth round-trip e2e (HTTPS dev 는 v0.4+ 로 이관).
 - **테스트**: api 97 unit + 181 integration + web 21 unit + web 82 e2e + client-runner 43 + harness-core 32 + harness-templates 10 + llm-adapters 10 + client 34 = **510 cases**
 - **CI**: 5 jobs (Lint · Typecheck · Unit · Integration · E2E) + **PR-time Docker build smoke (api/web)** 전부 green. Tauri build smoke 는 push-to-main / v\* tag / weekly cron / dispatch.
 - **운영 정책 도입**: 한 PR 안의 commit 분리(§4), CI 통과 시 자동 머지(§6)
-- **다음 우선순위**: v0.3.0 릴리즈 — CHANGELOG entry + tag + GitHub Release. 기능 마일스톤 (P1~P4) 은 전부 완료.
+- **다음 우선순위**: **v0.4 (Onboarding friction removal)** 시작 — [roadmap/v0.4/README.md](./roadmap/v0.4/README.md). F1 (Sidecar Node bundle) / F2 (GitHub App unified OAuth) / F3 (Setup health-check) / F4 (HTTPS dev + SELF-HOSTING 재작성). v0.3 dogfood 직접 응답.
 
 | Milestone                          | 상태                                         |
 | ---------------------------------- | -------------------------------------------- |
@@ -161,7 +161,7 @@
 - **N5** [Run controls + notifications](./roadmap/v0.2/N5-controls-notifications.md) — cancel · retry · web toast / Slack / email.
 - **N6** [Observability deepening](./roadmap/v0.2/N6-observability.md) — runs search / timeline gantt / webhook delivery dashboard / cost trends / budget alarms.
 
-## v0.3 (다음 릴리즈 — Production hardening)
+## v0.3 (릴리즈 완료 — v0.3.1)
 
 상세 계획: [`roadmap/v0.3/README.md`](./roadmap/v0.3/README.md) — 마일스톤 P1~P4 의 개별 plan + 결정 사항 + 트랙별 PR 분할.
 
@@ -172,7 +172,18 @@
 - **P3** [OAuth e2e + HTTPS dev](./roadmap/v0.3/P3-oauth-e2e.md) — mkcert 자체 CA + GitHub OAuth mock provider 로 Playwright 가 실 OAuth dance 검증.
 - **P4** [Ops + CI hardening](./roadmap/v0.3/P4-ops-ci-hardening.md) — PR-time docker build smoke (v0.2.1 사고 재발 방지) + pino 구조화 로그 + `/metrics` Prometheus endpoint.
 
-## v0.4+ 백로그
+## v0.4 (다음 릴리즈 — Onboarding friction removal)
+
+상세 계획: [`roadmap/v0.4/README.md`](./roadmap/v0.4/README.md) — 마일스톤 F1~F4 의 개별 plan + 결정 사항 + 트랙별 PR 분할.
+
+테마: **Onboarding friction removal** — v0.3 dogfood 에서 발견된 두 가지 벽 (sidecar 가 시스템 Node 24 에서 silent crash, "Refresh from GitHub" 가 OAuth App credential 로 100% 400) + v0.3 P3 가 미룬 HTTPS dev + SELF-HOSTING.md 전면 재작성. Narrow & deep (4 마일스톤, ~30 PR, ~1.5 개월 추정).
+
+- **F1** [Sidecar bundled Node](./roadmap/v0.4/F1-sidecar-node-bundle.md) — Tauri `externalBin` 으로 Node 22 LTS bundle, 시스템 node 의존 제거 + 진단 가능한 에러 surface.
+- **F2** [GitHub App unified OAuth](./roadmap/v0.4/F2-github-app-unified-oauth.md) — NextAuth provider 가 GitHub App credential 사용. OAuth App 별도 등록 가이드 폐기.
+- **F3** [Setup health-check page](./roadmap/v0.4/F3-setup-health-check.md) — `/dashboard/setup-status` 단일 화면에서 DB / GitHub App / sidecar / SMTP / Redis 자기진단.
+- **F4** [HTTPS dev cert + docs rewrite](./roadmap/v0.4/F4-https-dev-cert.md) — mkcert 한 줄 셋업 + Playwright HTTPS profile + SELF-HOSTING.md 전면 재작성.
+
+## v0.5+ 백로그
 
 - Team / multi-user 권한 모델
 - 하네스 노드 UI (드래그-드롭)
