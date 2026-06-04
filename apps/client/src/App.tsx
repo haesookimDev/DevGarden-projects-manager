@@ -12,7 +12,11 @@ import {
 } from '@devgarden/ui';
 import type { ConnectionStatus } from './lib/client-socket';
 import { pairClient, PairClientError } from './lib/pair-client';
-import { defaultPairingStorage } from './lib/default-pairing-storage';
+import {
+  defaultPairingStorage,
+  getPairingStorageDetails,
+  type MigrationDetails,
+} from './lib/default-pairing-storage';
 import type { PairingRecord } from './lib/pairing-storage';
 import { useClientSocket } from './lib/use-client-socket';
 import { useSidecar, type SidecarStatus } from './lib/sidecar';
@@ -28,6 +32,7 @@ type Status =
 
 export default function App() {
   const [status, setStatus] = useState<Status>({ kind: 'loading' });
+  const [storageDetails, setStorageDetails] = useState<MigrationDetails | null>(null);
   const [apiBase, setApiBase] = useState(DEFAULT_API_BASE);
   const [token, setToken] = useState('');
 
@@ -40,7 +45,9 @@ export default function App() {
     void (async () => {
       try {
         const existing = await defaultPairingStorage.load();
+        const details = await getPairingStorageDetails();
         if (cancelled) return;
+        setStorageDetails(details);
         if (existing) {
           setStatus({ kind: 'paired', record: existing });
           // Restart the sidecar on app launch when we already have a
@@ -96,6 +103,8 @@ export default function App() {
         <h1 className="text-2xl font-semibold">DevGarden Client</h1>
         <p className="text-sm text-muted-foreground">로컬 에이전트 브릿지 — pairing 단계</p>
       </header>
+
+      <InsecureStorageBanner details={storageDetails} />
 
       {status.kind === 'loading' && (
         <p className="mt-6 text-sm text-muted-foreground">storage 로딩 중…</p>
@@ -259,4 +268,22 @@ function sidecarLabel(status: SidecarStatus): { className: string; label: string
     case 'stopped':
       return { className: 'text-muted-foreground', label: 'stopped' };
   }
+}
+
+function InsecureStorageBanner({ details }: { details: MigrationDetails | null }) {
+  if (!details || details.backend !== 'file') return null;
+  const reason = details.forced
+    ? 'DEVGARDEN_PAIRING_STORAGE=file 환경변수가 설정되어 OS 키체인을 건너뜁니다.'
+    : details.migrationFailed
+      ? `키체인으로의 이관이 실패했습니다 (${details.migrationFailed}). 파일 저장소로 폴백.`
+      : 'OS 키체인을 사용할 수 없어 파일 저장소를 사용합니다 (Linux 의 경우 libsecret 설치 필요).';
+  return (
+    <div
+      role="alert"
+      className="mt-4 rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-600"
+    >
+      <strong className="block text-sm">Insecure storage</strong>
+      {reason} pairing JWT 가 사용자 디렉토리에 평문으로 남습니다.
+    </div>
+  );
 }
