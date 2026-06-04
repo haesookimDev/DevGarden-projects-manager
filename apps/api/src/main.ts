@@ -2,6 +2,7 @@ import 'reflect-metadata';
 import { NestFactory } from '@nestjs/core';
 import { Logger } from 'nestjs-pino';
 import { AppModule } from './app.module';
+import { RedisIoAdapter } from './realtime/redis-io-adapter';
 
 async function bootstrap() {
   // rawBody needed for GitHub webhook HMAC verification — express buffers it
@@ -12,6 +13,8 @@ async function bootstrap() {
   // Surfaces SIGTERM/SIGINT to Nest's onApplicationShutdown so RedisModule
   // (and any future infra modules) can quit() their clients before exit.
   app.enableShutdownHooks();
+  // Multi-instance socket.io fan-out (P1-3). No-op when REDIS_URL is unset.
+  app.useWebSocketAdapter(new RedisIoAdapter(app));
 
   // CORS: the Tauri desktop client's webview calls /clients/pair directly
   // from origin `tauri://localhost` (or `https://tauri.localhost` on Windows).
