@@ -1,11 +1,14 @@
 import 'reflect-metadata';
 import { NestFactory } from '@nestjs/core';
+import { Logger } from 'nestjs-pino';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
   // rawBody needed for GitHub webhook HMAC verification — express buffers it
   // on `req.rawBody` and JSON parsing still runs on top.
-  const app = await NestFactory.create(AppModule, { rawBody: true });
+  // bufferLogs lets the pino logger take over before any application code logs.
+  const app = await NestFactory.create(AppModule, { rawBody: true, bufferLogs: true });
+  app.useLogger(app.get(Logger));
 
   // CORS: the Tauri desktop client's webview calls /clients/pair directly
   // from origin `tauri://localhost` (or `https://tauri.localhost` on Windows).
@@ -29,11 +32,12 @@ async function bootstrap() {
 
   const port = Number(process.env.PORT) || 3001;
   await app.listen(port);
-  console.warn(`[api] listening on http://localhost:${port}`);
-  warnIfLegacyGithubEnv();
+  const logger = app.get(Logger);
+  logger.log({ port }, `[api] listening on http://localhost:${port}`);
+  warnIfLegacyGithubEnv(logger);
 }
 
-function warnIfLegacyGithubEnv(): void {
+function warnIfLegacyGithubEnv(logger: Logger): void {
   const set = ['GITHUB_APP_ID', 'GITHUB_APP_PRIVATE_KEY', 'GITHUB_WEBHOOK_SECRET'].filter(
     (k) => typeof process.env[k] === 'string' && process.env[k] !== '',
   );
@@ -41,8 +45,9 @@ function warnIfLegacyGithubEnv(): void {
   // One-time WARN at boot to nudge existing self-hosters onto the new
   // /dashboard/onboarding flow added in v0.2 N1. The env path stays alive
   // for at least one more minor; this message is purely advisory.
-  console.warn(
-    `[api] DEPRECATED: ${set.join(', ')} env var(s) set. ` +
+  logger.warn(
+    { deprecatedEnv: set },
+    `DEPRECATED: ${set.join(', ')} env var(s) set. ` +
       `v0.2 introduces the /dashboard/onboarding flow (manifest or BYO) which ` +
       `stores App credentials envelope-encrypted in the DB. The env-driven path ` +
       `still works in this release but will be removed in a future minor. ` +
