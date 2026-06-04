@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException, Optional } from '@nestjs/common';
 import {
   type HarnessRun,
   type Prisma,
@@ -9,6 +9,7 @@ import {
   StepStatus,
   LogLevel,
 } from '@prisma/client';
+import { MetricsService } from '../metrics/metrics.service';
 import { PrismaService } from '../prisma/prisma.service';
 
 export interface CreateRunInput {
@@ -43,10 +44,15 @@ export interface AppendLogInput {
 
 @Injectable()
 export class RunsService {
-  constructor(private readonly prisma: PrismaService) {}
+  // @Optional so unit specs that construct RunsService directly without a
+  // metrics provider keep working without DI changes.
+  constructor(
+    private readonly prisma: PrismaService,
+    @Optional() private readonly metrics?: MetricsService,
+  ) {}
 
   async createRun(input: CreateRunInput): Promise<HarnessRun> {
-    return this.prisma.harnessRun.create({
+    const row = await this.prisma.harnessRun.create({
       data: {
         harnessId: input.harnessId,
         projectId: input.projectId,
@@ -58,6 +64,8 @@ export class RunsService {
         status: RunStatus.QUEUED,
       },
     });
+    this.metrics?.countRunStatus(RunStatus.QUEUED);
+    return row;
   }
 
   async getHarnessDefinition(harnessId: string): Promise<unknown> {
@@ -71,7 +79,7 @@ export class RunsService {
 
   async setStatus(runId: string, status: RunStatus, finishedAt?: Date): Promise<HarnessRun> {
     const now = new Date();
-    return this.prisma.harnessRun.update({
+    const row = await this.prisma.harnessRun.update({
       where: { id: runId },
       data: {
         status,
@@ -81,6 +89,8 @@ export class RunsService {
         ...(status === RunStatus.CANCELLED ? { cancelledAt: now } : {}),
       },
     });
+    this.metrics?.countRunStatus(status);
+    return row;
   }
 
   /**
@@ -119,6 +129,7 @@ export class RunsService {
           finishedAt: now,
         },
       });
+      this.metrics?.countRunStatus(RunStatus.CANCELLED);
       return { run: updated, alreadyTerminal: false, flipped: true };
     }
 
@@ -141,7 +152,7 @@ export class RunsService {
     if (orig.status !== RunStatus.FAILED && orig.status !== RunStatus.CANCELLED) {
       throw new BadRequestException('only FAILED or CANCELLED runs can be retried');
     }
-    return this.prisma.harnessRun.create({
+    const created = await this.prisma.harnessRun.create({
       data: {
         harnessId: orig.harnessId,
         projectId: orig.projectId,
@@ -154,6 +165,8 @@ export class RunsService {
         status: RunStatus.QUEUED,
       },
     });
+    this.metrics?.countRunStatus(RunStatus.QUEUED);
+    return created;
   }
 
   async appendStep(input: AppendStepInput): Promise<RunStep> {

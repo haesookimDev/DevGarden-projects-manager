@@ -1,8 +1,9 @@
 import { Buffer } from 'node:buffer';
-import { BadRequestException, Injectable, Logger } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, Optional } from '@nestjs/common';
 import type { Notification, Prisma } from '@prisma/client';
-import { Subject, type Observable, filter, map } from 'rxjs';
+import { Observable, Subject, filter, map } from 'rxjs';
 import { decryptEnvelopeUtf8, encryptEnvelope } from '../crypto/envelope';
+import { MetricsService } from '../metrics/metrics.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { EmailChannel } from './email.channel';
 import { SlackWebhookChannel } from './slack-webhook.channel';
@@ -71,14 +72,26 @@ export class NotificationService {
     private readonly prisma: PrismaService,
     private readonly slack: SlackWebhookChannel,
     private readonly email: EmailChannel,
+    @Optional() private readonly metrics?: MetricsService,
   ) {}
 
   // Live web-toast notifications for a user (powers the SSE endpoint).
+  // Increments the SSE-client gauge on subscribe and decrements when the
+  // subscriber tears down (browser closes, BFF proxy aborts, etc.).
   streamFor(userId: string): Observable<NotificationView> {
-    return this.stream$.pipe(
-      filter((e) => e.userId === userId),
-      map((e) => e.notification),
-    );
+    return new Observable<NotificationView>((subscriber) => {
+      this.metrics?.sseClientConnected();
+      const sub = this.stream$
+        .pipe(
+          filter((e) => e.userId === userId),
+          map((e) => e.notification),
+        )
+        .subscribe(subscriber);
+      return () => {
+        sub.unsubscribe();
+        this.metrics?.sseClientDisconnected();
+      };
+    });
   }
 
   async getSettings(userId: string): Promise<NotificationSettingsView> {
@@ -234,14 +247,17 @@ export class NotificationService {
   ): Promise<void> {
     if (settings?.webToast ?? DEFAULT_WEB_TOAST) {
       await this.deliverWebToast(userId, n);
+      this.metrics?.countNotification('webToast');
     }
     const slackUrl = decryptSlackUrl(settings?.slackWebhookUrl ?? null);
     if (slackUrl) {
       await this.slack.send(slackUrl, { text: n.body ? `${n.title} — ${n.body}` : n.title });
+      this.metrics?.countNotification('slack');
     }
     if (settings?.emailEnabled && settings.emailAddress) {
       const lines = [n.body ?? '', n.runId ? `Run: ${n.runId}` : ''].filter(Boolean);
       await this.email.send(settings.emailAddress, n.title, lines.join('\n\n') || n.title);
+      this.metrics?.countNotification('email');
     }
   }
 
