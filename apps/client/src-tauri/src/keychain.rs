@@ -70,3 +70,11 @@ pub fn keychain_delete() -> Result<(), KeychainError> {
         Err(err) => Err(err.into()),
     }
 }
+
+/// Reads DEVGARDEN_PAIRING_STORAGE. When set to "file" the JS storage
+/// router skips the keychain probe entirely and uses the legacy file
+/// backend — escape hatch for headless / sandboxed environments.
+#[tauri::command]
+pub fn pairing_storage_override() -> String {
+    std::env::var("DEVGARDEN_PAIRING_STORAGE").unwrap_or_default()
+}
