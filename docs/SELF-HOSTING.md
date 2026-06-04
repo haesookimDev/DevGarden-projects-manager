@@ -126,6 +126,8 @@ cp .env.example .env
 | `AUTH_URL`                                          | 브라우저로 접근하는 **web** 주소 (예: `http://localhost:3000`). OAuth callback redirect_uri 의 base.                                                                                                           |
 | `NEXT_PUBLIC_API_URL`                               | 브라우저가 접근하는 api 주소. 보통 `https://devgarden.example.com`.                                                                                                                                            |
 | `SMTP_HOST` / `_PORT` / `_USER` / `_PASS` / `_FROM` | (선택, v0.2 N5) email 알림 채널용 SMTP relay. `SMTP_HOST` 가 비면 email 발송 비활성 (web toast / Slack 은 정상). Slack 은 별도 env 없이 사용자별 webhook URL 을 `/dashboard/settings/notifications` 에서 등록. |
+| `LOG_LEVEL`                                         | (선택, v0.3 P4-3) api 로그 임계값. prod 기본 `info`, dev 기본 `debug`. 자세한 건 §6.1.                                                                                                                         |
+| `METRICS_PUBLIC`                                    | (선택, v0.3 P4-4) `true` 면 `/metrics` 를 익명 scrape 허용. 미설정 시 `INTERNAL_API_SECRET` 헤더 매치 필요. 자세한 건 §6.2.                                                                                    |
 
 > ⚠ OAuth App 의 "Authorization callback URL" 은 **`${AUTH_URL}/api/auth/callback/github`** 와 정확히 일치해야 한다. 안 그러면 로그인 후 GitHub 가 `redirect_uri_mismatch` 로 거절한다. 로컬 테스트라면 OAuth App 의 callback URL 을 `http://localhost:3000/api/auth/callback/github` 로 등록.
 
@@ -214,9 +216,73 @@ Prisma migration 은 api 컨테이너 부팅 시 `migrate deploy` 가 자동 실
 ./infra/backup.sh && docker compose -f infra/docker-compose.yml up -d --build
 ```
 
-## 6. Troubleshooting
+## 6. 옵저버빌리티 (로그 + metrics)
 
-### 6.1 `STATUS` 가 `(unhealthy)`
+v0.3 부터 api 는 **구조화된 로그** (JSON 한 줄) 와 **Prometheus `/metrics`** 엔드포인트를 노출한다.
+
+### 6.1 로그
+
+api 는 [pino](https://github.com/pinojs/pino) 기반 logger 로 stdout 에 출력한다.
+
+- **prod** (`NODE_ENV=production`, prod compose 기본): JSON 한 줄. `level / time / pid / hostname / msg / context` + 추가 필드.
+- **dev** (`pnpm dev`): `pino-pretty` single-line, ANSI 색깔.
+- 환경변수 `LOG_LEVEL` 로 임계값 조정 — 기본 prod=`info`, dev=`debug`. 가능한 값: `trace / debug / info / warn / error / fatal`.
+- `/healthz` 와 `/healthz/ready` 의 자동 access log 는 끔 (compose healthcheck 가 30초 간격으로 호출해서 시끄러움).
+
+수집: `docker logs api` 또는 fluentd / Loki / CloudWatch 의 `docker` driver 로 stdout 수집. JSON 라인을 그대로 파싱한다.
+
+```bash
+docker compose -f infra/docker-compose.yml logs -f api | jq .
+```
+
+### 6.2 Metrics
+
+api 는 `GET /metrics` 에서 Prometheus text 형식으로 metric 을 노출한다. 기본은 비공개 — `INTERNAL_API_SECRET` 헤더 매치 또는 `METRICS_PUBLIC=true` env 가 필요.
+
+```bash
+# 기본 (private): scraper 가 헤더로 인증
+curl -s -H "x-internal-secret: $INTERNAL_API_SECRET" http://localhost:3001/metrics
+
+# 사설망 Prometheus 만 닿는 환경이라면 anonymous 도 허용:
+METRICS_PUBLIC=true   # compose env, api 재기동 후 적용
+```
+
+핵심 metric (operator 가 대시보드에 꽂을 만한 것):
+
+| metric                            | type      | labels                      | 의미                                                                                                       |
+| --------------------------------- | --------- | --------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| `dg_http_requests_total`          | counter   | `method`, `route`, `status` | API 요청 카운트 (`/metrics` 자체와 SSE stream 제외)                                                        |
+| `dg_run_status_total`             | counter   | `status`                    | run 상태 transition 카운트 (QUEUED/RUNNING/SUCCESS/FAILED/CANCELLED). unique run 수가 아니라 transition 수 |
+| `dg_notification_delivered_total` | counter   | `channel`                   | 알림 채널 별 발송 횟수 (`webToast`/`slack`/`email`)                                                        |
+| `dg_notification_sse_clients`     | gauge     | —                           | 현재 연결된 알림 SSE 클라이언트 수 (인스턴스 별)                                                           |
+| `dg_process_*` / `dg_nodejs_*`    | (default) | —                           | prom-client 의 기본 process / nodejs metric                                                                |
+
+Prometheus scrape 설정 예시:
+
+```yaml
+scrape_configs:
+  - job_name: devgarden-api
+    scrape_interval: 30s
+    metrics_path: /metrics
+    static_configs:
+      - targets: ['api:3001']
+    authorization:
+      type: ''
+    # 권장: env 로 secret 주입
+    http_headers:
+      x-internal-secret:
+        values:
+          - '<INTERNAL_API_SECRET>'
+```
+
+### 6.3 다중 인스턴스 주의 (v0.3 시점)
+
+- `dg_notification_sse_clients` 는 **per-process** gauge. 인스턴스 2 개 띄우면 Prometheus 가 자동 합산한다 (각 인스턴스가 별도 target).
+- 알림 SSE 자체는 v0.3 시점 in-process Subject. 다중 인스턴스 fan-out (Redis pub/sub) 은 P1 마일스톤 작업 항목.
+
+## 7. Troubleshooting
+
+### 7.1 `STATUS` 가 `(unhealthy)`
 
 ```bash
 docker compose -f infra/docker-compose.yml logs --tail=200 api
@@ -226,13 +292,13 @@ docker compose -f infra/docker-compose.yml logs --tail=200 postgres
 - `api unhealthy` 인데 postgres 는 healthy → `/healthz/ready` 가 503 — 보통 DATABASE_URL 오타, 또는 마이그레이션 실패. api 로그 확인.
 - `web unhealthy` → `/api/healthz` 가 응답 못 함 — Next 가 부팅 실패. web 로그에서 `Error:` 스택 확인.
 
-### 6.1.0 데스크탑 클라이언트가 "Load failed" 로 페어링 실패
+### 7.1.0 데스크탑 클라이언트가 "Load failed" 로 페어링 실패
 
 macOS WKWebView 가 CORS 에 의해 차단됐을 때 보여주는 메시지. api 가 응답하지만 `Access-Control-Allow-Origin` 헤더가 없어서 브라우저가 응답을 버린다. v0.1 부터 api 는 `tauri://localhost` / `https://tauri.localhost` 를 기본 allow-list 에 포함한다 — 그 외 origin 에서 호출하려면 `.env` 에 `CORS_ALLOW_ORIGINS=https://your-origin` 을 추가.
 
 확인: `docker compose -f infra/docker-compose.yml logs --tail=50 api | grep CORS` 로 거절 로그 확인.
 
-### 6.1.1 로그인 시 GitHub 에서 `redirect_uri_mismatch` 또는 callback 이 `0.0.0.0` 으로 감
+### 7.1.1 로그인 시 GitHub 에서 `redirect_uri_mismatch` 또는 callback 이 `0.0.0.0` 으로 감
 
 `AUTH_URL` 미설정이거나 OAuth App 의 callback URL 이 일치하지 않을 때. 둘 다 확인:
 
@@ -241,7 +307,7 @@ macOS WKWebView 가 CORS 에 의해 차단됐을 때 보여주는 메시지. api
 
 수정 후 web 컨테이너만 재시작: `docker compose -f infra/docker-compose.yml up -d --force-recreate web`.
 
-### 6.1.2 프로젝트 등록 시 `Repository ... not found for installation N`
+### 7.1.2 프로젝트 등록 시 `Repository ... not found for installation N`
 
 GitHub App 의 installation 이 그 repo 에 access 권한을 안 받았을 때. PEM / installation ID / repo 이름 모두 맞아도 권한이 없으면 GitHub 가 404 로 거절한다.
 
@@ -249,7 +315,7 @@ GitHub App 의 installation 이 그 repo 에 access 권한을 안 받았을 때.
 
 흔한 원인: 처음 install 할 때 "Only select repositories" 로 했는데 새 repo 가 list 에 없음 / repo 이름 오타 (대소문자 + 하이픈).
 
-### 6.1.3 프로젝트 등록 시 `Invalid keyData`
+### 7.1.3 프로젝트 등록 시 `Invalid keyData`
 
 `GITHUB_APP_PRIVATE_KEY` 가 깨진 상태로 컨테이너에 도달함. base64 인코딩 입력 권장 (§1.3 끝 blockquote). 진단:
 
@@ -265,25 +331,25 @@ docker exec devgarden-api sh -c '
 
 length 가 0 → compose 가 .env 못 읽음 (root 디렉터리에서 실행해야 함). length 가 짧음 → multi-line PEM 이 따옴표 없이 들어가 첫 줄만 잘림 → base64 로 교체.
 
-### 6.2 로그인했는데 dashboard 진입 직후 401
+### 7.2 로그인했는데 dashboard 진입 직후 401
 
 - `INTERNAL_API_SECRET` 가 web 과 api 컨테이너에서 다를 때. .env 한 곳에서 동일하게 관리하고 두 컨테이너 모두
   rebuild.
 
-### 6.3 webhook 이 안 들어옴
+### 7.3 webhook 이 안 들어옴
 
 - GitHub Webhook deliveries 페이지에서 redelivery 시도 → 401 / 504 등 응답 확인.
 - 401 → `GITHUB_WEBHOOK_SECRET` 미스매치. `.env` 와 GitHub App 양쪽 동일하게.
 - 504 → api 가 reverse proxy 뒤에 있고 raw body 가 변조되어 HMAC 실패. nginx 라면 `proxy_request_buffering on;`
   유지 + body 변경 금지.
 
-### 6.4 디스크가 가득 참
+### 7.4 디스크가 가득 참
 
 - 백업 dir 비대 → `--keep N` 옵션 + 외부 보관 (§4.2).
 - docker 로그 비대 → 본 PR 의 prod compose 가 이미 `max-size: 10m × 3` 으로 제한. 추가로 줄이고 싶다면
   `docker system prune -a` 로 사용하지 않는 이미지 정리.
 
-## 7. 보안 체크리스트
+## 8. 보안 체크리스트
 
 - [ ] `.env` 파일은 호스트 외부에 절대 노출하지 않는다 (이미 `.gitignore`).
 - [ ] `GITHUB_APP_PRIVATE_KEY` 는 가능하면 `secrets:` 마운트로 (env var 평문 전달 회피).
@@ -292,7 +358,7 @@ length 가 0 → compose 가 .env 못 읽음 (root 디렉터리에서 실행해�
 - [ ] `INTERNAL_API_SECRET` 는 외부에 노출되면 절대 안 됨 — 평문 ws auth.token 으로도 사용되므로 TLS 필수.
 - [ ] 정기 백업이 실제로 돌고 있는지 cron 로그 / 별도 모니터로 확인.
 
-## 8. 다음 단계
+## 9. 다음 단계
 
 - 분석/메트릭 → 대시보드: [`/dashboard/runs`](../README.md) (cost / success rate) 와 [`/dashboard/tasks`](../README.md) (GitHub issues + 내부 todo).
 - 자동 PR 생성 흐름은 [`docs/HARNESS-FORMAT.md`](./HARNESS-FORMAT.md) 의 `github.openPR` 예시 참고.
