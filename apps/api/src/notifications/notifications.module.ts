@@ -1,10 +1,12 @@
 import { Module } from '@nestjs/common';
+import { MetricsModule } from '../metrics/metrics.module';
 import { EmailChannel, MAIL_TRANSPORT, buildSmtpTransport } from './email.channel';
 import { NotificationsInternalController } from './notifications.internal.controller';
 import { NotificationService } from './notifications.service';
 import { SlackWebhookChannel } from './slack-webhook.channel';
 
 @Module({
+  imports: [MetricsModule],
   controllers: [NotificationsInternalController],
   providers: [
     NotificationService,
