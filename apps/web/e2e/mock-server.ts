@@ -11,11 +11,16 @@ export interface MockServerHandle {
   close: () => Promise<void>;
 }
 
-const MOCK_USER = {
+const DEFAULT_MOCK_USER = {
   id: 999_001,
   login: 'test-user',
   email: 'test-user@example.com',
   name: 'Test User',
+};
+// Mutable so /mock/set-oauth-login can swap in a denied user for the
+// allow-list rejection e2e (P3-4). Reset by /mock/reset-oauth-state.
+let MOCK_USER: { id: number; login: string; email: string; name: string } = {
+  ...DEFAULT_MOCK_USER,
 };
 const MOCK_DB_USER_ID = 'cuid_test_user';
 const MOCK_ACCESS_TOKEN = 'mock-access-token';
@@ -85,6 +90,29 @@ function handle(req: IncomingMessage, res: ServerResponse): void {
         res.writeHead(400).end('invalid body');
       }
     });
+    return;
+  }
+
+  if (url.pathname === '/mock/set-oauth-login' && req.method === 'POST') {
+    readBody(req).then((raw) => {
+      try {
+        const body = JSON.parse(raw || '{}') as { login?: string };
+        if (typeof body.login === 'string' && body.login.length > 0) {
+          MOCK_USER = { ...MOCK_USER, login: body.login };
+        }
+        res
+          .writeHead(200, { 'content-type': 'application/json' })
+          .end(JSON.stringify({ login: MOCK_USER.login }));
+      } catch {
+        res.writeHead(400).end('invalid body');
+      }
+    });
+    return;
+  }
+
+  if (url.pathname === '/mock/reset-oauth-state' && req.method === 'POST') {
+    MOCK_USER = { ...DEFAULT_MOCK_USER };
+    res.writeHead(200, { 'content-type': 'application/json' }).end(JSON.stringify({ ok: true }));
     return;
   }
 
