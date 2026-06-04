@@ -8,11 +8,11 @@
 
 ## Progress snapshot (2026-06-02)
 
-- **머지된 GitHub PR**: 127 개 (PR #1 ~ #127) — **v0.1.0 + v0.2.0 + v0.2.1 릴리즈 완료**. v0.2 N0~N6 전부 완료. v0.3 **P4 + P1 + P2 마일스톤 완료**: P4 (PR #113–#118) PR-time docker build smoke, tauri smoke trigger 확장, pino 구조화 로그, Prometheus `/metrics`, run/notification/SSE 도메인 metric. P1 (PR #119–#123) ioredis RedisModule, NotificationsService Redis publish + subscribe, RunsGateway socket.io Redis adapter, docker-compose multi-instance profile. P2 (PR #124–#128) Tauri keyring rust commands, JS bridge + auto-migration, file-fallback env override + insecure-storage banner.
-- **테스트**: api 97 unit + 181 integration + client-runner 43 + web 18 unit + web 80 e2e + harness-core 32 + harness-templates 10 + llm-adapters 10 + client 34 = **505 cases**
+- **머지된 GitHub PR**: 131 개 (PR #1 ~ #131) — **v0.1.0 + v0.2.0 + v0.2.1 릴리즈 완료**. v0.2 N0~N6 전부 완료. **v0.3 P1 + P2 + P3 + P4 마일스톤 완료** (총 20 PR, PR #113–#132): P4 (#113–#118) PR-time docker build smoke + pino + Prometheus `/metrics`. P1 (#119–#123) ioredis fan-out + socket.io Redis adapter + multi-instance compose. P2 (#124–#128) Tauri keychain + auto-migration + insecure storage warning. P3 (#129–#132) NextAuth URL helper + mock OAuth hooks + 진짜 OAuth round-trip e2e (HTTPS dev 는 v0.4+ 로 이관).
+- **테스트**: api 97 unit + 181 integration + web 21 unit + web 82 e2e + client-runner 43 + harness-core 32 + harness-templates 10 + llm-adapters 10 + client 34 = **510 cases**
 - **CI**: 5 jobs (Lint · Typecheck · Unit · Integration · E2E) + **PR-time Docker build smoke (api/web)** 전부 green. Tauri build smoke 는 push-to-main / v\* tag / weekly cron / dispatch.
 - **운영 정책 도입**: 한 PR 안의 commit 분리(§4), CI 통과 시 자동 머지(§6)
-- **다음 우선순위**: v0.3 의 마지막 **P3 (OAuth e2e + HTTPS dev)** — 의존성 없음.
+- **다음 우선순위**: v0.3.0 릴리즈 — CHANGELOG entry + tag + GitHub Release. 기능 마일스톤 (P1~P4) 은 전부 완료.
 
 | Milestone                          | 상태                                         |
 | ---------------------------------- | -------------------------------------------- |
