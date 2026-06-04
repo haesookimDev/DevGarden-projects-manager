@@ -1,6 +1,7 @@
 import NextAuth, { type DefaultSession } from 'next-auth';
 import GitHub from 'next-auth/providers/github';
 import { isAllowed, parseAllowList } from './lib/auth/allow-list';
+import { getGithubOAuthUrls } from './lib/auth/github-oauth-urls';
 import { upsertUserViaApi } from './lib/auth/upsert-user';
 
 declare module 'next-auth' {
@@ -26,6 +27,7 @@ declare module 'next-auth/jwt' {
 }
 
 const allowList = parseAllowList(process.env.OWNER_GITHUB_LOGINS);
+const githubUrls = getGithubOAuthUrls();
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   trustHost: true,
@@ -34,15 +36,16 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     GitHub({
       clientId: process.env.AUTH_GITHUB_ID,
       clientSecret: process.env.AUTH_GITHUB_SECRET,
-      // URL overrides exist so end-to-end tests can swap GitHub for a local mock.
-      // In production these env vars are unset and NextAuth falls back to github.com.
+      // URL overrides (AUTH_GITHUB_*_URL) come from getGithubOAuthUrls() so
+      // P3 e2e can swap in a local mock provider over HTTPS without touching
+      // the rest of the auth wiring. Production leaves the env vars unset
+      // and the helper returns the github.com defaults.
       authorization: {
-        url:
-          process.env.AUTH_GITHUB_AUTHORIZATION_URL ?? 'https://github.com/login/oauth/authorize',
+        url: githubUrls.authorizationUrl,
         params: { scope: 'read:user user:email' },
       },
-      token: process.env.AUTH_GITHUB_TOKEN_URL ?? 'https://github.com/login/oauth/access_token',
-      userinfo: process.env.AUTH_GITHUB_USERINFO_URL ?? 'https://api.github.com/user',
+      token: githubUrls.tokenUrl,
+      userinfo: githubUrls.userinfoUrl,
     }),
   ],
   callbacks: {
