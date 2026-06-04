@@ -126,6 +126,7 @@ cp .env.example .env
 | `AUTH_URL`                                          | 브라우저로 접근하는 **web** 주소 (예: `http://localhost:3000`). OAuth callback redirect_uri 의 base.                                                                                                           |
 | `NEXT_PUBLIC_API_URL`                               | 브라우저가 접근하는 api 주소. 보통 `https://devgarden.example.com`.                                                                                                                                            |
 | `SMTP_HOST` / `_PORT` / `_USER` / `_PASS` / `_FROM` | (선택, v0.2 N5) email 알림 채널용 SMTP relay. `SMTP_HOST` 가 비면 email 발송 비활성 (web toast / Slack 은 정상). Slack 은 별도 env 없이 사용자별 webhook URL 을 `/dashboard/settings/notifications` 에서 등록. |
+| `REDIS_URL`                                         | (선택, v0.3 P1) 다중 api 인스턴스 fan-out 용 pub/sub 백엔드. 단일 인스턴스면 비워둠. 자세한 건 §6.3.                                                                                                           |
 | `LOG_LEVEL`                                         | (선택, v0.3 P4-3) api 로그 임계값. prod 기본 `info`, dev 기본 `debug`. 자세한 건 §6.1.                                                                                                                         |
 | `METRICS_PUBLIC`                                    | (선택, v0.3 P4-4) `true` 면 `/metrics` 를 익명 scrape 허용. 미설정 시 `INTERNAL_API_SECRET` 헤더 매치 필요. 자세한 건 §6.2.                                                                                    |
 
@@ -275,10 +276,70 @@ scrape_configs:
           - '<INTERNAL_API_SECRET>'
 ```
 
-### 6.3 다중 인스턴스 주의 (v0.3 시점)
+### 6.3 다중 인스턴스 셋업 (v0.3 P1)
 
-- `dg_notification_sse_clients` 는 **per-process** gauge. 인스턴스 2 개 띄우면 Prometheus 가 자동 합산한다 (각 인스턴스가 별도 target).
-- 알림 SSE 자체는 v0.3 시점 in-process Subject. 다중 인스턴스 fan-out (Redis pub/sub) 은 P1 마일스톤 작업 항목.
+기본 compose 는 단일 api 인스턴스 가정. 두 대 이상 띄울 경우 알림 SSE 와 socket.io broadcast 가 인스턴스 간 fan-out 되도록 Redis 가 필요하다 (P1).
+
+#### 6.3.1 부팅
+
+```bash
+# bundled redis 와 함께
+REDIS_URL=redis://redis:6379 \
+docker compose -f infra/docker-compose.yml \
+  --profile multi-instance up -d
+```
+
+- `--profile multi-instance` 가 redis 서비스를 활성화 (default profile 에는 안 뜸 → 단일 인스턴스 사용자에게 추가 컨테이너 부담 없음).
+- 외부 Redis (관리형 / 다른 호스트) 가 이미 있으면 profile 생략 + `REDIS_URL=rediss://...` 만 .env 에 추가.
+
+#### 6.3.2 api scale=2
+
+기본 compose 의 api 서비스가 `container_name` 을 가지므로 그대로 scale 명령은 충돌. 두 가지 방법:
+
+1. **scale-friendly override 파일** — `container_name` 을 비우는 override 작성 후 `--scale api=2`.
+2. **외부 로드밸런서 + 별도 호스트** — 각 호스트에 같은 compose 를 띄우고 같은 REDIS_URL 을 가리키게 한다. 단순함.
+
+```bash
+# 옵션 1 예시
+cat > infra/docker-compose.scale.yml <<'YAML'
+services:
+  api:
+    container_name: ''
+YAML
+
+REDIS_URL=redis://redis:6379 \
+docker compose \
+  -f infra/docker-compose.yml \
+  -f infra/docker-compose.scale.yml \
+  --profile multi-instance \
+  up -d --scale api=2
+```
+
+> 두 api 컨테이너가 모두 0.0.0.0:3001 을 점유하려 하기 때문에 host port mapping (`API_PORT`) 도 제거하거나 reverse proxy 뒤에 두는 것이 정상 운영 패턴. 호스트 직접 노출은 dogfood 수준.
+
+#### 6.3.3 검증
+
+```bash
+# 1. 두 api 컨테이너 둘 다 healthy
+docker compose -f infra/docker-compose.yml ps
+
+# 2. 한 인스턴스에 직접 붙어서 run 트리거 → 다른 인스턴스의 /metrics 에 dg_run_status_total 증가 확인
+curl -H "x-internal-secret: $INTERNAL_API_SECRET" http://api-1:3001/metrics | grep dg_run_status_total
+curl -H "x-internal-secret: $INTERNAL_API_SECRET" http://api-2:3001/metrics | grep dg_run_status_total
+
+# 3. 브라우저로 한 인스턴스에 붙은 후 다른 인스턴스에서 발생한 알림이 toast 로 도착
+```
+
+#### 6.3.4 fallback 동작
+
+- Redis 가 일시 unreachable → notification publish 실패 시 origin api 가 local stream 으로 best-effort emit (자기 인스턴스 브라우저는 받음). 다른 인스턴스 브라우저는 그 알림을 못 받음.
+- ioredis 가 자동 reconnect. 연결 회복 후 새 알림부터 정상 fan-out.
+- 영구 메시지 큐 / retry 는 v0.4+ (현재는 best-effort).
+
+#### 6.3.5 metric 관찰
+
+- `dg_notification_sse_clients` 는 **per-process** gauge → Prometheus 가 두 인스턴스의 값을 자동 합산.
+- 각 인스턴스의 redis publish 카운트는 v0.3 시점엔 노출 안 함 (v0.4+ 후보).
 
 ## 7. Troubleshooting
 
