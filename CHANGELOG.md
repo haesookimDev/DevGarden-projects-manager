@@ -3,6 +3,68 @@
 본 프로젝트의 모든 주요 변경 사항을 기록한다. [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 형식을
 느슨하게 따르며 — semver 적용. 자세한 PR 단위 작업 이력은 [`docs/ROADMAP.md`](docs/ROADMAP.md).
 
+## [v0.3.0] — 2026-06-04
+
+### Production hardening
+
+v0.2 는 운영자 한 명이 매일 쓸 만한 도구였다. v0.3 은 그걸 **여러 인스턴스에서, 더 안전하게, 더 관측 가능하게**
+운영할 수 있는 수준으로 끌어올렸다. 새 기능 확장은 없음 — v0.2 known limitations 중 운영 위험성에 직결된
+4개 항목을 narrow & deep 으로 정리. 4 마일스톤 (P1~P4), 20 PRs.
+
+### Added
+
+- **P1 — Multi-instance SSE + Redis pub/sub** — `NotificationsService` 가 `REDIS_URL` 설정 시 `dg:notif`
+  채널로 publish, 모든 api 인스턴스의 subscriber 가 stream$ 으로 fan-out. `RunsGateway` 의 socket.io 도
+  `@socket.io/redis-adapter` 로 lift — `server.to('run:<id>').emit()` 가 모든 인스턴스에 도달.
+  `infra/docker-compose.yml` 에 `--profile multi-instance` 로 redis 서비스 (off by default). 단일 인스턴스
+  사용자는 추가 인프라 0.
+- **P2 — Client JWT OS keychain** — Tauri Rust `keyring` crate 직접 binding 으로 페어링 JWT 를 macOS
+  Keychain / Windows Credential Manager / Linux libsecret 에 저장. 기존 `pairing.json` 사용자는 첫 실행 시
+  자동으로 keychain 으로 migrate 후 plain 파일 삭제. 키체인 unavailable (libsecret 없음 / sandbox) 시
+  파일 fallback + amber "Insecure storage" 배너. `DEVGARDEN_PAIRING_STORAGE=file` env override 도 동일
+  배너로 안내.
+- **P3 — OAuth round-trip e2e** — v0.1 이후 manual smoke 의존이었던 `/api/auth/callback/github` /
+  allow-list / 세션 cookie 셋업이 PR-time e2e 로 검증. happy path + allow-list 거부 path 2 케이스.
+  `apps/web/src/auth.ts` 의 `userinfoConfig` 가 `oauth4webapi` 의 HTTPS hardcoded 체크를 우회 (production
+  영향 0 — env 가드). `pages.error: '/signin'` 로 거부 사용자가 SignInPage 의 AccessDenied 배너로 라우팅.
+- **P4 — Ops + CI hardening** — PR-time docker build smoke (api/web buildx + GHA cache). pino 기반 구조화
+  로그 (prod=JSON 한 줄, dev=pino-pretty). Prometheus `/metrics` (4 도메인 metric:
+  `dg_http_requests_total`, `dg_run_status_total`, `dg_notification_delivered_total`,
+  `dg_notification_sse_clients`). `tauri-build-smoke.yml` 트리거 확장 (v\* tags + weekly cron) — release
+  blocker 사고 (v0.2.1 docker 깨짐) 재발 방지.
+
+### Changed
+
+- api 가 `OnApplicationShutdown` 으로 redis 클라이언트 정리, `app.enableShutdownHooks()` 로 SIGTERM/SIGINT
+  처리.
+- NextAuth `pages.error` 가 `/signin` 으로 라우팅 — generic `/api/auth/error` 대신 기존 SignInPage 의
+  AccessDenied 배너 사용.
+- `infra/docker-compose.yml` 의 api 서비스가 `REDIS_URL` / `LOG_LEVEL` / `METRICS_PUBLIC` env 통과.
+- `.env.example` 에 v0.3 신규 env 4 개 (REDIS_URL / LOG_LEVEL / METRICS_PUBLIC + 주석) 추가.
+- `docs/SELF-HOSTING.md` 가 §3.1 키체인 저장, §6 옵저버빌리티 (logs + metrics), §6.3 다중 인스턴스 셋업
+  반영.
+
+### Stats
+
+- **PR 머지**: 20 (PR #112 ~ #132) — v0.3 plan + P1+P2+P3+P4 — 누적 132.
+- **테스트**: api 97 unit + 181 integration · client-runner 43 · web 21 unit + 82 e2e · harness-core 32 ·
+  harness-templates 10 · llm-adapters 10 · client 34 = **510 cases** (누적, v0.2.1 471 → +39).
+- **CI**: 6 jobs (Lint · Typecheck · Unit · Integration · E2E · **Docker build smoke**) 모두 green +
+  Tauri build smoke (push-to-main / v\* tag / weekly cron / dispatch).
+
+### Known Limitations (v0.4+ 백로그)
+
+- **HTTPS dev cert (mkcert)** — P3 시 `oauth4webapi` 우회로 HTTP mock 위에서 round-trip 검증이 가능해져
+  HTTPS 셋업을 v0.4+ 로 미룸. 실 github.com round-trip / Secure cookie attr / HSTS 검증이 필요해질 때 재개.
+- **Multi-instance dogfood** — 자동화된 acceptance 는 unit/integration 으로 검증되지만 실제 `docker scale=2`
+  로 띄운 운영 환경 dogfood 는 release-time 수동 항목.
+- **Keychain dogfood** — Mac/Linux 페어링 후 plain 파일 부재 + OS 재시작 후 자동 재연결 검증은 수동 항목.
+- **Redis 장애 retry queue** — 현재 best-effort (publish 실패 시 local fallback). 영구 메시지 큐 / retry 는
+  v0.4+.
+- **per-project 알림 override UI** — v0.2 N5 known limitation 유지.
+- **Team / multi-user 권한 모델** — single-owner 유지.
+- **하네스 노드 UI, signed installers, i18n, Tauri Rust tools port** — v0.2 백로그 그대로.
+
 ## [v0.2.1] — 2026-05-29
 
 ### Fixed
@@ -107,6 +169,7 @@ GitHub issue 자동 미러 → 자동 PR 생성 → 백업/복구 — 이 끝에
 - **Signed installers (Mac/Win/Linux)** — Apple / Microsoft 인증서 발급이 환경 의존적이라 백로그.
 - **하네스 노드 UI (drag-drop)** / 다중 클라이언트 라우팅 · 큐잉 / 멀티 LLM provider routing / 클라이언트 JWT OS keychain 저장.
 
+[v0.3.0]: https://github.com/haesookimDev/DevGarden-projects-manager/releases/tag/v0.3.0
 [v0.2.1]: https://github.com/haesookimDev/DevGarden-projects-manager/releases/tag/v0.2.1
 [v0.2.0]: https://github.com/haesookimDev/DevGarden-projects-manager/releases/tag/v0.2.0
 [v0.1.0]: https://github.com/haesookimDev/DevGarden-projects-manager/releases/tag/v0.1.0
